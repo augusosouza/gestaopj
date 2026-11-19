@@ -8,7 +8,7 @@
     <thead><tr><th>Nome</th><th>Tipo</th><th>Documento</th><th class="n">Alocações</th><th></th></tr></thead>
     <tbody>
     @forelse ($prestadores as $p)
-      <tr><td>{{ $p->nome }}</td><td><span class="tag">{{ $p->tipo->value }}</span></td><td class="mono">{{ doc($p->documento) }}</td><td class="n">{{ $p->alocacoes_count }}</td><td><a href="{{ route('prestadores.edit', $p) }}">Editar</a></td></tr>
+      <tr><td>{{ $p->nome }}</td><td><span class="tag rotulo">{{ $p->tipo->value }}</span></td><td class="mono">{{ doc($p->documento) }}</td><td class="n">{{ $p->alocacoes_count }}</td><td><a href="{{ route('prestadores.edit', $p) }}">Editar</a></td></tr>
     @empty
       <tr><td colspan="5" class="vazio">Nenhum prestador.</td></tr>
     @endforelse

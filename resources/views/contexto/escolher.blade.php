@@ -11,7 +11,7 @@
         <div>
           <strong>{{ $v->organizacao->razao_social }}</strong>
           <div class="sub" style="margin:0">{{ $v->organizacao->tipo->rotulo() }} · <span class="mono">{{ doc($v->organizacao->cnpj) }}</span></div>
-          <div style="margin-top:4px"><span class="tag">{{ $v->papel->rotulo() }}</span>@if ($v->prestador) <span class="sub">como {{ $v->prestador->nome }}</span>@endif</div>
+          <div style="margin-top:4px"><span class="tag rotulo">{{ $v->papel->rotulo() }}</span>@if ($v->prestador) <span class="sub">como {{ $v->prestador->nome }}</span>@endif</div>
         </div>
         <button>Entrar</button>
       </form>

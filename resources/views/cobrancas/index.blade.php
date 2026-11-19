@@ -3,17 +3,20 @@
 @section('conteudo')
 <div class="barra">
   <div><h1>Contas a pagar</h1><p class="sub" style="margin:0">Cobranças dos prestadores e conferência das notas recebidas</p></div>
+  <div class="acoes">
   <form method="get">
-    <div><label for="status">Status</label>
+    <div><label for="status" class="sr">Status</label>
       <select id="status" name="status" onchange="this.form.submit()">
-        <option value="">Todos</option>
+        <option value="">Todos os status</option>
         @foreach (\App\Enums\StatusCobranca::cases() as $s)
           <option value="{{ $s->value }}" @selected($status === $s)>{{ $s->rotulo() }}</option>
         @endforeach
       </select></div>
-    <div><label for="competencia">Competência</label><input type="month" id="competencia" name="competencia" value="{{ $competencia->format('Y-m') }}" onchange="this.form.submit()"></div>
+    <input type="hidden" name="competencia" value="{{ $competencia->format('Y-m') }}">
     <noscript><button class="sec">Filtrar</button></noscript>
   </form>
+  @include('partials.competencia')
+  </div>
 </div>
 <div class="tabela">
   <table>
@@ -21,7 +24,7 @@
     <tbody>
     @forelse ($cobrancas as $c)
       <tr>
-        <td>{{ $c->prestador->nome }} <span class="tag">{{ $c->prestador->tipo->value }}</span><br><span class="mono">{{ doc($c->prestador->documento) }}</span></td>
+        <td>{{ $c->prestador->nome }} <span class="tag rotulo">{{ $c->prestador->tipo->value }}</span><br><span class="mono">{{ doc($c->prestador->documento) }}</span></td>
         <td>{{ $c->contrato->numero }}<br><span class="sub">{{ $c->contrato->cliente->razao_social }}</span></td>
         <td class="n">{{ brl($c->valor_centavos) }}</td>
         <td>{{ $c->notaFiscal ? 'Nº '.$c->notaFiscal->numero : '—' }}</td>

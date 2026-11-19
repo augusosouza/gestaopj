@@ -6,7 +6,7 @@
   $financeiro = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
   $S = \App\Enums\StatusCobranca::class;
 @endphp
-<p><a href="{{ ctx()->ehPrestador() ? route('painel') : route('cobrancas.index', ['competencia' => $cobranca->competencia->format('Y-m')]) }}">← Voltar</a></p>
+<a class="voltar" href="{{ ctx()->ehPrestador() ? route('painel') : route('cobrancas.index', ['competencia' => $cobranca->competencia->format('Y-m')]) }}">← Voltar</a>
 <h1>{{ $cobranca->prestador->nome }} · {{ $cobranca->competencia->format('m/Y') }}</h1>
 <p class="sub">Contrato {{ $cobranca->contrato->numero }} · @include('partials.status', ['status' => $cobranca->status])</p>
 
@@ -99,8 +99,8 @@
     <thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>Detalhe</th></tr></thead>
     <tbody>
     @foreach ($eventos as $e)
-      <tr><td>{{ $e->created_at->format('d/m/Y H:i') }}</td><td>{{ $e->user?->name ?? 'Sistema' }}</td><td>{{ $e->acao }}</td>
-        <td>{{ collect($e->dados ?? [])->map(fn ($v, $k) => $k === 'valor' ? "valor: ".brl((int) $v) : "$k: $v")->join(' · ') }}</td></tr>
+      <tr><td>{{ $e->created_at->format('d/m/Y H:i') }}</td><td>{{ $e->user?->name ?? 'Sistema' }}</td><td>{{ $e->rotulo() }}</td>
+        <td>{{ collect($e->dados ?? [])->except('chave')->map(fn ($v, $k) => $k === 'valor' ? brl((int) $v) : ($k === 'origem' ? ($v === 'xml' ? 'com XML' : 'só a chave') : $v))->join(' · ') }}</td></tr>
     @endforeach
     </tbody>
   </table></div>

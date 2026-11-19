@@ -3,35 +3,36 @@
 @section('conteudo')
 <div class="barra">
   <div>
-    <h1>Fechamento de {{ $competencia->translatedFormat('F \d\e Y') }}</h1>
-    <p class="sub" style="margin:0">Competência {{ $competencia->format('m/Y') }}</p>
+    <h1>Fechamento do mês</h1>
+    <p class="sub">Competência {{ $competencia->format('m/Y') }} · {{ ctx()->empresa()->razao_social }}</p>
   </div>
-  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+  <div class="acoes">
     @include('partials.competencia')
+    <a class="botao sec" href="{{ route('fechamento.exportar', ['competencia' => $competencia->format('Y-m')]) }}">Exportar .zip</a>
     @if (ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
       <form method="post" action="{{ route('competencias.gerar') }}">
         @csrf <input type="hidden" name="competencia" value="{{ $competencia->format('Y-m') }}">
         <button title="Cria faturas e cobranças dos contratos ativos. Pode ser repetido sem duplicar.">Gerar competência</button>
       </form>
     @endif
-    <a class="botao sec" href="{{ route('fechamento.exportar', ['competencia' => $competencia->format('Y-m')]) }}">Exportar para contabilidade (.zip)</a>
   </div>
 </div>
 
 @if ($r['faturas']->isEmpty() && $r['cobrancas']->isEmpty())
-  <div class="aviso info">Nenhuma fatura ou cobrança nesta competência. Use <strong>Gerar competência</strong> para abrir o mês a partir dos contratos ativos.</div>
+  <div class="aviso info">Nenhuma fatura ou cobrança neste mês. Use <strong>Gerar competência</strong> para abrir o mês a partir dos contratos ativos.</div>
 @endif
 
-<div class="cards">
-  <div class="card"><div class="rot">1 · Quanto faturei</div><div class="num">{{ brl($r['faturado']) }}</div>
-    <div class="det">{{ $r['faturas']->count() }} fatura(s) na competência</div></div>
-  <div class="card"><div class="rot">2 · Quanto recebi</div><div class="num">{{ brl($r['recebido']) }}</div>
-    <div class="det">Falta receber {{ brl($r['a_receber']) }}</div></div>
-  <div class="card"><div class="rot">3 · Quanto devo aos prestadores</div><div class="num">{{ brl($r['devido_prestadores']) }}</div>
-    <div class="det">{{ brl($r['devido_aprovado']) }} já aprovado · {{ brl($r['pago_prestadores']) }} pago</div></div>
-  <div class="card"><div class="rot">4 · Notas pendentes</div><div class="num">{{ $r['pendencias']->count() }}</div>
-    <div class="det">Emitir, receber ou conferir</div></div>
-</div>
+@php($moeda = fn ($c) => new \Illuminate\Support\HtmlString('<small>R$</small>'.e(number_format($c / 100, 2, ',', '.'))))
+<section class="cards" aria-label="Resumo do mês">
+  <div class="card"><div class="rot">Faturado</div><div class="num">{{ $moeda($r['faturado']) }}</div>
+    <div class="det">{{ $r['faturas']->count() }} {{ $r['faturas']->count() === 1 ? 'fatura' : 'faturas' }}</div></div>
+  <div class="card destaque"><div class="rot">Recebido</div><div class="num">{{ $moeda($r['recebido']) }}</div>
+    <div class="det">falta receber {{ brl($r['a_receber']) }}</div></div>
+  <div class="card"><div class="rot">A pagar a prestadores</div><div class="num">{{ $moeda($r['devido_prestadores']) }}</div>
+    <div class="det">{{ brl($r['devido_aprovado']) }} aprovado · {{ brl($r['pago_prestadores']) }} pago</div></div>
+  <div class="card"><div class="rot">Notas pendentes</div><div class="num">{{ $r['pendencias']->count() }}</div>
+    <div class="det">emitir, receber ou conferir</div></div>
+</section>
 
 <h2>Pendências</h2>
 <div class="tabela">
@@ -39,7 +40,7 @@
     <thead><tr><th>Pendência</th><th>Quem</th><th>Contrato</th><th class="n">Valor</th><th></th></tr></thead>
     <tbody>
     @forelse ($r['pendencias'] as $p)
-      <tr><td>{{ $p['tipo'] }}</td><td>{{ $p['quem'] }}</td><td>{{ $p['ref'] }}</td><td class="n">{{ brl($p['valor']) }}</td><td><a href="{{ $p['url'] }}">Abrir</a></td></tr>
+      <tr><td><span class="tag warn">{{ $p['tipo'] }}</span></td><td>{{ $p['quem'] }}</td><td>{{ $p['ref'] }}</td><td class="n">{{ brl($p['valor']) }}</td><td><a href="{{ $p['url'] }}">Abrir</a></td></tr>
     @empty
       <tr><td colspan="5" class="vazio">Nenhuma pendência de nota nesta competência.</td></tr>
     @endforelse
@@ -68,5 +69,5 @@
     @endif
   </table>
 </div>
-<p class="sub" style="margin-top:8px">Margem bruta antes de tributos sobre o faturamento. O cálculo de IBS/CBS por regime entra na fase 3.</p>
+<p class="sub" style="margin-top:10px;font-size:13px">Margem bruta antes de tributos sobre o faturamento. O cálculo de IBS/CBS por regime entra na fase 3.</p>
 @endsection

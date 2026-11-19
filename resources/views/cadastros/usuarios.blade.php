@@ -10,11 +10,11 @@
     @foreach ($vinculos as $v)
       <tr>
         <td>{{ $v->user->name }}<br><span class="sub">{{ $v->user->email }}</span></td>
-        <td><span class="tag">{{ $v->papel->rotulo() }}</span>@if ($v->prestador)<br><span class="sub">{{ $v->prestador->nome }}</span>@endif</td>
+        <td><span class="tag rotulo">{{ $v->papel->rotulo() }}</span>@if ($v->prestador)<br><span class="sub">{{ $v->prestador->nome }}</span>@endif</td>
         <td>{{ $v->inicio->format('d/m/Y') }} – {{ $v->fim?->format('d/m/Y') ?? 'atual' }}<br><span class="sub">por {{ $v->criadoPor?->name ?? 'sistema' }}</span></td>
         <td>@if ($v->vigente() && $v->id !== ctx()->vinculo()->id)
           <form method="post" action="{{ route('usuarios.encerrar', $v) }}">@csrf @method('patch')<button class="link" onclick="return confirm('Encerrar este acesso?')">encerrar</button></form>
-        @elseif (! $v->vigente())<span class="tag">Encerrado</span>@endif</td>
+        @elseif (! $v->vigente())<span class="tag rotulo">Encerrado</span>@endif</td>
       </tr>
     @endforeach
     </tbody>

@@ -20,7 +20,7 @@
     <tbody>
     @forelse ($notas as $n)
       <tr>
-        <td><span class="tag">{{ $n->direcao === 'emitida' ? 'Emitida' : 'Recebida' }}</span></td>
+        <td><span class="tag rotulo">{{ $n->direcao === 'emitida' ? 'Emitida' : 'Recebida' }}</span></td>
         <td>{{ $n->numero ?? '—' }}</td>
         <td>{{ $n->emitente_nome ?? '—' }}<br><span class="mono">{{ doc($n->emitente_documento) }}</span></td>
         <td>{{ $n->tomador_nome ?? '—' }}@if ($n->tomador_documento)<br><span class="mono">{{ doc($n->tomador_documento) }}</span>@endif</td>

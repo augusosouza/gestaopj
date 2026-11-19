@@ -28,6 +28,23 @@ class Evento extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Descrição legível da ação para o histórico. */
+    public function rotulo(): string
+    {
+        return [
+            'cobranca.nota_enviada' => 'Nota enviada',
+            'cobranca.aprovada' => 'Aprovada para pagamento',
+            'cobranca.rejeitada' => 'Nota rejeitada',
+            'cobranca.paga' => 'Pagamento registrado',
+            'fatura.nota_vinculada' => 'NFS-e vinculada',
+            'fatura.recebida' => 'Recebimento registrado',
+            'perfil_fiscal.criado' => 'Perfil fiscal registrado',
+            'perfil_fiscal.confirmado' => 'Perfil fiscal confirmado',
+            'nota.xml_baixado' => 'XML baixado',
+            'fechamento.exportado' => 'Fechamento exportado',
+        ][$this->acao] ?? $this->acao;
+    }
+
     public static function registrar(string $acao, Model $alvo, array $dados = []): self
     {
         return static::create([

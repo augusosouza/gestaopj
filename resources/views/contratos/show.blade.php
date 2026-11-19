@@ -2,7 +2,7 @@
 @section('titulo', 'Contrato '.$contrato->numero)
 @section('conteudo')
 @php($admin = ctx()->tem(\App\Enums\Papel::Admin))
-<p><a href="{{ route('contratos.index') }}">← Contratos</a></p>
+<a class="voltar" href="{{ route('contratos.index') }}">← Contratos</a>
 <div class="barra">
   <div><h1>Contrato {{ $contrato->numero }}</h1><p class="sub" style="margin:0">{{ $contrato->cliente->razao_social }} · {{ $contrato->descricao }}</p></div>
   @if ($admin)<a class="botao sec" href="{{ route('contratos.edit', $contrato) }}">Editar</a>@endif
@@ -20,7 +20,7 @@
   <tbody>
   @forelse ($contrato->alocacoes as $a)
     <tr>
-      <td>{{ $a->prestador->nome }} <span class="tag">{{ $a->prestador->tipo->value }}</span></td>
+      <td>{{ $a->prestador->nome }} <span class="tag rotulo">{{ $a->prestador->tipo->value }}</span></td>
       <td>{{ $a->descricao ?? '—' }}</td>
       <td class="n">{{ brl($a->valor_mensal_centavos) }}</td>
       <td>{{ $a->inicio->format('d/m/Y') }} – {{ $a->fim?->format('d/m/Y') ?? 'atual' }}</td>

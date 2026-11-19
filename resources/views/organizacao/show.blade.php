@@ -25,7 +25,7 @@
           <span class="sub">desde {{ $a->inicio->format('d/m/Y') }}@if ($a->fim) até {{ $a->fim->format('d/m/Y') }}@endif · por {{ $a->concedidaPor?->name ?? '—' }}</span></div>
         @if ($a->vigente())
           <form method="post" action="{{ route('organizacao.revogar', $a) }}">@csrf @method('patch')<button class="perigo" onclick="return confirm('Revogar o acesso deste escritório?')">Revogar</button></form>
-        @else <span class="tag">Encerrada</span> @endif
+        @else <span class="tag rotulo">Encerrada</span> @endif
       </div>
     @endforeach
     <form method="post" action="{{ route('organizacao.autorizar') }}" style="margin-top:12px;display:flex;gap:8px;align-items:end">
