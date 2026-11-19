@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Evento;
 use App\Services\Faturamento;
 use App\Services\Fechamento;
 use App\Support\Competencia;
@@ -25,6 +26,8 @@ class CompetenciaController extends Controller
     {
         $dados = $request->validate(['competencia' => ['required', 'date_format:Y-m']]);
         $c = Competencia::de($dados['competencia']);
+
+        Evento::registrar('fechamento.exportado', ctx()->empresa(), ['competencia' => $c->format('Y-m')]);
 
         return response()->download($fechamento->exportar($c), "fechamento-{$c->format('Y-m')}.zip")->deleteFileAfterSend();
     }

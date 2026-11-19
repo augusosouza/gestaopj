@@ -15,7 +15,7 @@ final class RegistroNotas
 {
     public function __construct(private NfseXmlParser $parser) {}
 
-    public function deXml(UploadedFile|string $arquivo, string $direcao): NotaFiscal
+    public function deXml(int $organizacaoId, UploadedFile|string $arquivo, string $direcao): NotaFiscal
     {
         $xml = $arquivo instanceof UploadedFile ? $arquivo->get() : $arquivo;
         try {
@@ -24,18 +24,19 @@ final class RegistroNotas
             throw ValidationException::withMessages(['xml' => $e->getMessage()]);
         }
 
-        $existente = NotaFiscal::where('chave_acesso', $dados->chaveAcesso)->first();
+        $existente = NotaFiscal::where('organizacao_id', $organizacaoId)->where('chave_acesso', $dados->chaveAcesso)->first();
         if ($existente !== null) {
             // Nota já informada só pela chave: completa com o XML.
             if (! $existente->temXml() && $existente->direcao === $direcao && $existente->emitente_documento === $dados->emitenteDocumento) {
-                $existente->fill($dados->paraModelo() + $this->salvar($xml, $direcao, $dados->chaveAcesso) + ['origem' => 'xml'])->save();
+                $existente->fill($dados->paraModelo() + $this->salvar($organizacaoId, $xml, $direcao, $dados->chaveAcesso) + ['origem' => 'xml'])->save();
 
                 return $existente;
             }
             throw ValidationException::withMessages(['xml' => "Esta NFS-e (chave {$dados->chaveAcesso}) já foi registrada no sistema."]);
         }
 
-        return NotaFiscal::create($dados->paraModelo() + $this->salvar($xml, $direcao, $dados->chaveAcesso) + [
+        return NotaFiscal::create($dados->paraModelo() + $this->salvar($organizacaoId, $xml, $direcao, $dados->chaveAcesso) + [
+            'organizacao_id' => $organizacaoId,
             'direcao' => $direcao,
             'origem' => 'xml',
             'enviada_por' => auth()->id(),
@@ -43,17 +44,18 @@ final class RegistroNotas
     }
 
     /** Prestador informa apenas a chave; o XML pode ser anexado depois (ou obtido no ADN, fase 2). */
-    public function deChave(string $chave, string $direcao): NotaFiscal
+    public function deChave(int $organizacaoId, string $chave, string $direcao): NotaFiscal
     {
         $c = ChaveAcesso::tentar($chave);
         if ($c === null) {
             throw ValidationException::withMessages(['chave_acesso' => 'A chave de acesso da NFS-e deve ter 50 dígitos.']);
         }
-        if (NotaFiscal::where('chave_acesso', $c->valor)->exists()) {
+        if (NotaFiscal::where('organizacao_id', $organizacaoId)->where('chave_acesso', $c->valor)->exists()) {
             throw ValidationException::withMessages(['chave_acesso' => 'Esta NFS-e já foi registrada no sistema.']);
         }
 
         return NotaFiscal::create([
+            'organizacao_id' => $organizacaoId,
             'direcao' => $direcao,
             'chave_acesso' => $c->valor,
             'numero' => $c->numero(),
@@ -63,9 +65,10 @@ final class RegistroNotas
         ]);
     }
 
-    private function salvar(string $xml, string $direcao, string $chave): array
+    /** Arquivo original preservado no disco privado, separado por organização. */
+    private function salvar(int $organizacaoId, string $xml, string $direcao, string $chave): array
     {
-        $caminho = "nfse/{$direcao}/{$chave}.xml";
+        $caminho = "nfse/{$organizacaoId}/{$direcao}/{$chave}.xml";
         Storage::disk('local')->put($caminho, $xml);
 
         return ['xml_path' => $caminho, 'xml_sha256' => hash('sha256', $xml)];

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('titulo', 'Contrato '.$contrato->numero)
 @section('conteudo')
-@php($admin = auth()->user()->tem(\App\Enums\Papel::Admin))
+@php($admin = ctx()->tem(\App\Enums\Papel::Admin))
 <p><a href="{{ route('contratos.index') }}">← Contratos</a></p>
 <div class="barra">
   <div><h1>Contrato {{ $contrato->numero }}</h1><p class="sub" style="margin:0">{{ $contrato->cliente->razao_social }} · {{ $contrato->descricao }}</p></div>

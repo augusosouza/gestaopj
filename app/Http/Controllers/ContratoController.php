@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Alocacao;
 use App\Models\Cliente;
 use App\Models\Contrato;
-use App\Models\Empresa;
 use App\Models\Prestador;
 use App\Support\Dinheiro;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +25,7 @@ class ContratoController extends Controller
 
     public function create(): View
     {
-        return view('contratos.form', ['contrato' => new Contrato(['dia_vencimento' => 10, 'status' => 'ativo']), ...$this->opcoes()]);
+        return view('contratos.form', ['contrato' => new Contrato(['dia_vencimento' => 10, 'status' => 'ativo']), 'clientes' => Cliente::orderBy('razao_social')->get()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -46,7 +45,7 @@ class ContratoController extends Controller
 
     public function edit(Contrato $contrato): View
     {
-        return view('contratos.form', ['contrato' => $contrato, ...$this->opcoes()]);
+        return view('contratos.form', ['contrato' => $contrato, 'clientes' => Cliente::orderBy('razao_social')->get()]);
     }
 
     public function update(Request $request, Contrato $contrato): RedirectResponse
@@ -59,7 +58,7 @@ class ContratoController extends Controller
     public function alocar(Request $request, Contrato $contrato): RedirectResponse
     {
         $d = $request->validate([
-            'prestador_id' => ['required', 'exists:prestadores,id'],
+            'prestador_id' => ['required', Rule::exists('prestadores', 'id')->where('organizacao_id', ctx()->organizacaoId())],
             'descricao' => ['nullable', 'string', 'max:255'],
             'valor_mensal' => ['required', 'string'],
             'inicio' => ['required', 'date'],
@@ -84,17 +83,11 @@ class ContratoController extends Controller
         return back()->with('ok', 'Alocação encerrada.');
     }
 
-    private function opcoes(): array
-    {
-        return ['empresas' => Empresa::orderBy('razao_social')->get(), 'clientes' => Cliente::orderBy('razao_social')->get()];
-    }
-
     private function dados(Request $request, ?Contrato $c = null): array
     {
         $d = $request->validate([
-            'empresa_id' => ['required', 'exists:empresas,id'],
-            'cliente_id' => ['required', 'exists:clientes,id'],
-            'numero' => ['required', 'string', 'max:40', Rule::unique('contratos')->ignore($c)],
+            'cliente_id' => ['required', Rule::exists('clientes', 'id')->where('organizacao_id', ctx()->organizacaoId())],
+            'numero' => ['required', 'string', 'max:40', Rule::unique('contratos')->where('organizacao_id', ctx()->organizacaoId())->ignore($c)],
             'descricao' => ['required', 'string', 'max:255'],
             'codigo_servico' => ['nullable', 'digits:6'],
             'valor_mensal' => ['required', 'string'],

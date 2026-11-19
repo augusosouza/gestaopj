@@ -85,7 +85,7 @@ class CobrancaController extends Controller
     /** Prestador só acessa as próprias cobranças. */
     private function autorizar(Request $request, Cobranca $cobranca): void
     {
-        $u = $request->user();
-        abort_if($u->ehPrestador() && $u->prestador_id !== $cobranca->prestador_id, 404);
+        $ctx = ctx();
+        abort_if($ctx->ehPrestador() && $ctx->prestadorId() !== $cobranca->prestador_id, 404);
     }
 }

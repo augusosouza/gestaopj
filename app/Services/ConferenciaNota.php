@@ -62,7 +62,7 @@ final class ConferenciaNota
             bloqueante: false,
         );
 
-        $perfil = PerfilFiscal::vigente($prestador->documento, $cobranca->competencia);
+        $perfil = PerfilFiscal::vigente($cobranca->organizacao_id, $prestador->documento, $cobranca->competencia);
         $itens[] = $this->item(
             'Perfil fiscal do prestador confirmado pela contabilidade',
             $perfil !== null && $perfil->confirmado_em !== null,

@@ -20,7 +20,7 @@ header.topo .marca { font-weight: 700; text-decoration: none; color: var(--text)
 header.topo nav { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; }
 header.topo nav a { text-decoration: none; color: var(--muted); padding: 6px 10px; border-radius: 6px; }
 header.topo nav a.ativo, header.topo nav a:hover { background: var(--info-bg); color: var(--text); }
-.quem { color: var(--muted); font-size: 13px; display: flex; gap: 10px; align-items: center; }
+.quem { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; flex-basis: 100%; justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 6px; }
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
 main.wrap { padding-top: 20px; padding-bottom: 48px; }
 h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 28px 0 10px; }
@@ -65,3 +65,6 @@ button.link { background: none; border: 0; color: var(--muted); padding: 0; text
 dl.dados { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
 dl.dados dt { color: var(--muted); } dl.dados dd { margin: 0; }
 .login { max-width: 380px; margin: 10vh auto; }
+.opcoes { display: grid; gap: 10px; }
+.opcao { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.quem strong { color: var(--text); }

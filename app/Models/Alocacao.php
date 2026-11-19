@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\DaOrganizacao;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -9,9 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Alocacao extends Model
 {
+    use DaOrganizacao;
+
     protected $table = 'alocacoes';
 
-    protected $fillable = ['contrato_id', 'prestador_id', 'descricao', 'valor_mensal_centavos', 'inicio', 'fim'];
+    protected $fillable = ['organizacao_id', 'contrato_id', 'prestador_id', 'descricao', 'valor_mensal_centavos', 'inicio', 'fim'];
 
     protected function casts(): array
     {

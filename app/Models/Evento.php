@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Contexto;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -10,7 +11,7 @@ class Evento extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $fillable = ['user_id', 'acao', 'alvo_type', 'alvo_id', 'dados'];
+    protected $fillable = ['organizacao_id', 'ip', 'user_id', 'acao', 'alvo_type', 'alvo_id', 'dados'];
 
     protected function casts(): array
     {
@@ -30,6 +31,8 @@ class Evento extends Model
     public static function registrar(string $acao, Model $alvo, array $dados = []): self
     {
         return static::create([
+            'organizacao_id' => $alvo->getAttribute('organizacao_id') ?? app(Contexto::class)->organizacaoId(),
+            'ip' => app()->runningInConsole() ? null : request()->ip(),
             'user_id' => auth()->id(),
             'acao' => $acao,
             'alvo_type' => $alvo->getMorphClass(),

@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\StatusFatura;
+use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Fatura extends Model
 {
-    protected $fillable = [
+    use DaOrganizacao;
+
+    protected $fillable = ['organizacao_id',
         'contrato_id', 'competencia', 'valor_centavos', 'vencimento', 'status',
         'nota_fiscal_id', 'valor_recebido_centavos', 'recebida_em',
     ];

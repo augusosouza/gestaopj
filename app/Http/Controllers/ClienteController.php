@@ -42,7 +42,7 @@ class ClienteController extends Controller
 
         return $request->validate([
             'razao_social' => ['required', 'string', 'max:255'],
-            'documento' => ['required', new DocumentoValido, Rule::unique('clientes')->ignore($c)],
+            'documento' => ['required', new DocumentoValido, Rule::unique('clientes')->where('organizacao_id', ctx()->organizacaoId())->ignore($c)],
             'email' => ['nullable', 'email'],
             'municipio_ibge' => ['nullable', 'digits:7'],
         ]);

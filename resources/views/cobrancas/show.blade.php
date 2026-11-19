@@ -2,11 +2,11 @@
 @section('titulo', 'Cobrança '.$cobranca->prestador->nome)
 @section('conteudo')
 @php
-  $u = auth()->user();
-  $financeiro = $u->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
+
+  $financeiro = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
   $S = \App\Enums\StatusCobranca::class;
 @endphp
-<p><a href="{{ $u->ehPrestador() ? route('painel') : route('cobrancas.index', ['competencia' => $cobranca->competencia->format('Y-m')]) }}">← Voltar</a></p>
+<p><a href="{{ ctx()->ehPrestador() ? route('painel') : route('cobrancas.index', ['competencia' => $cobranca->competencia->format('Y-m')]) }}">← Voltar</a></p>
 <h1>{{ $cobranca->prestador->nome }} · {{ $cobranca->competencia->format('m/Y') }}</h1>
 <p class="sub">Contrato {{ $cobranca->contrato->numero }} · @include('partials.status', ['status' => $cobranca->status])</p>
 
@@ -50,7 +50,7 @@
       @include('notas._resumo', ['nota' => $cobranca->notaFiscal])
     @endif
 
-    @if ($cobranca->conferencia && ! $u->ehPrestador())
+    @if ($cobranca->conferencia && ! ctx()->ehPrestador())
       <h2>Conferência automática</h2>
       <ul class="check">
         @foreach ($cobranca->conferencia as $i)
@@ -93,7 +93,7 @@
   </div>
 </div>
 
-@if ($eventos->isNotEmpty() && ! $u->ehPrestador())
+@if ($eventos->isNotEmpty() && ! ctx()->ehPrestador())
   <h2>Histórico</h2>
   <div class="tabela"><table>
     <thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>Detalhe</th></tr></thead>

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('titulo', 'Fatura '.$fatura->contrato->numero)
 @section('conteudo')
-@php($pode = auth()->user()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
+@php($pode = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
 <p><a href="{{ route('faturas.index', ['competencia' => $fatura->competencia->format('Y-m')]) }}">← A receber</a></p>
 <h1>Fatura {{ $fatura->contrato->numero }} · {{ $fatura->competencia->format('m/Y') }}</h1>
 <p class="sub">{{ $fatura->contrato->cliente->razao_social }} · @include('partials.status', ['status' => $fatura->status])</p>

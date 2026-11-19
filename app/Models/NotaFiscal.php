@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class NotaFiscal extends Model
 {
+    use DaOrganizacao;
+
     protected $table = 'notas_fiscais';
 
-    protected $fillable = [
+    protected $fillable = ['organizacao_id',
         'direcao', 'chave_acesso', 'numero', 'emitente_documento', 'emitente_nome',
         'tomador_documento', 'tomador_nome', 'competencia', 'emitida_em', 'codigo_servico',
         'descricao_servico', 'valor_servicos_centavos', 'valor_liquido_centavos', 'ambiente',

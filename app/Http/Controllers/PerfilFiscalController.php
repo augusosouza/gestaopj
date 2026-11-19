@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\RegimeTributario;
-use App\Models\Empresa;
 use App\Models\Evento;
 use App\Models\PerfilFiscal;
 use App\Models\Prestador;
@@ -19,7 +18,7 @@ class PerfilFiscalController extends Controller
 {
     public function index(): View
     {
-        $nomes = Empresa::pluck('razao_social', 'cnpj')->union(Prestador::pluck('nome', 'documento'));
+        $nomes = collect([ctx()->empresa()->cnpj => ctx()->empresa()->razao_social])->union(Prestador::pluck('nome', 'documento'));
 
         return view('perfis.index', [
             'perfis' => PerfilFiscal::with('confirmadoPor')->orderBy('cnpj')->orderByDesc('vigencia_inicio')->get(),

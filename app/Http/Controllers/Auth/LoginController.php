@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Evento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,7 +37,12 @@ class LoginController extends Controller
         RateLimiter::clear($chave);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('painel'));
+        Evento::create([
+            'user_id' => Auth::id(), 'ip' => $request->ip(), 'acao' => 'login',
+            'alvo_type' => Auth::user()->getMorphClass(), 'alvo_id' => Auth::id(),
+        ]);
+
+        return redirect()->route('contexto.escolher');
     }
 
     public function destroy(Request $request): RedirectResponse

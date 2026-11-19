@@ -3,18 +3,20 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Papel;
+use App\Support\Contexto;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Uso: ->middleware('papel:admin,financeiro') */
+/** Uso: ->middleware('papel:admin,financeiro'). Verifica o papel do vínculo ativo. */
 class ExigePapel
 {
+    public function __construct(private Contexto $ctx) {}
+
     public function handle(Request $request, Closure $next, string ...$papeis): Response
     {
-        $user = $request->user();
         $permitidos = array_map(fn ($p) => Papel::from($p), $papeis);
-        abort_unless($user && $user->tem(...$permitidos), 403, 'Seu perfil não tem acesso a esta área.');
+        abort_unless($this->ctx->tem(...$permitidos), 403, 'Seu perfil não tem acesso a esta área.');
 
         return $next($request);
     }

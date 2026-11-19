@@ -2,7 +2,17 @@
 
 Painel único para a empresa de suporte e consultoria acompanhar **o que tem a receber dos clientes**, **o que tem a pagar aos contratados PJ/MEI** e **quais notas ainda precisam ser conferidas**.
 
-Esta é a **fase 1 (piloto)**: contratos, NFS-e por importação de XML (ou chave de acesso), pagamentos e o fechamento mensal. A emissão continua no Emissor Nacional (portal ou API); o sistema recebe os XMLs.
+Construído segundo a *Especificação funcional e técnica v1.0 (19/11/2026)*. Estado atual: **entrega 1 (fundação multiempresa) concluída** e parte das entregas 2 e 3 (veja a [aderência à especificação](#aderência-à-especificação)). A emissão continua no Emissor Nacional (portal ou API); o sistema recebe os XMLs.
+
+## Multiempresa e isolamento
+
+- **Organizações**: empresas e escritórios contábeis, identificados por ID interno; o CNPJ é guardado como texto (acomoda o CNPJ alfanumérico).
+- **Vínculos**: pessoa ↔ organização ↔ papel, com início, fim e autor. Uma pessoa pode ter vários (ex.: o mesmo prestador atende duas empresas) e escolhe o **contexto ativo** após o login.
+- **Escritório**: só acessa uma empresa enquanto houver **autorização vigente dela**. O revisor vê toda a carteira; o analista só as empresas **atribuídas** a ele.
+- **Isolamento**: toda tabela operacional tem `organizacao_id`, e um escopo global filtra pela empresa do contexto. Uma requisição autenticada sem empresa escolhida não vê nenhum dado (falha fechada). O contexto é ativado **antes** do route model binding, então ID de outra empresa na URL, em download de XML ou em ação resulta em 404.
+- **Revogação**: encerrar vínculo, autorização ou atribuição corta o acesso na próxima requisição (o contexto é revalidado a cada uma) e preserva a trilha.
+- **Auditoria** (`eventos`): login, acesso do escritório a uma empresa, download de XML, exportação, criação/encerramento de vínculos, autorizações e atribuições, além das ações financeiras.
+- **XMLs** ficam no disco privado, separados por organização (`nfse/{organizacao}/...`).
 
 ## O fechamento responde a quatro perguntas
 
@@ -47,14 +57,15 @@ Contabilidade: confirma perfis fiscais e exporta o .zip do mês (CSVs + XMLs emi
 
 Com item bloqueante pendente, o financeiro só aprova **com justificativa**, registrada no histórico.
 
-## Perfis de acesso
+## Papéis
 
-| Perfil | Pode |
-|---|---|
-| Empresa (admin) | Tudo, inclusive cadastros, contratos e acessos |
-| Financeiro | Gerar competência, vincular notas emitidas, registrar recebimentos, aprovar/rejeitar/pagar cobranças |
-| Contabilidade | Ver tudo, registrar e confirmar perfis fiscais, exportar fechamento |
-| Prestador | Somente as próprias cobranças, notas e pagamentos |
+| Papel | Onde | Pode |
+|---|---|---|
+| Administrador | Empresa | Cadastros, contratos, acessos, autorizar/revogar escritório, além de tudo do financeiro |
+| Financeiro | Empresa | Gerar competência, vincular notas emitidas, registrar recebimentos, aprovar/rejeitar/pagar cobranças |
+| Prestador | Empresa | Somente as próprias cobranças, notas e pagamentos |
+| Analista contábil | Escritório | Empresas atribuídas: consultar, registrar e confirmar perfis fiscais, exportar fechamento |
+| Revisor | Escritório | Toda a carteira autorizada, além de atribuir analistas e gerir a equipe do escritório |
 
 ## Rodando localmente (SQLite)
 
@@ -67,10 +78,17 @@ php artisan gestao:gerar-competencia 2026-10
 php artisan serve
 ```
 
-Acessos de demonstração (senha `piloto-2026`, **troque em produção**):
-`admin@gestaopj.local`, `financeiro@gestaopj.local`, `contabilidade@gestaopj.local`, `prestador@gestaopj.local`.
+Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O seed cria duas empresas (A e B) e um escritório:
 
-Testes: `php artisan test` (28 testes, incluindo um mês fechado de ponta a ponta).
+| E-mail | Acesso |
+|---|---|
+| `admin@gestaopj.local` / `financeiro@gestaopj.local` | Empresa A |
+| `admin.b@gestaopj.local` | Empresa B |
+| `prestador@gestaopj.local` | Prestador nas empresas A e B (escolhe o contexto) |
+| `revisor@gestaopj.local` | Revisora do escritório (carteira: A e B) |
+| `contabilidade@gestaopj.local` | Analista do escritório (atribuído só à A) |
+
+Testes: `php artisan test` (49 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 
@@ -79,8 +97,12 @@ cp .env.example .env
 # edite: APP_ENV=production, APP_DEBUG=false, APP_URL, APP_KEY (php artisan key:generate --show),
 #        DB_DATABASE=gestaopj, DB_USERNAME=gestaopj, DB_PASSWORD=<senha forte>
 docker compose up -d --build
-docker compose exec app php artisan db:seed   # só se quiser os dados de exemplo
+# primeira empresa e primeiro escritório (o admin recebe um link para definir a senha):
+docker compose exec app php artisan gestao:nova-organizacao empresa 11.222.333/0001-81 "Minha Empresa Ltda" voce@empresa.com.br "Seu Nome"
+docker compose exec app php artisan gestao:nova-organizacao escritorio 33.444.555/0001-81 "Escritório X" contador@escritorio.com.br "Contador"
 ```
+
+Configure o envio de e-mail (`MAIL_*` no `.env`). Convites e recuperação de senha dependem dele.
 
 Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 8080. O serviço `agendador` gera a competência todo dia 1º às 06:00. Faça backup do volume `db` **e** do volume `storage` (onde ficam os XMLs).
 
@@ -99,6 +121,17 @@ Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 
 2. **Composição da chave de acesso**: a decomposição (município, CNPJ, número) é usada só como aviso. O dígito verificador não é validado.
 3. **Assinatura digital** do XML não é verificada nesta fase.
 4. **Código de serviço (cTribNac)** de suporte/consultoria: confirmar com a contabilidade.
+
+## Aderência à especificação
+
+| Entrega | Situação |
+|---|---|
+| **1. Fundação** | ✅ Organizações, vínculos datados, contexto ativo, escritório com autorização e atribuição, isolamento por empresa (inclusive URL, arquivo e exportação), login, recuperação de acesso, convites, auditoria, armazenamento privado. ⏳ Falta: autenticação reforçada (2FA) nos perfis privilegiados e painel do administrador da plataforma. |
+| **2. Operação mensal** | 🟡 Contratos, recorrência idempotente, demonstrativo do prestador, importação de XML com duplicidade por chave e hash, divergências, recebimento e pagamento. ⏳ Falta: medição (horas, plantões, adicionais aprovados), revisões contratuais com vigência, parcelas, baixa parcial e estorno, contestação pelo prestador, nota dividida entre contratos. |
+| **3. Fechamento piloto** | 🟡 Exportação .zip e confirmação de perfil fiscal. ⏳ Falta: etapas (coleta, conferência, revisão, fechada), pendências com responsável e prazo, retrato versionado, reabertura justificada, carteira com prazos e indicadores. |
+| 4 a 6 | ⏳ Integrações RTC/NFS-e/ADN, conciliação bancária, planejamento e revenda. |
+
+Desvio consciente: a especificação pede valores decimais com precisão definida. Aqui os valores em reais são **inteiros em centavos**, o que é exato para totais e conferência. Tributos com mais casas (alíquotas, fase 3) usarão colunas decimais próprias.
 
 ## Próximas fases
 

@@ -3,14 +3,17 @@
 namespace App\Models;
 
 use App\Enums\TipoPrestador;
+use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Prestador extends Model
 {
+    use DaOrganizacao;
+
     protected $table = 'prestadores';
 
-    protected $fillable = ['nome', 'tipo', 'documento', 'email', 'chave_pix'];
+    protected $fillable = ['organizacao_id', 'nome', 'tipo', 'documento', 'email', 'chave_pix'];
 
     protected function casts(): array
     {
@@ -27,8 +30,8 @@ class Prestador extends Model
         return $this->hasMany(Cobranca::class);
     }
 
-    public function usuarios(): HasMany
+    public function vinculos(): HasMany
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(Vinculo::class);
     }
 }

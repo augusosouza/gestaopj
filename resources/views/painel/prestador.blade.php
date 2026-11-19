@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('titulo', 'Minhas cobranças')
 @section('conteudo')
-@php($p = auth()->user()->prestador)
+@php($p = $prestador)
 <h1>Olá, {{ $p?->nome ?? auth()->user()->name }}</h1>
 <p class="sub">Para cada mês: emita a NFS-e no Emissor Nacional tendo como tomador o CNPJ informado abaixo e envie aqui o XML da nota (ou a chave de acesso).</p>
 @if (! $p)

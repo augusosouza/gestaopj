@@ -2,16 +2,13 @@
 @section('titulo', $contrato->exists ? 'Editar contrato' : 'Novo contrato')
 @section('conteudo')
 <h1>{{ $contrato->exists ? 'Editar contrato '.$contrato->numero : 'Novo contrato' }}</h1>
-@if ($empresas->isEmpty() || $clientes->isEmpty())
-  <div class="aviso info">Cadastre antes a <a href="{{ route('empresas.index') }}">empresa</a> e o <a href="{{ route('clientes.index') }}">cliente</a>.</div>
+@if ($clientes->isEmpty())
+  <div class="aviso info">Cadastre antes o <a href="{{ route('clientes.index') }}">cliente</a>.</div>
 @endif
 <form method="post" action="{{ $contrato->exists ? route('contratos.update', $contrato) : route('contratos.store') }}" class="painel">
   @csrf @if ($contrato->exists) @method('put') @endif
   <div class="grade">
-    <div class="campo"><label for="empresa_id">Empresa (emitente)</label>
-      <select id="empresa_id" name="empresa_id" required>
-        @foreach ($empresas as $e)<option value="{{ $e->id }}" @selected(old('empresa_id', $contrato->empresa_id) == $e->id)>{{ $e->razao_social }}</option>@endforeach
-      </select></div>
+    <div class="campo"><label>Empresa (emitente)</label><input value="{{ ctx()->empresa()->razao_social }}" disabled></div>
     <div class="campo"><label for="cliente_id">Cliente (tomador)</label>
       <select id="cliente_id" name="cliente_id" required>
         @foreach ($clientes as $c)<option value="{{ $c->id }}" @selected(old('cliente_id', $contrato->cliente_id) == $c->id)>{{ $c->razao_social }}</option>@endforeach

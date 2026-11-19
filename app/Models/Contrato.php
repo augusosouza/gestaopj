@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\DaOrganizacao;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -10,8 +11,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contrato extends Model
 {
-    protected $fillable = [
-        'empresa_id', 'cliente_id', 'numero', 'descricao', 'codigo_servico',
+    use DaOrganizacao;
+
+    protected $fillable = ['organizacao_id',
+        'cliente_id', 'numero', 'descricao', 'codigo_servico',
         'valor_mensal_centavos', 'dia_vencimento', 'inicio', 'fim', 'status',
     ];
 
@@ -20,9 +23,10 @@ class Contrato extends Model
         return ['inicio' => 'date', 'fim' => 'date'];
     }
 
+    /** Empresa emitente da nota ao cliente (a dona do contrato). */
     public function empresa(): BelongsTo
     {
-        return $this->belongsTo(Empresa::class);
+        return $this->belongsTo(Organizacao::class, 'organizacao_id');
     }
 
     public function cliente(): BelongsTo

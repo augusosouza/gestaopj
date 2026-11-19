@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
-use App\Enums\Papel;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'papel', 'prestador_id'])]
+/**
+ * Identidade apenas. Papéis e acesso vêm dos vínculos com organizações,
+ * e uma mesma pessoa pode atuar em várias empresas e escritórios.
+ */
+#[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -23,28 +26,12 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'papel' => Papel::class,
+            'admin_plataforma' => 'boolean',
         ];
     }
 
-    public function prestador(): BelongsTo
+    public function vinculos(): HasMany
     {
-        return $this->belongsTo(Prestador::class);
-    }
-
-    public function tem(Papel ...$papeis): bool
-    {
-        return in_array($this->papel, $papeis, true);
-    }
-
-    public function ehPrestador(): bool
-    {
-        return $this->papel === Papel::Prestador;
-    }
-
-    /** Equipe interna (vê todos os dados). */
-    public function ehInterno(): bool
-    {
-        return ! $this->ehPrestador();
+        return $this->hasMany(Vinculo::class);
     }
 }

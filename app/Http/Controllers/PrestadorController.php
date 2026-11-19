@@ -45,7 +45,7 @@ class PrestadorController extends Controller
         return $request->validate([
             'nome' => ['required', 'string', 'max:255'],
             'tipo' => ['required', Rule::enum(TipoPrestador::class)],
-            'documento' => ['required', new DocumentoValido($tipo === TipoPrestador::PF ? 'cpf' : 'cnpj'), Rule::unique('prestadores')->ignore($p)],
+            'documento' => ['required', new DocumentoValido($tipo === TipoPrestador::PF ? 'cpf' : 'cnpj'), Rule::unique('prestadores')->where('organizacao_id', ctx()->organizacaoId())->ignore($p)],
             'email' => ['nullable', 'email'],
             'chave_pix' => ['nullable', 'string', 'max:140'],
         ]);

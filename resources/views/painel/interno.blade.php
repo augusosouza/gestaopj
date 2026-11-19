@@ -1,7 +1,6 @@
 @extends('layouts.app')
 @section('titulo', 'Fechamento '.$competencia->format('m/Y'))
 @section('conteudo')
-@php($u = auth()->user())
 <div class="barra">
   <div>
     <h1>Fechamento de {{ $competencia->translatedFormat('F \d\e Y') }}</h1>
@@ -9,7 +8,7 @@
   </div>
   <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
     @include('partials.competencia')
-    @if ($u->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
+    @if (ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
       <form method="post" action="{{ route('competencias.gerar') }}">
         @csrf <input type="hidden" name="competencia" value="{{ $competencia->format('Y-m') }}">
         <button title="Cria faturas e cobranças dos contratos ativos. Pode ser repetido sem duplicar.">Gerar competência</button>

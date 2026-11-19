@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\Contexto;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -11,7 +12,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->singleton(Contexto::class);
     }
 
     public function boot(): void

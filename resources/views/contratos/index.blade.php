@@ -3,7 +3,7 @@
 @section('conteudo')
 <div class="barra">
   <div><h1>Contratos</h1><p class="sub" style="margin:0">Faturamento recorrente e custo dos prestadores alocados</p></div>
-  @if (auth()->user()->tem(\App\Enums\Papel::Admin))<a class="botao" href="{{ route('contratos.create') }}">Novo contrato</a>@endif
+  @if (ctx()->tem(\App\Enums\Papel::Admin))<a class="botao" href="{{ route('contratos.create') }}">Novo contrato</a>@endif
 </div>
 <div class="tabela">
   <table>

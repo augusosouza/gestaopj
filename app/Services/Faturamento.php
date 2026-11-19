@@ -45,6 +45,7 @@ final class Faturamento
                 $existe = Fatura::where('contrato_id', $contrato->id)->whereDate('competencia', $competencia)->exists();
                 if (! $existe) {
                     Fatura::create([
+                        'organizacao_id' => $contrato->organizacao_id,
                         'contrato_id' => $contrato->id,
                         'competencia' => $competencia,
                         'valor_centavos' => $contrato->valor_mensal_centavos,
@@ -59,6 +60,7 @@ final class Faturamento
                         continue;
                     }
                     Cobranca::create([
+                        'organizacao_id' => $contrato->organizacao_id,
                         'alocacao_id' => $aloc->id,
                         'competencia' => $competencia,
                         'prestador_id' => $aloc->prestador_id,
@@ -91,7 +93,7 @@ final class Faturamento
         $fatura->loadMissing('contrato.empresa', 'contrato.cliente');
 
         return DB::transaction(function () use ($fatura, $xml) {
-            $nota = $this->notas->deXml($xml, 'emitida');
+            $nota = $this->notas->deXml($fatura->organizacao_id, $xml, 'emitida');
 
             $erros = [];
             if ($nota->emitente_documento !== $fatura->contrato->empresa->cnpj) {
@@ -157,7 +159,8 @@ final class Faturamento
                 }
             }
 
-            $nota = $xml ? $this->notas->deXml($xml, 'recebida') : $this->notas->deChave((string) $chave, 'recebida');
+            $org = $cobranca->organizacao_id;
+            $nota = $xml ? $this->notas->deXml($org, $xml, 'recebida') : $this->notas->deChave($org, (string) $chave, 'recebida');
 
             $cobranca->update([
                 'nota_fiscal_id' => $nota->id,

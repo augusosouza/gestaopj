@@ -2,31 +2,26 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Papel;
 use App\Enums\StatusCobranca;
 use App\Enums\StatusFatura;
 use App\Models\Cobranca;
 use App\Models\Fatura;
 use App\Models\PerfilFiscal;
 use App\Models\Prestador;
-use App\Models\User;
 use App\Services\Fechamento;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ComContexto;
 use Tests\Support\NfseXml;
 use Tests\TestCase;
 
 /** Piloto: fechar um mês inteiro com um CNPJ e um prestador PJ. */
 class FechamentoMensalTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private User $financeiro;
-
-    private User $prestador;
+    use ComContexto, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -34,8 +29,6 @@ class FechamentoMensalTest extends TestCase
         Storage::fake('local');
         $this->travelTo(CarbonImmutable::parse('2026-11-19 10:00'));
         $this->seed(DatabaseSeeder::class);
-        $this->financeiro = User::where('papel', Papel::Financeiro)->first();
-        $this->prestador = User::where('papel', Papel::Prestador)->first();
     }
 
     private function xml(array $o = []): UploadedFile
@@ -45,7 +38,7 @@ class FechamentoMensalTest extends TestCase
 
     private function gerar(string $comp = '2026-10'): void
     {
-        $this->actingAs($this->financeiro)->post(route('competencias.gerar'), ['competencia' => $comp])->assertRedirect();
+        $this->como('financeiro@gestaopj.local')->post(route('competencias.gerar'), ['competencia' => $comp])->assertRedirect();
     }
 
     public function test_fecha_um_mes_de_ponta_a_ponta(): void
@@ -59,24 +52,24 @@ class FechamentoMensalTest extends TestCase
         $this->assertSame(750_000, $cobranca->valor_centavos);
 
         // 2. Empresa vincula a NFS-e emitida ao cliente
-        $this->actingAs($this->financeiro)->post(route('faturas.nota', $fatura), ['xml' => $this->xml([
+        $this->como('financeiro@gestaopj.local')->post(route('faturas.nota', $fatura), ['xml' => $this->xml([
             'emitente' => '11222333000181', 'tomador' => '11444777000161', 'valor' => '12000.00', 'numero' => 10,
         ])])->assertSessionHasNoErrors();
         $this->assertSame(StatusFatura::Emitida, $fatura->fresh()->status);
 
         // 3. Prestador envia a nota dele
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml(['valor' => '7500.00', 'valor_liquido' => '7012.50'])])
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml(['valor' => '7500.00', 'valor_liquido' => '7012.50'])])
             ->assertSessionHasNoErrors();
         $cobranca->refresh();
         $this->assertSame(StatusCobranca::EmConferencia, $cobranca->status);
         $this->assertTrue($cobranca->conferenciaOk(), json_encode($cobranca->conferencia));
 
         // 4. Financeiro aprova e paga o líquido
-        $this->actingAs($this->financeiro)->post(route('cobrancas.aprovar', $cobranca))->assertSessionHasNoErrors();
-        $this->actingAs($this->financeiro)->post(route('cobrancas.pagar', $cobranca), ['valor' => '7.012,50', 'data' => '2026-11-15'])->assertSessionHasNoErrors();
+        $this->como('financeiro@gestaopj.local')->post(route('cobrancas.aprovar', $cobranca))->assertSessionHasNoErrors();
+        $this->como('financeiro@gestaopj.local')->post(route('cobrancas.pagar', $cobranca), ['valor' => '7.012,50', 'data' => '2026-11-15'])->assertSessionHasNoErrors();
 
         // 5. Cliente paga
-        $this->actingAs($this->financeiro)->post(route('faturas.receber', $fatura), ['valor' => '12.000,00', 'data' => '2026-11-10'])->assertSessionHasNoErrors();
+        $this->como('financeiro@gestaopj.local')->post(route('faturas.receber', $fatura), ['valor' => '12.000,00', 'data' => '2026-11-10'])->assertSessionHasNoErrors();
 
         // As quatro perguntas
         $r = app(Fechamento::class)->resumo(CarbonImmutable::parse('2026-10-01'));
@@ -86,7 +79,7 @@ class FechamentoMensalTest extends TestCase
         $this->assertCount(0, $r['pendencias']);
         $this->assertSame(450_000, $r['contratos'][0]['margem']);
 
-        $this->actingAs($this->financeiro)->get(route('painel', ['competencia' => '2026-10']))
+        $this->como('financeiro@gestaopj.local')->get(route('painel', ['competencia' => '2026-10']))
             ->assertOk()->assertSee('R$ 12.000,00')->assertSee('Nenhuma pendência');
     }
 
@@ -112,7 +105,7 @@ class FechamentoMensalTest extends TestCase
     {
         $this->gerar();
         $cobranca = Cobranca::sole();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml([
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml([
             'valor' => '7000.00', 'competencia' => '2026-09-01', 'tomador' => '11444777000161',
         ])]);
         $cobranca->refresh();
@@ -121,12 +114,12 @@ class FechamentoMensalTest extends TestCase
         $this->assertContains('Competência confere', $falhas);
         $this->assertContains('Tomador é a empresa contratante', $falhas);
 
-        $this->actingAs($this->financeiro)->post(route('cobrancas.aprovar', $cobranca))->assertSessionHasErrors('justificativa');
+        $this->como('financeiro@gestaopj.local')->post(route('cobrancas.aprovar', $cobranca))->assertSessionHasErrors('justificativa');
         $this->assertSame(StatusCobranca::EmConferencia, $cobranca->fresh()->status);
 
         // Rejeita; prestador reenvia corrigida
-        $this->actingAs($this->financeiro)->post(route('cobrancas.rejeitar', $cobranca), ['motivo' => 'Valor e tomador errados'])->assertSessionHasNoErrors();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml(['numero' => 2])])->assertSessionHasNoErrors();
+        $this->como('financeiro@gestaopj.local')->post(route('cobrancas.rejeitar', $cobranca), ['motivo' => 'Valor e tomador errados'])->assertSessionHasNoErrors();
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml(['numero' => 2])])->assertSessionHasNoErrors();
         $this->assertTrue($cobranca->fresh()->conferenciaOk());
         $this->assertDatabaseCount('notas_fiscais', 1);
     }
@@ -136,8 +129,8 @@ class FechamentoMensalTest extends TestCase
         $this->gerar();
         $this->gerar('2026-11');
         [$out, $nov] = Cobranca::orderBy('competencia')->get();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $out), ['xml' => $this->xml()])->assertSessionHasNoErrors();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $nov), ['xml' => $this->xml()])
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $out), ['xml' => $this->xml()])->assertSessionHasNoErrors();
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $nov), ['xml' => $this->xml()])
             ->assertSessionHasErrors('xml');
         $this->assertSame(StatusCobranca::AguardandoNota, $nov->fresh()->status);
     }
@@ -147,26 +140,26 @@ class FechamentoMensalTest extends TestCase
         $this->gerar();
         $cobranca = Cobranca::sole();
         $chave = NfseXml::chave('45723174000110', 1);
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $cobranca), ['chave_acesso' => $chave])->assertSessionHasNoErrors();
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobranca), ['chave_acesso' => $chave])->assertSessionHasNoErrors();
         $cobranca->refresh();
         $this->assertFalse($cobranca->conferenciaOk());
         $this->assertSame('chave', $cobranca->notaFiscal->origem);
 
-        $this->actingAs($this->financeiro)->post(route('cobrancas.aprovar', $cobranca), ['justificativa' => 'XML será obtido no ADN'])->assertSessionHasNoErrors();
+        $this->como('financeiro@gestaopj.local')->post(route('cobrancas.aprovar', $cobranca), ['justificativa' => 'XML será obtido no ADN'])->assertSessionHasNoErrors();
         $this->assertSame(StatusCobranca::Aprovada, $cobranca->fresh()->status);
     }
 
     public function test_chave_com_tamanho_errado_e_recusada(): void
     {
         $this->gerar();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', Cobranca::sole()), ['chave_acesso' => '123'])->assertSessionHasErrors('chave_acesso');
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', Cobranca::sole()), ['chave_acesso' => '123'])->assertSessionHasErrors('chave_acesso');
     }
 
     public function test_nota_de_producao_restrita_nao_passa_na_conferencia(): void
     {
         $this->gerar();
         $cobranca = Cobranca::sole();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml(['ambiente' => '2'])]);
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml(['ambiente' => '2'])]);
         $this->assertFalse($cobranca->fresh()->conferenciaOk());
     }
 
@@ -174,14 +167,13 @@ class FechamentoMensalTest extends TestCase
     {
         $this->gerar();
         $cobranca = Cobranca::sole();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml()]);
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobranca), ['xml' => $this->xml()]);
         $item = collect($cobranca->fresh()->conferencia)->firstWhere('item', 'Perfil fiscal do prestador confirmado pela contabilidade');
         $this->assertFalse($item['ok']);
         $this->assertFalse($item['bloqueante']);
 
-        $contab = User::where('papel', Papel::Contabilidade)->first();
         $perfil = PerfilFiscal::where('cnpj', '45723174000110')->sole();
-        $this->actingAs($contab)->post(route('perfis.confirmar', $perfil))->assertRedirect();
+        $this->como('contabilidade@gestaopj.local')->post(route('perfis.confirmar', $perfil))->assertRedirect();
         $this->assertNotNull($perfil->fresh()->confirmado_em);
     }
 
@@ -189,7 +181,7 @@ class FechamentoMensalTest extends TestCase
     {
         $this->gerar();
         $fatura = Fatura::sole();
-        $this->actingAs($this->financeiro)->post(route('faturas.nota', $fatura), ['xml' => $this->xml([
+        $this->como('financeiro@gestaopj.local')->post(route('faturas.nota', $fatura), ['xml' => $this->xml([
             'emitente' => '11222333000181', 'tomador' => '11444777000161', 'valor' => '11000.00',
         ])])->assertSessionHasErrors('xml');
         $this->assertSame(StatusFatura::Aberta, $fatura->fresh()->status);
@@ -199,10 +191,8 @@ class FechamentoMensalTest extends TestCase
     public function test_exporta_zip_para_contabilidade(): void
     {
         $this->gerar();
-        $this->actingAs($this->prestador)->post(route('cobrancas.nota', Cobranca::sole()), ['xml' => $this->xml()]);
-        $contab = User::where('papel', Papel::Contabilidade)->first();
-
-        $resp = $this->actingAs($contab)->get(route('fechamento.exportar', ['competencia' => '2026-10']))->assertOk();
+        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', Cobranca::sole()), ['xml' => $this->xml()]);
+        $resp = $this->como('contabilidade@gestaopj.local')->get(route('fechamento.exportar', ['competencia' => '2026-10']))->assertOk();
         $zip = new \ZipArchive;
         $zip->open($resp->baseResponse->getFile()->getPathname());
         $this->assertNotFalse($zip->locateName('resumo.csv'));

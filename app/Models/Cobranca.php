@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\StatusCobranca;
+use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Cobranca extends Model
 {
-    protected $fillable = [
+    use DaOrganizacao;
+
+    protected $fillable = ['organizacao_id',
         'alocacao_id', 'prestador_id', 'contrato_id', 'competencia', 'valor_centavos', 'status',
         'nota_fiscal_id', 'conferencia', 'motivo_rejeicao', 'valor_pago_centavos', 'paga_em',
     ];

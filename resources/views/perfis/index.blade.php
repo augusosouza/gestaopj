@@ -1,7 +1,8 @@
 @extends('layouts.app')
 @section('titulo', 'Perfis fiscais')
 @section('conteudo')
-@php($pode = auth()->user()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Contabilidade))
+@php($pode = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Analista, \App\Enums\Papel::Revisor))
+@php($confirma = ctx()->tem(\App\Enums\Papel::Analista, \App\Enums\Papel::Revisor))
 <h1>Perfis fiscais</h1>
 <p class="sub">Regime tributário por CNPJ e vigência, confirmado pela contabilidade. Na fase 3, define qual motor de cálculo de IBS/CBS atende cada CNPJ.</p>
 <div class="duas">
@@ -14,7 +15,7 @@
         <td>{{ $p->regime->rotulo() }}@if ($p->observacao)<br><span class="sub">{{ $p->observacao }}</span>@endif</td>
         <td>{{ $p->vigencia_inicio->format('d/m/Y') }} – {{ $p->vigencia_fim?->format('d/m/Y') ?? 'atual' }}</td>
         <td>@if ($p->confirmado_em)<span class="tag ok">Confirmado</span><br><span class="sub">{{ $p->confirmadoPor?->name }}, {{ $p->confirmado_em->format('d/m/Y') }}</span>
-            @elseif ($pode)<form method="post" action="{{ route('perfis.confirmar', $p) }}">@csrf<button class="sec">Confirmar</button></form>
+            @elseif ($confirma)<form method="post" action="{{ route('perfis.confirmar', $p) }}">@csrf<button class="sec">Confirmar</button></form>
             @else<span class="tag warn">Pendente</span>@endif</td>
       </tr>
     @empty

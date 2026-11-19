@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Evento;
 use App\Models\NotaFiscal;
 use App\Support\Competencia;
 use Illuminate\Http\Request;
@@ -25,11 +26,12 @@ class NotaFiscalController extends Controller
 
     public function xml(Request $request, NotaFiscal $nota): StreamedResponse
     {
-        $u = $request->user();
-        if ($u->ehPrestador()) {
-            abort_unless($nota->cobranca && $nota->cobranca->prestador_id === $u->prestador_id, 404);
+        $ctx = ctx();
+        if ($ctx->ehPrestador()) {
+            abort_unless($nota->cobranca && $nota->cobranca->prestador_id === $ctx->prestadorId(), 404);
         }
         abort_unless($nota->xml_path && Storage::disk('local')->exists($nota->xml_path), 404);
+        Evento::registrar('nota.xml_baixado', $nota);
 
         return Storage::disk('local')->download($nota->xml_path, "NFSe-{$nota->chave_acesso}.xml", ['Content-Type' => 'application/xml']);
     }
