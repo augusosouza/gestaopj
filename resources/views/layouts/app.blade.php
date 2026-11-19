@@ -64,6 +64,13 @@
           </div>
         @endif
 
+        @if (auth()->user()->admin_plataforma)
+          <div class="nav-grupo">
+            <span>Plataforma</span>
+            <a href="{{ route('plataforma.configuracoes') }}" @class(['ativo' => request()->routeIs('plataforma.*')])>Configurações</a>
+          </div>
+        @endif
+
         @if ($c->tem($A::Admin, $A::Revisor))
           <div class="nav-grupo">
             <span>Administração</span>
@@ -91,7 +98,9 @@
   @auth
     <div class="barra" style="margin-bottom:32px">
       <span class="marca">@include('partials.marca')</span>
-      <div class="acoes"><a class="sub" style="margin:0" href="{{ route('seguranca') }}">{{ auth()->user()->name }}</a>
+      <div class="acoes">
+        @if (auth()->user()->admin_plataforma)<a class="sub" style="margin:0" href="{{ route('plataforma.configuracoes') }}">Configurações da plataforma</a>@endif
+        <a class="sub" style="margin:0" href="{{ route('seguranca') }}">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form></div>
     </div>
   @endauth

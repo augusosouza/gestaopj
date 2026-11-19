@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AdminPlataforma;
 use App\Http\Middleware\ExigeContexto;
 use App\Http\Middleware\ExigePapel;
 use Illuminate\Foundation\Application;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'papel' => ExigePapel::class,
             'contexto' => ExigeContexto::class,
+            'plataforma' => AdminPlataforma::class,
         ]);
         // O contexto precisa estar ativo ANTES do route model binding: assim um ID
         // de outra empresa na URL já é resolvido com o escopo e resulta em 404.

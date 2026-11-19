@@ -206,3 +206,5 @@ input.codigo { font-family: var(--mono); font-size: 18px; letter-spacing: 0.2em;
 .qr svg { display: block; }
 .codigos { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin-top: 10px; }
 .codigos code { font-family: var(--mono); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; text-align: center; }
+.slogan { color: var(--muted); margin: -32px 0 36px; font-size: 13.5px; }
+.assinatura { margin-top: 40px; font-size: 12.5px; color: var(--faint); }

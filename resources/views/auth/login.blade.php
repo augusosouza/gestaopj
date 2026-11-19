@@ -3,6 +3,7 @@
 @section('conteudo')
 <div class="login">
   <span class="marca">@include('partials.marca')</span>
+  @if ($slogan = \App\Support\Plataforma::get('slogan'))<p class="slogan">{{ $slogan }}</p>@endif
   <h1>Entrar</h1>
   <p class="sub">Contratos, notas e pagamentos da sua empresa e dos seus prestadores.</p>
   <form method="post" action="{{ route('login') }}">
@@ -15,5 +16,6 @@
     <div class="campo"><label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input type="checkbox" name="lembrar" value="1"> Manter conectado neste computador</label></div>
     <button style="width:100%">Entrar</button>
   </form>
+  @if ($resp = \App\Support\Plataforma::get('empresa_responsavel'))<p class="assinatura">Desenvolvido por {{ $resp }}</p>@endif
 </div>
 @endsection

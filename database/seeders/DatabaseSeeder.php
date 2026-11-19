@@ -8,13 +8,16 @@ use App\Enums\TipoOrganizacao;
 use App\Models\Atribuicao;
 use App\Models\AutorizacaoEscritorio;
 use App\Models\Cliente;
+use App\Models\Configuracao;
 use App\Models\Contrato;
 use App\Models\Organizacao;
 use App\Models\PerfilFiscal;
 use App\Models\Prestador;
 use App\Models\User;
 use App\Models\Vinculo;
+use App\Support\Plataforma;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Cenário de aceite da entrega 1: duas empresas e um escritório.
@@ -64,7 +67,9 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id, 'organizacao_id' => $org->id, 'papel' => $papel, 'prestador_id' => $p?->id, 'inicio' => $inicio,
         ]);
 
-        $vinc($u('Administrador A', 'admin@augi.local'), $a, Papel::Admin);
+        $adminA = $u('Administrador A', 'admin@augi.local');
+        $adminA->forceFill(['admin_plataforma' => true])->save(); // dono da plataforma no piloto
+        $vinc($adminA, $a, Papel::Admin);
         $vinc($u('Financeiro A', 'financeiro@augi.local'), $a, Papel::Financeiro);
         $vinc($u('Administrador B', 'admin.b@augi.local'), $b, Papel::Admin);
         $consultor = $u('Consultor Exemplo', 'prestador@augi.local');
@@ -79,6 +84,13 @@ class DatabaseSeeder extends Seeder
         foreach ([$a, $b] as $empresa) {
             AutorizacaoEscritorio::create(['empresa_id' => $empresa->id, 'escritorio_id' => $esc->id, 'inicio' => $inicio]);
         }
+        Configuracao::insert([
+            ['chave' => 'nome_sistema', 'valor' => 'Augi Gestão', 'created_at' => now(), 'updated_at' => now()],
+            ['chave' => 'slogan', 'valor' => 'Gestão inteligente para negócios que evoluem.', 'created_at' => now(), 'updated_at' => now()],
+            ['chave' => 'empresa_responsavel', 'valor' => 'Augi Tecnologias', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        Cache::forget(Plataforma::CACHE);
+
         Atribuicao::create(['escritorio_id' => $esc->id, 'empresa_id' => $a->id, 'user_id' => $analista->id, 'inicio' => $inicio, 'criado_por' => $revisora->id]);
     }
 }

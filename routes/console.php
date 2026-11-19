@@ -38,3 +38,12 @@ Artisan::command('gestao:nova-organizacao {tipo : empresa|escritorio} {cnpj} {ra
     Password::sendResetLink(['email' => $email]);
     $this->info("{$org->razao_social} criada. Link para definir a senha enviado a {$email}.");
 })->purpose('Cria empresa ou escritório com o primeiro administrador (convite por e-mail).');
+
+Artisan::command('gestao:admin-plataforma {email} {--remover}', function () {
+    $user = User::where('email', Str::lower($this->argument('email')))->first();
+    if (! $user) {
+        return $this->error('Usuário não encontrado.');
+    }
+    $user->forceFill(['admin_plataforma' => ! $this->option('remover')])->save();
+    $this->info($this->option('remover') ? "{$user->email} deixou de ser administrador da plataforma." : "{$user->email} agora é administrador da plataforma (precisará ativar o 2FA).");
+})->purpose('Concede ou remove o perfil de administrador da plataforma.');

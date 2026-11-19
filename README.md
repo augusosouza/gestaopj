@@ -56,6 +56,21 @@ A competência comparada é a **declarada na nota** (`dCompet`), não a data de 
 
 Notas com chave já registrada na empresa são recusadas no envio (duplicidade).
 
+## Configurações da plataforma
+
+Em **Plataforma → Configurações** (`/plataforma/configuracoes`), o **administrador da plataforma** altera, sem reiniciar nada:
+
+- **nome do sistema:** aparece no logotipo em texto (a primeira palavra na cor de destaque), no título das abas, nos e-mails e no aplicativo autenticador de quem ativar o 2FA depois;
+- **slogan:** aparece no login;
+- **desenvolvido por:** aparece no rodapé do login.
+
+O valor salvo prevalece sobre o `APP_NAME` do `.env`. Cada alteração fica no histórico com o valor antigo e o novo. O administrador da plataforma é um perfil **global**, separado do administrador de cada empresa, e exige 2FA. Para conceder ou remover:
+
+```bash
+php artisan gestao:admin-plataforma voce@empresa.com.br
+php artisan gestao:admin-plataforma voce@empresa.com.br --remover
+```
+
 ## Papéis
 
 | Papel | Onde | Pode |
@@ -81,13 +96,14 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 
 | E-mail | Acesso |
 |---|---|
-| `admin@augi.local` / `financeiro@augi.local` | Empresa A |
+| `admin@augi.local` | Empresa A + **administrador da plataforma** |
+| `financeiro@augi.local` | Empresa A |
 | `admin.b@augi.local` | Empresa B |
 | `prestador@augi.local` | Prestador nas empresas A e B (escolhe o contexto) |
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (59 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (66 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

@@ -14,6 +14,7 @@ use App\Http\Controllers\NotaFiscalController;
 use App\Http\Controllers\OrganizacaoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PerfilFiscalController;
+use App\Http\Controllers\PlataformaController;
 use App\Http\Controllers\PrestadorController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/seguranca/2fa/confirmar', [DoisFatoresController::class, 'confirmar'])->name('2fa.confirmar');
     Route::post('/seguranca/2fa/codigos', [DoisFatoresController::class, 'novosCodigos'])->name('2fa.codigos');
     Route::delete('/seguranca/2fa', [DoisFatoresController::class, 'desativar'])->name('2fa.desativar');
+
+    // Administração da plataforma (global, independe de empresa)
+    Route::middleware('plataforma')->group(function () {
+        Route::get('/plataforma/configuracoes', [PlataformaController::class, 'configuracoes'])->name('plataforma.configuracoes');
+        Route::put('/plataforma/configuracoes', [PlataformaController::class, 'salvar'])->name('plataforma.salvar');
+    });
 
     // Contexto ativo, empresa opcional (carteira do escritório e gestão da equipe)
     Route::middleware('contexto')->group(function () {

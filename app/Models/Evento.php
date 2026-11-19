@@ -43,6 +43,7 @@ class Evento extends Model
             'perfil_fiscal.confirmado' => 'Perfil fiscal confirmado',
             'nota.xml_baixado' => 'XML baixado',
             'fechamento.exportado' => 'Fechamento exportado',
+            'plataforma.configuracao' => 'Configuração da plataforma alterada',
         ][$this->acao] ?? $this->acao;
     }
 

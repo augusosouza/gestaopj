@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Support\Contexto;
+use App\Support\Plataforma;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -20,5 +21,8 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setLocale(config('app.locale'));
         CarbonImmutable::setLocale(config('app.locale'));
         Date::use(CarbonImmutable::class);
+
+        // Nome do sistema definido na área de configurações (prevalece sobre o .env).
+        Plataforma::aplicar();
     }
 }
