@@ -1,5 +1,5 @@
 /*
- * GestãoPJ — estilo "livro-caixa": sóbrio, denso, números em destaque.
+ * Augi Gestão — estilo "livro-caixa": sóbrio, denso, números em destaque.
  * Fontes IBM Plex hospedadas localmente (sem chamadas a terceiros; LGPD).
  */
 @font-face { font-family: "Plex"; src: url("../fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
@@ -53,7 +53,8 @@ a:hover { color: var(--accent); text-decoration-thickness: 2px; }
 .lateral a { text-decoration: none; }
 .lateral-topo { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 16px; }
 .marca { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
-.marca span { color: var(--accent); }
+.marca .marca-a { color: var(--accent); font-weight: 600; }
+.marca .marca-b { font-weight: 400; }
 .lateral .marca { color: var(--l-text); }
 .menu-toggle, .menu-btn { display: none; }
 .lateral-corpo { display: flex; flex-direction: column; flex: 1; padding: 0 12px 16px; }
@@ -198,3 +199,10 @@ form.opcao.painel:hover { border-color: var(--line-strong); }
 @media (max-width: 900px) { .tabela table { min-width: 620px; } }
 @media (max-width: 520px) { .card { padding: 14px 14px 16px; } .card .num { font-size: 21px; } }
 @media (prefers-color-scheme: dark) { .lateral { border-right: 1px solid var(--l-line); } }
+.usuario a { color: var(--l-muted); }
+.usuario a:hover { color: var(--l-text); }
+input.codigo { font-family: var(--mono); font-size: 18px; letter-spacing: 0.2em; }
+.qr { display: inline-block; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); margin: 4px 0 12px; }
+.qr svg { display: block; }
+.codigos { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin-top: 10px; }
+.codigos code { font-family: var(--mono); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; text-align: center; }

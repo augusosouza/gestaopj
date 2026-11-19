@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\DoisFatoresController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\ClienteController;
@@ -24,6 +25,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/esqueci-senha', [SenhaController::class, 'enviar'])->middleware('throttle:5,1')->name('password.email');
     Route::get('/redefinir-senha/{token}', [SenhaController::class, 'formulario'])->name('password.reset');
     Route::post('/redefinir-senha', [SenhaController::class, 'redefinir'])->name('password.update');
+    Route::get('/verificacao', [DoisFatoresController::class, 'desafio'])->name('2fa.desafio');
+    Route::post('/verificacao', [DoisFatoresController::class, 'verificar'])->middleware('throttle:20,1')->name('2fa.verificar');
 });
 
 Route::middleware('auth')->group(function () {
@@ -32,6 +35,13 @@ Route::middleware('auth')->group(function () {
     // Escolha do contexto (antes de existir um ativo)
     Route::get('/contexto', [ContextoController::class, 'escolher'])->name('contexto.escolher');
     Route::post('/contexto', [ContextoController::class, 'selecionar'])->name('contexto.selecionar');
+
+    // Segurança da conta (fora do contexto, para não bloquear quem precisa ativar o 2FA)
+    Route::get('/seguranca', [DoisFatoresController::class, 'seguranca'])->name('seguranca');
+    Route::post('/seguranca/2fa', [DoisFatoresController::class, 'iniciar'])->name('2fa.iniciar');
+    Route::post('/seguranca/2fa/confirmar', [DoisFatoresController::class, 'confirmar'])->name('2fa.confirmar');
+    Route::post('/seguranca/2fa/codigos', [DoisFatoresController::class, 'novosCodigos'])->name('2fa.codigos');
+    Route::delete('/seguranca/2fa', [DoisFatoresController::class, 'desativar'])->name('2fa.desativar');
 
     // Contexto ativo, empresa opcional (carteira do escritório e gestão da equipe)
     Route::middleware('contexto')->group(function () {
@@ -58,6 +68,7 @@ Route::middleware('auth')->group(function () {
         // Todos os papéis (o controller restringe o prestador às próprias cobranças).
         Route::get('/cobrancas/{cobranca}', [CobrancaController::class, 'show'])->name('cobrancas.show');
         Route::post('/cobrancas/{cobranca}/nota', [CobrancaController::class, 'enviarNota'])->name('cobrancas.nota');
+        Route::post('/cobrancas/{cobranca}/xml', [CobrancaController::class, 'anexarXml'])->middleware('papel:admin,financeiro,prestador')->name('cobrancas.xml');
         Route::get('/notas/{nota}/xml', [NotaFiscalController::class, 'xml'])->name('notas.xml');
 
         // Leitura interna: empresa e escritório

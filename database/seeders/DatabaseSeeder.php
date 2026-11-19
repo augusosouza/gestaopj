@@ -64,15 +64,15 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id, 'organizacao_id' => $org->id, 'papel' => $papel, 'prestador_id' => $p?->id, 'inicio' => $inicio,
         ]);
 
-        $vinc($u('Administrador A', 'admin@gestaopj.local'), $a, Papel::Admin);
-        $vinc($u('Financeiro A', 'financeiro@gestaopj.local'), $a, Papel::Financeiro);
-        $vinc($u('Administrador B', 'admin.b@gestaopj.local'), $b, Papel::Admin);
-        $consultor = $u('Consultor Exemplo', 'prestador@gestaopj.local');
+        $vinc($u('Administrador A', 'admin@augi.local'), $a, Papel::Admin);
+        $vinc($u('Financeiro A', 'financeiro@augi.local'), $a, Papel::Financeiro);
+        $vinc($u('Administrador B', 'admin.b@augi.local'), $b, Papel::Admin);
+        $consultor = $u('Consultor Exemplo', 'prestador@augi.local');
         $vinc($consultor, $a, Papel::Prestador, $prestA);
         $vinc($consultor, $b, Papel::Prestador, $prestB);
 
-        $revisora = $u('Revisora do Escritório', 'revisor@gestaopj.local');
-        $analista = $u('Analista Contábil', 'contabilidade@gestaopj.local');
+        $revisora = $u('Revisora do Escritório', 'revisor@augi.local');
+        $analista = $u('Analista Contábil', 'contabilidade@augi.local');
         $vinc($revisora, $esc, Papel::Revisor);
         $vinc($analista, $esc, Papel::Analista);
 

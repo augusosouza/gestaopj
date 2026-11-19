@@ -32,8 +32,8 @@ services:
   db:
     image: mariadb:11.4
     environment:
-      MARIADB_DATABASE: ${DB_DATABASE:-gestaopj}
-      MARIADB_USER: ${DB_USERNAME:-gestaopj}
+      MARIADB_DATABASE: ${DB_DATABASE:-augi}
+      MARIADB_USER: ${DB_USERNAME:-augi}
       MARIADB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
       MARIADB_RANDOM_ROOT_PASSWORD: "1"
     volumes: ["db:/var/lib/mysql"]

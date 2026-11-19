@@ -76,7 +76,7 @@
       </nav>
 
       <div class="usuario">
-        <span>{{ auth()->user()->name }}</span>
+        <a href="{{ route('seguranca') }}" title="Segurança da conta">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form>
       </div>
     </div>
@@ -91,7 +91,7 @@
   @auth
     <div class="barra" style="margin-bottom:32px">
       <span class="marca">@include('partials.marca')</span>
-      <div class="acoes"><span class="sub" style="margin:0">{{ auth()->user()->name }}</span>
+      <div class="acoes"><a class="sub" style="margin:0" href="{{ route('seguranca') }}">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form></div>
     </div>
   @endauth

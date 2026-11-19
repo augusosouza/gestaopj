@@ -48,15 +48,24 @@
     @if ($cobranca->notaFiscal)
       <h2 style="margin-top:0">Nota enviada</h2>
       @include('notas._resumo', ['nota' => $cobranca->notaFiscal])
+      @if (! $cobranca->notaFiscal->temXml() && (ctx()->ehPrestador() || $financeiro))
+        <form method="post" action="{{ route('cobrancas.xml', $cobranca) }}" enctype="multipart/form-data" class="campo" style="margin-top:14px">
+          @csrf
+          <label for="xml_anexo">Anexar o XML desta nota</label>
+          <div style="display:flex;gap:8px"><input id="xml_anexo" type="file" name="xml" accept=".xml,text/xml,application/xml" required><button class="sec">Anexar</button></div>
+        </form>
+      @endif
     @endif
 
     @if ($cobranca->conferencia && ! ctx()->ehPrestador())
       <h2>Conferência automática</h2>
+      @php($rotNat = ['fiscal' => 'fiscal', 'comercial' => 'comercial', 'verificacao' => 'verificação', 'aviso' => 'aviso'])
       <ul class="check">
         @foreach ($cobranca->conferencia as $i)
+          @php($nat = $i['natureza'] ?? 'fiscal')
           <li>
-            <span class="ic" style="color:var(--{{ $i['ok'] ? 'ok' : ($i['bloqueante'] ? 'bad' : 'warn') }})">{{ $i['ok'] ? '✓' : ($i['bloqueante'] ? '✗' : '!') }}</span>
-            <span><strong>{{ $i['item'] }}</strong>@unless ($i['bloqueante']) <span class="sub">(aviso)</span>@endunless<br><span class="sub">{{ $i['detalhe'] }}</span></span>
+            <span class="ic" style="color:var(--{{ $i['ok'] ? 'ok' : (in_array($nat, ['fiscal', 'comercial']) ? 'bad' : 'warn') }})">{{ $i['ok'] ? '✓' : (in_array($nat, ['fiscal', 'comercial']) ? '✗' : '!') }}</span>
+            <span><strong>{{ $i['item'] }}</strong> <span class="tag rotulo">{{ $rotNat[$nat] }}</span><br><span class="sub">{{ $i['detalhe'] }}</span></span>
           </li>
         @endforeach
       </ul>
@@ -64,13 +73,28 @@
 
     @if ($financeiro && $cobranca->status === $S::EmConferencia)
       <h2>Decisão do financeiro</h2>
-      <form method="post" action="{{ route('cobrancas.aprovar', $cobranca) }}" class="campo">
-        @csrf
-        @unless ($cobranca->conferenciaOk())
-          <div class="campo"><label for="justificativa">Justificativa para aprovar com ressalva</label><textarea id="justificativa" name="justificativa" rows="2" required>{{ old('justificativa') }}</textarea></div>
-        @endunless
-        <button>{{ $cobranca->conferenciaOk() ? 'Aprovar para pagamento' : 'Aprovar com ressalva' }}</button>
-      </form>
+      @if ($cobranca->invalidaFiscalmente())
+        <div class="aviso bad"><strong>Nota inválida para esta cobrança.</strong> Não passou em: {{ mb_strtolower(implode('; ', $cobranca->falhas('fiscal'))) }}.
+          Não pode ser aprovada, nem com justificativa: rejeite e peça uma nova nota.</div>
+      @else
+        <form method="post" action="{{ route('cobrancas.aprovar', $cobranca) }}" class="campo">
+          @csrf
+          @if ($cobranca->temDivergenciaComercial())
+            <div class="aviso info"><strong>Divergência comercial.</strong> Não passou em: {{ mb_strtolower(implode('; ', $cobranca->falhas('comercial'))) }}.
+              @unless (ctx()->tem(\App\Enums\Papel::Admin)) Só o administrador pode aprovar com ressalva. @endunless</div>
+          @elseif ($cobranca->naoVerificada())
+            <div class="aviso info"><strong>Nota não verificada:</strong> só a chave foi informada. Se aprovar, a pendência do XML continua no fechamento.</div>
+          @endif
+          @unless ($cobranca->conferenciaOk())
+            @if (! $cobranca->temDivergenciaComercial() || ctx()->tem(\App\Enums\Papel::Admin))
+              <div class="campo"><label for="justificativa">Justificativa (fica no histórico)</label><textarea id="justificativa" name="justificativa" rows="2" required>{{ old('justificativa') }}</textarea></div>
+              <button>Aprovar com ressalva</button>
+            @endif
+          @else
+            <button>Aprovar para pagamento</button>
+          @endunless
+        </form>
+      @endif
       <form method="post" action="{{ route('cobrancas.rejeitar', $cobranca) }}">
         @csrf
         <div class="campo"><label for="motivo">Motivo da rejeição (o prestador verá)</label><textarea id="motivo" name="motivo" rows="2" required>{{ old('motivo') }}</textarea></div>

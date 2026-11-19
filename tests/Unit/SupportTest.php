@@ -32,5 +32,17 @@ class SupportTest extends TestCase
         $this->assertTrue(Documento::cpfValido('529.982.247-25'));
         $this->assertFalse(Documento::cpfValido('529.982.247-24'));
         $this->assertSame('11.222.333/0001-81', Documento::formatar('11222333000181'));
+        $this->assertFalse(Documento::cpfValido('5299822472A'));
+    }
+
+    public function test_aceita_cnpj_alfanumerico(): void
+    {
+        // Exemplo oficial da Receita Federal (IN RFB 2.229/2024)
+        $this->assertTrue(Documento::cnpjValido('12.ABC.345/01DE-35'));
+        $this->assertTrue(Documento::cnpjValido('12abc34501de35')); // minúsculas normalizadas
+        $this->assertFalse(Documento::cnpjValido('12.ABC.345/01DE-36'));
+        $this->assertFalse(Documento::cnpjValido('12ABC34501DEA5')); // DV deve ser numérico
+        $this->assertSame('12ABC34501DE35', Documento::limpar('12.abc.345/01de-35'));
+        $this->assertSame('12.ABC.345/01DE-35', Documento::formatar('12ABC34501DE35'));
     }
 }

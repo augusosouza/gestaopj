@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Papel;
 use App\Support\Contexto;
 use Closure;
 use Illuminate\Http\Request;
@@ -27,6 +28,14 @@ class ExigeContexto
 
             return redirect()->route('contexto.escolher')
                 ->with('aviso', $tinha ? 'Seu acesso a este contexto foi encerrado ou revogado. Escolha outro.' : null);
+        }
+
+        // Perfis privilegiados só operam com verificação em duas etapas ativa.
+        if (config('gestao.exigir_2fa') && $this->ctx->tem(Papel::Admin, Papel::Revisor) && ! $request->user()->temDoisFatores()) {
+            $this->ctx->desativar();
+
+            return redirect()->route('seguranca')
+                ->with('aviso', 'Administradores e revisores precisam ativar a verificação em duas etapas antes de continuar.');
         }
 
         if ($exige === 'empresa' && $this->ctx->organizacaoId() === null) {

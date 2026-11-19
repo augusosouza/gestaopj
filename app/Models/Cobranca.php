@@ -52,9 +52,34 @@ class Cobranca extends Model
         return $this->belongsTo(User::class, 'aprovada_por');
     }
 
-    /** A conferência automática passou em todos os itens obrigatórios? */
+    /** Itens não atendidos de uma natureza (fiscal, comercial, verificacao, aviso). */
+    public function falhas(string $natureza): array
+    {
+        return collect($this->conferencia ?? [])
+            ->filter(fn ($i) => ! $i['ok'] && ($i['natureza'] ?? 'fiscal') === $natureza)
+            ->pluck('item')->values()->all();
+    }
+
+    /** Documento inválido para esta cobrança: não pode ser aprovado. */
+    public function invalidaFiscalmente(): bool
+    {
+        return $this->falhas('fiscal') !== [];
+    }
+
+    public function temDivergenciaComercial(): bool
+    {
+        return $this->falhas('comercial') !== [];
+    }
+
+    /** Só a chave foi informada: pendência fiscal até o XML ser anexado. */
+    public function naoVerificada(): bool
+    {
+        return $this->falhas('verificacao') !== [];
+    }
+
+    /** Passou em tudo que não é mero aviso. */
     public function conferenciaOk(): bool
     {
-        return collect($this->conferencia ?? [])->every(fn ($i) => $i['ok'] || ! ($i['bloqueante'] ?? true));
+        return ! $this->invalidaFiscalmente() && ! $this->temDivergenciaComercial() && ! $this->naoVerificada();
     }
 }

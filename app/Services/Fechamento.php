@@ -56,6 +56,13 @@ final class Fechamento
             StatusCobranca::Rejeitada->value => 'Nota rejeitada, aguardando reenvio',
         ];
         foreach ($cobrancas as $c) {
+            $posAprovacao = in_array($c->status, [StatusCobranca::Aprovada, StatusCobranca::Paga], true);
+            if ($posAprovacao && $c->naoVerificada()) {
+                $p->push(['tipo' => 'XML da nota pendente', 'quem' => $c->prestador->nome, 'ref' => $c->contrato->numero, 'valor' => $c->valor_centavos, 'url' => route('cobrancas.show', $c)]);
+            }
+            if ($posAprovacao && $c->invalidaFiscalmente()) {
+                $p->push(['tipo' => 'Nota fiscalmente inconsistente', 'quem' => $c->prestador->nome, 'ref' => $c->contrato->numero, 'valor' => $c->valor_centavos, 'url' => route('cobrancas.show', $c)]);
+            }
             if (isset($rotulos[$c->status->value])) {
                 $p->push(['tipo' => $rotulos[$c->status->value], 'quem' => $c->prestador->nome, 'ref' => $c->contrato->numero, 'valor' => $c->valor_centavos, 'url' => route('cobrancas.show', $c)]);
             }

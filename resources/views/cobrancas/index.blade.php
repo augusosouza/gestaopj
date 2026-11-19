@@ -29,7 +29,10 @@
         <td class="n">{{ brl($c->valor_centavos) }}</td>
         <td>{{ $c->notaFiscal ? 'Nº '.$c->notaFiscal->numero : '—' }}</td>
         <td>@if ($c->conferencia)
-              @if ($c->conferenciaOk())<span class="tag ok">Sem divergências</span>@else<span class="tag bad">Com divergências</span>@endif
+              @if ($c->invalidaFiscalmente())<span class="tag bad">Nota inválida</span>
+              @elseif ($c->temDivergenciaComercial())<span class="tag bad">Divergência comercial</span>
+              @elseif ($c->naoVerificada())<span class="tag warn">Não verificada</span>
+              @else<span class="tag ok">Sem divergências</span>@endif
             @else — @endif</td>
         <td>@include('partials.status', ['status' => $c->status])</td>
         <td><a href="{{ route('cobrancas.show', $c) }}">Abrir</a></td>

@@ -50,6 +50,15 @@ class CobrancaController extends Controller
         return back()->with('ok', 'Nota enviada para conferência do financeiro.');
     }
 
+    public function anexarXml(Request $request, Cobranca $cobranca, Faturamento $faturamento): RedirectResponse
+    {
+        $this->autorizar($request, $cobranca);
+        $request->validate(['xml' => ['required', 'file', 'max:'.config('gestao.xml_max_kb')]]);
+        $faturamento->anexarXml($cobranca, $request->file('xml'));
+
+        return back()->with('ok', 'XML anexado e conferência refeita.');
+    }
+
     public function aprovar(Request $request, Cobranca $cobranca, Faturamento $faturamento): RedirectResponse
     {
         $dados = $request->validate(['justificativa' => ['nullable', 'string', 'max:1000']]);

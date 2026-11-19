@@ -44,43 +44,43 @@ class IsolamentoTest extends TestCase
 
     public function test_url_direta_de_outra_empresa_responde_404(): void
     {
-        $admA = $this->como('admin@gestaopj.local');
+        $admA = $this->como('admin@augi.local');
         $admA->get(route('cobrancas.show', $this->cobB))->assertNotFound();
-        $this->como('admin@gestaopj.local')->get(route('faturas.show', $this->fatB))->assertNotFound();
-        $this->como('admin@gestaopj.local')->get(route('contratos.show', $this->cobB->contrato_id))->assertNotFound();
-        $this->como('admin@gestaopj.local')->get(route('contratos.edit', $this->cobB->contrato_id))->assertNotFound();
-        $this->como('admin@gestaopj.local')->get(route('clientes.edit', Contrato::find($this->cobB->contrato_id)->cliente_id))->assertNotFound();
+        $this->como('admin@augi.local')->get(route('faturas.show', $this->fatB))->assertNotFound();
+        $this->como('admin@augi.local')->get(route('contratos.show', $this->cobB->contrato_id))->assertNotFound();
+        $this->como('admin@augi.local')->get(route('contratos.edit', $this->cobB->contrato_id))->assertNotFound();
+        $this->como('admin@augi.local')->get(route('clientes.edit', Contrato::find($this->cobB->contrato_id)->cliente_id))->assertNotFound();
     }
 
     public function test_acao_em_registro_de_outra_empresa_responde_404_e_nada_muda(): void
     {
-        $this->como('financeiro@gestaopj.local')->post(route('faturas.receber', $this->fatB), ['valor' => '1,00', 'data' => '2026-10-10'])->assertNotFound();
-        $this->como('admin@gestaopj.local')->post(route('contratos.alocar', $this->cobB->contrato_id), [])->assertNotFound();
+        $this->como('financeiro@augi.local')->post(route('faturas.receber', $this->fatB), ['valor' => '1,00', 'data' => '2026-10-10'])->assertNotFound();
+        $this->como('admin@augi.local')->post(route('contratos.alocar', $this->cobB->contrato_id), [])->assertNotFound();
         $this->assertNull($this->fatB->fresh()->recebida_em);
     }
 
     public function test_listas_e_painel_mostram_so_a_empresa_do_contexto(): void
     {
-        $this->como('admin@gestaopj.local')->get(route('contratos.index'))->assertSee('CT-2026-001')->assertDontSee('CT-B-001');
-        $this->como('admin.b@gestaopj.local', self::B)->get(route('contratos.index'))->assertSee('CT-B-001')->assertDontSee('CT-2026-001');
-        $this->como('admin@gestaopj.local')->get(route('painel', ['competencia' => '2026-10']))->assertSee('R$ 12.000,00')->assertDontSee('R$ 8.000,00');
+        $this->como('admin@augi.local')->get(route('contratos.index'))->assertSee('CT-2026-001')->assertDontSee('CT-B-001');
+        $this->como('admin.b@augi.local', self::B)->get(route('contratos.index'))->assertSee('CT-B-001')->assertDontSee('CT-2026-001');
+        $this->como('admin@augi.local')->get(route('painel', ['competencia' => '2026-10']))->assertSee('R$ 12.000,00')->assertDontSee('R$ 8.000,00');
     }
 
     public function test_xml_de_outra_empresa_nao_baixa(): void
     {
-        $this->como('prestador@gestaopj.local', self::B)->post(route('cobrancas.nota', $this->cobB), ['xml' => UploadedFile::fake()->createWithContent('n.xml', NfseXml::gerar([
+        $this->como('prestador@augi.local', self::B)->post(route('cobrancas.nota', $this->cobB), ['xml' => UploadedFile::fake()->createWithContent('n.xml', NfseXml::gerar([
             'tomador' => '22333444000181', 'valor' => '5000.00',
         ]))])->assertSessionHasNoErrors();
         $notaB = $this->cobB->fresh()->notaFiscal;
 
-        $this->como('admin@gestaopj.local')->get(route('notas.xml', $notaB))->assertNotFound();
-        $this->como('admin.b@gestaopj.local', self::B)->get(route('notas.xml', $notaB))->assertOk();
+        $this->como('admin@augi.local')->get(route('notas.xml', $notaB))->assertNotFound();
+        $this->como('admin.b@augi.local', self::B)->get(route('notas.xml', $notaB))->assertOk();
         $this->assertStringStartsWith('nfse/'.$this->empresa(self::B)->id.'/', $notaB->xml_path);
     }
 
     public function test_exportacao_traz_so_a_empresa_do_contexto(): void
     {
-        $resp = $this->como('admin@gestaopj.local')->get(route('fechamento.exportar', ['competencia' => '2026-10']))->assertOk();
+        $resp = $this->como('admin@augi.local')->get(route('fechamento.exportar', ['competencia' => '2026-10']))->assertOk();
         $zip = new \ZipArchive;
         $zip->open($resp->baseResponse->getFile()->getPathname());
         $csv = $zip->getFromName('faturas_receber.csv');
@@ -92,18 +92,18 @@ class IsolamentoTest extends TestCase
     public function test_mesma_nota_pode_ser_registrada_em_empresas_diferentes_mas_nao_duas_vezes_na_mesma(): void
     {
         $chave = NfseXml::chave('45723174000110', 77);
-        $this->como('prestador@gestaopj.local', self::B)->post(route('cobrancas.nota', $this->cobB), ['chave_acesso' => $chave])->assertSessionHasNoErrors();
+        $this->como('prestador@augi.local', self::B)->post(route('cobrancas.nota', $this->cobB), ['chave_acesso' => $chave])->assertSessionHasNoErrors();
         $cobA = Cobranca::where('organizacao_id', $this->empresa()->id)->sole();
-        $this->como('prestador@gestaopj.local')->post(route('cobrancas.nota', $cobA), ['chave_acesso' => $chave])->assertSessionHasNoErrors();
+        $this->como('prestador@augi.local')->post(route('cobrancas.nota', $cobA), ['chave_acesso' => $chave])->assertSessionHasNoErrors();
     }
 
     public function test_prestador_nao_troca_para_vinculo_alheio(): void
     {
-        $alheio = Vinculo::where('user_id', User::where('email', 'admin.b@gestaopj.local')->sole()->id)->sole();
-        $this->como('prestador@gestaopj.local')->post(route('contexto.selecionar'), ['vinculo' => $alheio->id])->assertForbidden();
+        $alheio = Vinculo::where('user_id', User::where('email', 'admin.b@augi.local')->sole()->id)->sole();
+        $this->como('prestador@augi.local')->post(route('contexto.selecionar'), ['vinculo' => $alheio->id])->assertForbidden();
 
         // Sessão adulterada com vínculo de outra pessoa: contexto descartado.
-        $this->actingAs(User::where('email', 'prestador@gestaopj.local')->sole())
+        $this->actingAs(User::where('email', 'prestador@augi.local')->sole())
             ->withSession(['ctx' => ['vinculo' => $alheio->id, 'empresa' => null]])
             ->get(route('contratos.index'))->assertRedirect(route('contexto.escolher'));
     }
@@ -111,18 +111,18 @@ class IsolamentoTest extends TestCase
     public function test_analista_so_acessa_empresas_atribuidas(): void
     {
         $b = $this->empresa(self::B);
-        $this->como('contabilidade@gestaopj.local')->get(route('carteira'))->assertSee('Minha Empresa de Suporte')->assertDontSee('Outra Empresa de Serviços');
-        $this->como('contabilidade@gestaopj.local')->post(route('carteira.entrar', $b))->assertForbidden();
+        $this->como('contabilidade@augi.local')->get(route('carteira'))->assertSee('Minha Empresa de Suporte')->assertDontSee('Outra Empresa de Serviços');
+        $this->como('contabilidade@augi.local')->post(route('carteira.entrar', $b))->assertForbidden();
         // Sessão adulterada apontando para B
-        $this->como('contabilidade@gestaopj.local', self::B)->get(route('cobrancas.index'))->assertRedirect(route('contexto.escolher'));
+        $this->como('contabilidade@augi.local', self::B)->get(route('cobrancas.index'))->assertRedirect(route('contexto.escolher'));
 
-        $this->como('revisor@gestaopj.local')->get(route('carteira'))->assertSee('Outra Empresa de Serviços');
-        $this->como('revisor@gestaopj.local', self::B)->get(route('cobrancas.show', $this->cobB))->assertOk();
+        $this->como('revisor@augi.local')->get(route('carteira'))->assertSee('Outra Empresa de Serviços');
+        $this->como('revisor@augi.local', self::B)->get(route('cobrancas.show', $this->cobB))->assertOk();
     }
 
     public function test_escritorio_sem_empresa_escolhida_nao_ve_dados(): void
     {
-        $revisora = User::where('email', 'revisor@gestaopj.local')->sole();
+        $revisora = User::where('email', 'revisor@augi.local')->sole();
         $v = Vinculo::where('user_id', $revisora->id)->sole();
         $this->actingAs($revisora)->withSession(['ctx' => ['vinculo' => $v->id, 'empresa' => null]])
             ->get(route('cobrancas.show', $this->cobB))->assertRedirect(route('carteira'));
@@ -130,29 +130,29 @@ class IsolamentoTest extends TestCase
 
     public function test_revogar_autorizacao_corta_o_escritorio_na_proxima_acao(): void
     {
-        $this->como('revisor@gestaopj.local', self::B)->get(route('cobrancas.index'))->assertOk();
+        $this->como('revisor@augi.local', self::B)->get(route('cobrancas.index'))->assertOk();
 
         $aut = AutorizacaoEscritorio::where('empresa_id', $this->empresa(self::B)->id)->sole();
-        $this->como('admin.b@gestaopj.local', self::B)->patch(route('organizacao.revogar', $aut))->assertRedirect();
+        $this->como('admin.b@augi.local', self::B)->patch(route('organizacao.revogar', $aut))->assertRedirect();
         $this->assertNotNull($aut->fresh()->fim);
 
-        $this->como('revisor@gestaopj.local', self::B)->get(route('cobrancas.index'))->assertRedirect(route('contexto.escolher'));
-        $this->como('revisor@gestaopj.local')->get(route('carteira'))->assertDontSee('Outra Empresa de Serviços');
+        $this->como('revisor@augi.local', self::B)->get(route('cobrancas.index'))->assertRedirect(route('contexto.escolher'));
+        $this->como('revisor@augi.local')->get(route('carteira'))->assertDontSee('Outra Empresa de Serviços');
         $this->assertDatabaseHas('eventos', ['acao' => 'autorizacao.revogada']);
     }
 
     public function test_admin_nao_revoga_autorizacao_de_outra_empresa(): void
     {
         $autB = AutorizacaoEscritorio::where('empresa_id', $this->empresa(self::B)->id)->sole();
-        $this->como('admin@gestaopj.local')->patch(route('organizacao.revogar', $autB))->assertNotFound();
+        $this->como('admin@augi.local')->patch(route('organizacao.revogar', $autB))->assertNotFound();
         $this->assertNull($autB->fresh()->fim);
     }
 
     public function test_encerrar_vinculo_corta_o_acesso_e_preserva_historico(): void
     {
-        $fin = User::where('email', 'financeiro@gestaopj.local')->sole();
+        $fin = User::where('email', 'financeiro@augi.local')->sole();
         $v = Vinculo::where('user_id', $fin->id)->sole();
-        $this->como('admin@gestaopj.local')->patch(route('usuarios.encerrar', $v))->assertRedirect();
+        $this->como('admin@augi.local')->patch(route('usuarios.encerrar', $v))->assertRedirect();
 
         // Mesma sessão que a pessoa já tinha aberta antes do encerramento.
         $this->actingAs($fin)->withSession(['ctx' => ['vinculo' => $v->id, 'empresa' => null]])
@@ -164,14 +164,14 @@ class IsolamentoTest extends TestCase
     public function test_encerrar_atribuicao_corta_o_analista(): void
     {
         $at = Atribuicao::sole();
-        $this->como('revisor@gestaopj.local')->patch(route('escritorio.encerrar', $at))->assertRedirect();
-        $this->como('contabilidade@gestaopj.local')->get(route('cobrancas.index'))->assertRedirect(route('contexto.escolher'));
+        $this->como('revisor@augi.local')->patch(route('escritorio.encerrar', $at))->assertRedirect();
+        $this->como('contabilidade@augi.local')->get(route('cobrancas.index'))->assertRedirect(route('contexto.escolher'));
     }
 
     public function test_escritorio_acessando_empresa_fica_na_auditoria(): void
     {
-        $this->como('revisor@gestaopj.local')->get(route('carteira')); // ativa vínculo
-        $this->como('revisor@gestaopj.local')->post(route('carteira.entrar', $this->empresa(self::B)))->assertRedirect(route('painel'));
+        $this->como('revisor@augi.local')->get(route('carteira')); // ativa vínculo
+        $this->como('revisor@augi.local')->post(route('carteira.entrar', $this->empresa(self::B)))->assertRedirect(route('painel'));
         $this->assertDatabaseHas('eventos', ['acao' => 'escritorio.acesso', 'organizacao_id' => $this->empresa(self::B)->id]);
     }
 }

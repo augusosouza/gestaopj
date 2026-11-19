@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Papel;
 use App\Enums\StatusCobranca;
 use App\Enums\StatusFatura;
 use App\Models\Alocacao;
@@ -10,7 +11,10 @@ use App\Models\Contrato;
 use App\Models\Evento;
 use App\Models\Fatura;
 use App\Models\NotaFiscal;
+use App\Services\Nfse\NfseXmlInvalido;
+use App\Services\Nfse\NfseXmlParser;
 use App\Services\Nfse\RegistroNotas;
+use App\Support\Contexto;
 use App\Support\Dinheiro;
 use App\Support\Documento;
 use Carbon\CarbonImmutable;
@@ -188,15 +192,57 @@ final class Faturamento
             throw ValidationException::withMessages(['justificativa' => 'Só cobranças em conferência podem ser aprovadas.']);
         }
         $this->reconferir($cobranca);
-        if (! $cobranca->conferenciaOk() && blank($justificativa)) {
-            throw ValidationException::withMessages(['justificativa' => 'A conferência tem pendências: informe a justificativa para aprovar com ressalva.']);
+
+        // 1. Documento fiscalmente inválido: justificativa não resolve.
+        if ($cobranca->invalidaFiscalmente()) {
+            throw ValidationException::withMessages(['justificativa' => 'A nota não é válida para esta cobrança (não passou em: '
+                .mb_strtolower(implode('; ', $cobranca->falhas('fiscal'))).'). Rejeite e peça uma nova nota.']);
         }
+        // 2. Divergência comercial: justificativa + alçada de administrador.
+        if ($cobranca->temDivergenciaComercial()) {
+            if (! app(Contexto::class)->tem(Papel::Admin)) {
+                throw ValidationException::withMessages(['justificativa' => 'Divergência comercial (não passou em: '
+                    .mb_strtolower(implode('; ', $cobranca->falhas('comercial'))).'): só o administrador pode aprovar com ressalva.']);
+            }
+            if (blank($justificativa)) {
+                throw ValidationException::withMessages(['justificativa' => 'Informe a justificativa para aprovar com divergência comercial.']);
+            }
+        }
+        // 3. Não verificada (só chave): justificativa; a pendência fiscal continua visível.
+        if ($cobranca->naoVerificada() && blank($justificativa)) {
+            throw ValidationException::withMessages(['justificativa' => 'A nota ainda não foi verificada (sem XML): informe a justificativa.']);
+        }
+
         $cobranca->forceFill([
             'status' => StatusCobranca::Aprovada,
             'aprovada_por' => auth()->id(),
             'aprovada_em' => now(),
         ])->save();
         Evento::registrar('cobranca.aprovada', $cobranca, array_filter(['justificativa' => $justificativa]));
+    }
+
+    /**
+     * Completa uma nota informada só pela chave com o XML correspondente, em qualquer
+     * etapa (inclusive já paga), e refaz a conferência.
+     */
+    public function anexarXml(Cobranca $cobranca, UploadedFile $xml): void
+    {
+        $nota = $cobranca->notaFiscal;
+        if (! $nota || $nota->temXml()) {
+            throw ValidationException::withMessages(['xml' => 'Esta cobrança não tem nota aguardando XML.']);
+        }
+        try {
+            $dados = app(NfseXmlParser::class)->ler($xml->get());
+        } catch (NfseXmlInvalido $e) {
+            throw ValidationException::withMessages(['xml' => $e->getMessage()]);
+        }
+        if ($dados->chaveAcesso !== $nota->chave_acesso) {
+            throw ValidationException::withMessages(['xml' => 'O XML é de outra nota (a chave não corresponde à informada).']);
+        }
+        $this->notas->deXml($cobranca->organizacao_id, $xml, 'recebida');
+        $cobranca->load('notaFiscal');
+        $this->reconferir($cobranca);
+        Evento::registrar('cobranca.xml_anexado', $cobranca, ['chave' => $nota->chave_acesso]);
     }
 
     public function rejeitar(Cobranca $cobranca, string $motivo): void

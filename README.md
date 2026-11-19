@@ -1,4 +1,4 @@
-# GestãoPJ — portal de faturamento e prestadores
+# Augi Gestão — portal de faturamento, prestadores e contabilidade
 
 Painel único para a empresa de suporte e consultoria acompanhar **o que tem a receber dos clientes**, **o que tem a pagar aos contratados PJ/MEI** e **quais notas ainda precisam ser conferidas**.
 
@@ -43,19 +43,18 @@ Contabilidade: confirma perfis fiscais e exporta o .zip do mês (CSVs + XMLs emi
 
 ### Conferência automática da nota do prestador
 
-| Item | Bloqueia aprovação? |
-|---|---|
-| Emitente da nota = CNPJ do prestador | Sim |
-| XML anexado (só chave não permite conferir valores) | Sim |
-| Tomador = CNPJ da empresa do contrato | Sim |
-| Valor do serviço = valor da cobrança | Sim |
-| Competência da nota = competência da cobrança | Sim |
-| Ambiente de produção (tpAmb = 1) | Sim |
-| CNPJ embutido na chave de acesso | Aviso |
-| Perfil fiscal do prestador confirmado pela contabilidade | Aviso |
-| Chave já registrada (duplicidade) | Recusa o envio |
+Cada item tem uma **natureza**, que define o que a aprovação permite:
 
-Com item bloqueante pendente, o financeiro só aprova **com justificativa**, registrada no histórico.
+| Natureza | Exemplos | Pode aprovar? |
+|---|---|---|
+| **Fiscal** (documento inválido) | Emitente não é o prestador, tomador não é a empresa, nota de teste | **Nunca**: rejeitar e pedir nova nota |
+| **Comercial** (divergência) | Valor diferente (mostra a diferença), competência diferente | Só **administrador**, com justificativa |
+| **Verificação** (não verificada) | Só a chave, sem XML | Com justificativa. A pendência "XML da nota pendente" continua no fechamento até o XML ser anexado, mesmo depois de paga |
+| **Aviso** | CNPJ na chave, perfil fiscal não confirmado | Informativo |
+
+A competência comparada é a **declarada na nota** (`dCompet`), não a data de emissão.
+
+Notas com chave já registrada na empresa são recusadas no envio (duplicidade).
 
 ## Papéis
 
@@ -82,20 +81,20 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 
 | E-mail | Acesso |
 |---|---|
-| `admin@gestaopj.local` / `financeiro@gestaopj.local` | Empresa A |
-| `admin.b@gestaopj.local` | Empresa B |
-| `prestador@gestaopj.local` | Prestador nas empresas A e B (escolhe o contexto) |
-| `revisor@gestaopj.local` | Revisora do escritório (carteira: A e B) |
-| `contabilidade@gestaopj.local` | Analista do escritório (atribuído só à A) |
+| `admin@augi.local` / `financeiro@augi.local` | Empresa A |
+| `admin.b@augi.local` | Empresa B |
+| `prestador@augi.local` | Prestador nas empresas A e B (escolhe o contexto) |
+| `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
+| `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (49 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (59 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 
 ```bash
 cp .env.example .env
 # edite: APP_ENV=production, APP_DEBUG=false, APP_URL, APP_KEY (php artisan key:generate --show),
-#        DB_DATABASE=gestaopj, DB_USERNAME=gestaopj, DB_PASSWORD=<senha forte>
+#        DB_DATABASE=augi, DB_USERNAME=augi, DB_PASSWORD=<senha forte>
 docker compose up -d --build
 # primeira empresa e primeiro escritório (o admin recebe um link para definir a senha):
 docker compose exec app php artisan gestao:nova-organizacao empresa 11.222.333/0001-81 "Minha Empresa Ltda" voce@empresa.com.br "Seu Nome"
@@ -126,10 +125,14 @@ Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 
 
 | Entrega | Situação |
 |---|---|
-| **1. Fundação** | ✅ Organizações, vínculos datados, contexto ativo, escritório com autorização e atribuição, isolamento por empresa (inclusive URL, arquivo e exportação), login, recuperação de acesso, convites, auditoria, armazenamento privado. ⏳ Falta: autenticação reforçada (2FA) nos perfis privilegiados e painel do administrador da plataforma. |
+| **1. Fundação** | ✅ Organizações, vínculos datados, contexto ativo, escritório com autorização e atribuição, isolamento por empresa (inclusive URL, arquivo e exportação), login, recuperação de acesso, convites, auditoria, armazenamento privado, **2FA (TOTP) obrigatório para administradores e revisores**, **CNPJ alfanumérico**. ⏳ Falta: painel do administrador da plataforma. |
 | **2. Operação mensal** | 🟡 Contratos, recorrência idempotente, demonstrativo do prestador, importação de XML com duplicidade por chave e hash, divergências, recebimento e pagamento. ⏳ Falta: medição (horas, plantões, adicionais aprovados), revisões contratuais com vigência, parcelas, baixa parcial e estorno, contestação pelo prestador, nota dividida entre contratos. |
 | **3. Fechamento piloto** | 🟡 Exportação .zip e confirmação de perfil fiscal. ⏳ Falta: etapas (coleta, conferência, revisão, fechada), pendências com responsável e prazo, retrato versionado, reabertura justificada, carteira com prazos e indicadores. |
 | 4 a 6 | ⏳ Integrações RTC/NFS-e/ADN, conciliação bancária, planejamento e revenda. |
+
+**CNPJ alfanumérico**: aceito em todo o sistema (validação conforme IN RFB 2.229/2024, conferida com o exemplo oficial `12.ABC.345/01DE-35`). Ponto em aberto: a chave de acesso da NFS-e é numérica; como ela representa um emitente com CNPJ alfanumérico depende do leiaute oficial. A verificação "CNPJ contido na chave" é só um aviso e não bloqueia nada.
+
+**2FA**: aplicativo autenticador (TOTP), com segredo criptografado no banco, código não reutilizável, 8 códigos de recuperação de uso único e desafio que expira em 5 minutos. Obrigatório para administradores e revisores (`GESTAO_EXIGIR_2FA`). Cada pessoa ativa o seu em *Segurança da conta*.
 
 Desvio consciente: a especificação pede valores decimais com precisão definida. Aqui os valores em reais são **inteiros em centavos**, o que é exato para totais e conferência. Tributos com mais casas (alíquotas, fase 3) usarão colunas decimais próprias.
 

@@ -30,16 +30,35 @@ class LoginController extends Controller
         if (RateLimiter::tooManyAttempts($chave, 5)) {
             throw ValidationException::withMessages(['email' => 'Muitas tentativas. Aguarde '.RateLimiter::availableIn($chave).' segundos.']);
         }
-        if (! Auth::attempt($dados, $request->boolean('lembrar'))) {
+        // Valida a senha sem abrir a sessão: com 2FA, a sessão só nasce após o código.
+        $provider = Auth::getProvider();
+        $user = $provider->retrieveByCredentials(['email' => $dados['email']]);
+        if (! $user || ! $provider->validateCredentials($user, ['password' => $dados['password']])) {
             RateLimiter::hit($chave);
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
         RateLimiter::clear($chave);
-        $request->session()->regenerate();
 
+        if ($user->temDoisFatores()) {
+            $request->session()->regenerate();
+            $request->session()->put('2fa.pendente', [
+                'id' => $user->id, 'lembrar' => $request->boolean('lembrar'), 'expira' => now()->addMinutes(5)->timestamp,
+            ]);
+
+            return redirect()->route('2fa.desafio');
+        }
+
+        return self::concluir($request, $user, $request->boolean('lembrar'), 'senha');
+    }
+
+    /** Abre a sessão e registra o login. */
+    public static function concluir(Request $request, $user, bool $lembrar, string $metodo): RedirectResponse
+    {
+        Auth::login($user, $lembrar);
+        $request->session()->regenerate();
         Evento::create([
-            'user_id' => Auth::id(), 'ip' => $request->ip(), 'acao' => 'login',
-            'alvo_type' => Auth::user()->getMorphClass(), 'alvo_id' => Auth::id(),
+            'user_id' => $user->id, 'ip' => $request->ip(), 'acao' => 'login',
+            'alvo_type' => $user->getMorphClass(), 'alvo_id' => $user->id, 'dados' => ['metodo' => $metodo],
         ]);
 
         return redirect()->route('contexto.escolher');

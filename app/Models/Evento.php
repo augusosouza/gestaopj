@@ -36,6 +36,7 @@ class Evento extends Model
             'cobranca.aprovada' => 'Aprovada para pagamento',
             'cobranca.rejeitada' => 'Nota rejeitada',
             'cobranca.paga' => 'Pagamento registrado',
+            'cobranca.xml_anexado' => 'XML anexado',
             'fatura.nota_vinculada' => 'NFS-e vinculada',
             'fatura.recebida' => 'Recebimento registrado',
             'perfil_fiscal.criado' => 'Perfil fiscal registrado',
