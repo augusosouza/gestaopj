@@ -1,0 +1,52 @@
+# Piloto em VPS Linux: app Laravel + MariaDB + agendador (gera competência todo dia 1º).
+# Fases 2 e 3 adicionam aqui os serviços internos (calculadoras Java e gerador de DANFSe em Go),
+# sem portas expostas, acessíveis só pela rede interna "gestao".
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DB_CONNECTION: mariadb
+      DB_HOST: db
+    ports: ["8080:80"]
+    volumes: ["storage:/var/www/html/storage"]
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [gestao]
+    restart: unless-stopped
+
+  agendador:
+    build: .
+    env_file: .env
+    environment:
+      DB_CONNECTION: mariadb
+      DB_HOST: db
+    entrypoint: []
+    command: php artisan schedule:work
+    volumes: ["storage:/var/www/html/storage"]
+    depends_on:
+      app: { condition: service_started }
+    networks: [gestao]
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-gestaopj}
+      MARIADB_USER: ${DB_USERNAME:-gestaopj}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes: ["db:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 10
+    networks: [gestao]
+    restart: unless-stopped
+
+volumes:
+  db:
+  storage:
+
+networks:
+  gestao:
