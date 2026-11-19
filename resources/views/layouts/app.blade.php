@@ -15,7 +15,7 @@
 <div class="app">
   <aside class="lateral">
     <div class="lateral-topo">
-      <a class="marca" href="{{ $c->empresa() ? route('painel') : route('carteira') }}">{{ config('app.name') }}</a>
+      <a class="marca" href="{{ $c->empresa() ? route('painel') : route('carteira') }}">@include('partials.marca')</a>
       <label for="menu" class="menu-btn">Menu</label>
     </div>
     <input type="checkbox" id="menu" class="menu-toggle">
@@ -90,7 +90,7 @@
 <main class="solo">
   @auth
     <div class="barra" style="margin-bottom:32px">
-      <span class="marca">{{ config('app.name') }}</span>
+      <span class="marca">@include('partials.marca')</span>
       <div class="acoes"><span class="sub" style="margin:0">{{ auth()->user()->name }}</span>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form></div>
     </div>

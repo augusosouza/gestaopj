@@ -8,18 +8,22 @@
 @font-face { font-family: "Plex Mono"; src: url("../fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 
 :root {
-  --bg: #f7f6f3;          /* papel */
+  /* Preto, vermelho e branco — sem preto nem branco puros, para não cansar a vista. */
+  --bg: #f7f7f6;          /* área de trabalho: branco suave */
   --surface: #ffffff;
-  --lateral: #efede8;
-  --text: #1c1b19;        /* tinta */
-  --muted: #6b6860;
-  --faint: #8f8b82;
-  --line: #e5e2db;
-  --line-strong: #d2cec5;
-  --accent: #1f5c4f;      /* verde-petróleo, único acento */
-  --accent-soft: #e4eeea;
-  --ok: #2c7a4d; --warn: #a1620a; --bad: #b0352b; --info: #3a5a88;
-  --ok-bg: #e7f2ea; --warn-bg: #f8eedb; --bad-bg: #f7e5e2;
+  --text: #171717;        /* quase preto */
+  --muted: #5e5e5e;
+  --faint: #8a8a8a;
+  --line: #e6e6e4;
+  --line-strong: #d3d3d0;
+  --accent: #b8232b;      /* vermelho da marca: só identidade e foco, nunca em valores */
+  --accent-soft: #f6dfe0;
+  /* Barra lateral preta */
+  --l-bg: #161616; --l-text: #f2f2f0; --l-muted: #a3a3a0; --l-faint: #8a8a8d; --l-line: #2a2a2a;
+  --l-hover: #222222; --l-ativo: #262626; --l-caixa: #1f1f1f;
+  /* Status (funcionais): verde = pago, âmbar = pendente, vermelho = problema */
+  --ok: #2e7547; --warn: #a35c06; --bad: #b8232b; --info: #4a4a4a;
+  --ok-bg: #e8f2eb; --warn-bg: #f8eedc; --bad-bg: #f9e6e6;
   --radius: 6px;
   --sans: "Plex", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -27,10 +31,11 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #151513; --surface: #1c1c1a; --lateral: #181816; --text: #ecebe6; --muted: #a29f96; --faint: #7d7a72;
-    --line: #2c2b28; --line-strong: #3b3a36; --accent: #78bba9; --accent-soft: #1e2d29;
-    --ok: #7cc79a; --warn: #e2ac57; --bad: #ec8b80; --info: #8eaee0;
-    --ok-bg: #1b2a20; --warn-bg: #2f2615; --bad-bg: #321d1a;
+    --bg: #141414; --surface: #1b1b1b; --text: #ececea; --muted: #a6a6a3; --faint: #7a7a78;
+    --line: #2a2a2a; --line-strong: #3a3a3a; --accent: #e5484d; --accent-soft: #3a1a1c;
+    --l-bg: #0e0e0e; --l-line: #262626; --l-hover: #1a1a1a; --l-ativo: #1f1f1f; --l-caixa: #171717;
+    --ok: #74c48f; --warn: #e3a857; --bad: #f07074; --info: #b5b5b2;
+    --ok-bg: #18271d; --warn-bg: #2d2414; --bad-bg: #321a1b;
     color-scheme: dark;
   }
 }
@@ -38,40 +43,45 @@
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14.5px/1.5 var(--sans); font-feature-settings: "tnum" 1; }
-a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: 1px; }
-a:hover { text-decoration-thickness: 2px; }
+a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { color: var(--accent); text-decoration-thickness: 2px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- Estrutura: barra lateral + conteúdo ---------- */
 .app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; }
-.lateral { background: var(--lateral); border-right: 1px solid var(--line); position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
-.lateral-topo { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px; }
+.lateral { background: var(--l-bg); color: var(--l-text); position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+.lateral a { text-decoration: none; }
+.lateral-topo { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 16px; }
 .marca { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
 .marca span { color: var(--accent); }
+.lateral .marca { color: var(--l-text); }
 .menu-toggle, .menu-btn { display: none; }
 .lateral-corpo { display: flex; flex-direction: column; flex: 1; padding: 0 12px 16px; }
 
-.contexto { margin: 0 8px 18px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); }
-.contexto .org { font-weight: 500; line-height: 1.3; }
-.contexto .via { font-size: 12px; color: var(--faint); }
-.contexto .meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.contexto { margin: 0 8px 20px; padding: 10px 12px; border: 1px solid var(--l-line); border-radius: var(--radius); background: var(--l-caixa); }
+.contexto .org { font-weight: 500; line-height: 1.3; color: var(--l-text); }
+.contexto .via { font-size: 12px; color: var(--l-faint); }
+.contexto .meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--l-muted); margin-top: 4px; }
+.contexto .meta a { color: var(--l-text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
 
-.nav-grupo { margin-bottom: 14px; }
-.nav-grupo > span { display: block; font-size: 11.5px; color: var(--faint); padding: 0 10px 4px; letter-spacing: 0.02em; }
-.nav-grupo a { display: block; padding: 6px 10px; border-radius: 5px; color: var(--muted); text-decoration: none; }
-.nav-grupo a:hover { color: var(--text); background: rgba(127, 120, 105, 0.08); }
-.nav-grupo a.ativo { color: var(--text); background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); font-weight: 500; }
+.nav-grupo { margin-bottom: 16px; }
+.nav-grupo > span { display: block; font-size: 11.5px; color: var(--l-faint); padding: 0 10px 4px; letter-spacing: 0.04em; text-transform: uppercase; }
+.nav-grupo a { display: block; padding: 6px 10px; border-radius: 5px; color: var(--l-muted); }
+.nav-grupo a:hover { color: var(--l-text); background: var(--l-hover); }
+.nav-grupo a.ativo { color: var(--l-text); background: var(--l-ativo); box-shadow: inset 3px 0 0 var(--accent); font-weight: 500; }
 
-.usuario { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.usuario { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--l-line); font-size: 13px; color: var(--l-muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.usuario button.link { color: var(--l-muted); }
+.usuario button.link:hover { color: var(--l-text); }
 
 .conteudo { padding: 32px 40px 64px; max-width: 1180px; width: 100%; }
 .solo { max-width: 720px; margin: 0 auto; padding: 8vh 16px 48px; }
 
 @media (max-width: 900px) {
   .app { grid-template-columns: minmax(0, 1fr); }
-  .lateral { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .lateral { position: static; height: auto; }
   .lateral-topo { padding: 12px 16px; }
-  .menu-btn { display: inline-block; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius); cursor: pointer; color: var(--text); background: var(--surface); }
+  .menu-btn { display: inline-block; font-size: 13px; padding: 5px 10px; border: 1px solid var(--l-line); border-radius: var(--radius); cursor: pointer; color: var(--l-text); background: var(--l-caixa); }
   .lateral-corpo { display: none; padding: 0 8px 12px; }
   .menu-toggle:checked ~ .lateral-corpo { display: flex; }
   .conteudo { padding: 20px 16px 48px; }
@@ -102,7 +112,7 @@ h2 { font-size: 15px; font-weight: 600; margin: 32px 0 10px; }
 .card .num { font-size: 26px; font-weight: 500; letter-spacing: -0.02em; margin-top: 6px; line-height: 1.15; white-space: nowrap; }
 .card .num small { font-size: 14px; color: var(--muted); font-weight: 400; margin-right: 3px; letter-spacing: 0; }
 .card .det { color: var(--faint); font-size: 12.5px; margin-top: 6px; }
-.card.destaque .num { color: var(--accent); }
+/* "destaque" sem cor: vermelho nunca marca valor positivo */
 @media (max-width: 900px) {
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card:nth-child(3) { border-left: 0; }
@@ -187,3 +197,4 @@ form.opcao.painel:hover { border-color: var(--line-strong); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 900px) { .tabela table { min-width: 620px; } }
 @media (max-width: 520px) { .card { padding: 14px 14px 16px; } .card .num { font-size: 21px; } }
+@media (prefers-color-scheme: dark) { .lateral { border-right: 1px solid var(--l-line); } }

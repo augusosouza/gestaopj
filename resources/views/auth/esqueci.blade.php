@@ -2,7 +2,7 @@
 @section('titulo', 'Recuperar acesso')
 @section('conteudo')
 <div class="login">
-  <span class="marca">{{ config('app.name') }}</span>
+  <span class="marca">@include('partials.marca')</span>
   <h1>Recuperar acesso</h1>
   <p class="sub">Informe seu e-mail. Se houver conta, enviaremos um link para definir uma nova senha.</p>
   <form method="post" action="{{ route('password.email') }}">

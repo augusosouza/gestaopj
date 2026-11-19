@@ -2,7 +2,7 @@
 @section('titulo', 'Definir senha')
 @section('conteudo')
 <div class="login">
-  <span class="marca">{{ config('app.name') }}</span>
+  <span class="marca">@include('partials.marca')</span>
   <h1>Definir senha</h1>
   <form method="post" action="{{ route('password.update') }}">
     @csrf <input type="hidden" name="token" value="{{ $token }}">

@@ -2,7 +2,7 @@
 @section('titulo', 'Entrar')
 @section('conteudo')
 <div class="login">
-  <span class="marca">{{ config('app.name') }}</span>
+  <span class="marca">@include('partials.marca')</span>
   <h1>Entrar</h1>
   <p class="sub">Contratos, notas e pagamentos da sua empresa e dos seus prestadores.</p>
   <form method="post" action="{{ route('login') }}">
