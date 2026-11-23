@@ -56,14 +56,14 @@ jobs:
         timeout-minutes: 15
         run: |
           vendor/bin/infection --filter=app/Services/PosicaoFinanceira.php --mutators=TrueValue,FalseValue,Identical,NotIdentical \
-            --only-covering-test-cases --threads=max --no-progress --noop --min-covered-msi=0 --logger-summary-json=build/noop.json
+            --only-covering-test-cases --threads=4 --no-progress --noop --min-covered-msi=0 --logger-summary-json=build/noop.json
           php -r '$s = json_decode(file_get_contents("build/noop.json"), true)["stats"]; echo "Controle: {$s["killedCount"]} de {$s["totalMutantsCount"]} mutações neutras detectadas (esperado 0).\n"; if ($s["killedCount"] > 0) { fwrite(STDERR, "Medição inválida.\n"); exit(1); }'
 
       - name: Teste de mutação (mínimo 80%)
         timeout-minutes: 30
         run: |
           vendor/bin/infection --filter=app/Services/Compras.php,app/Services/PosicaoFinanceira.php \
-            --only-covering-test-cases --threads=max --no-progress --min-covered-msi=80
+            --only-covering-test-cases --threads=4 --no-progress --min-covered-msi=80
 
       - name: Relatório
         if: always()
