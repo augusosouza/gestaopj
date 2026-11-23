@@ -23,6 +23,47 @@ class SaudeController extends Controller
         'health:schedule-check-heartbeat' => 'Sinal de vida do agendador', 'model:prune' => 'Limpeza do histórico das rotinas',
     ];
 
+    /** Mensagens das verificações do pacote (em inglês) traduzidas para a tela. */
+    public static function traduzir(?string $m): string
+    {
+        $m = (string) $m;
+        $regras = [
+            '/^The schedule did not run yet\.$/' => 'O agendador ainda não rodou. Confira o cron do servidor.',
+            '/^The last run of the schedule was more than ([\d.]+) minutes ago\.$/' => 'O agendador não roda há mais de $1 minutos. Confira o cron do servidor (* * * * * php artisan schedule:run).',
+            '/^Could not connect to the database: `(.*)`$/s' => 'Não foi possível conectar ao banco: $1',
+            '/^Could not set or retrieve an application cache value\.$/' => 'O cache não grava ou não lê valores.',
+            '/^An exception occurred with the application cache: `(.*)`$/s' => 'Erro no cache: $1',
+            '/^The debug mode was expected to be .*$/' => 'O modo de depuração está ligado em produção (APP_DEBUG=true). Desligue no .env.',
+            '/^Configs are not cached\.$/' => 'Configuração sem cache. Rode php artisan optimize no deploy.',
+            '/^Routes are not cached\.$/' => 'Rotas sem cache. Rode php artisan optimize no deploy.',
+            '/^The events are not cached\.$/' => 'Eventos sem cache. Rode php artisan optimize no deploy.',
+        ];
+        foreach ($regras as $de => $para) {
+            if (preg_match($de, $m)) {
+                return preg_replace($de, $para, $m);
+            }
+        }
+
+        return $m;
+    }
+
+    /** Resumo curto: o do pacote vem em inglês ("Ok", "Failed", "Skipped"); os nossos já vêm em português. */
+    public static function resumo(string $s): string
+    {
+        return ['Ok' => '—', 'Failed' => '—', 'Skipped' => '—', 'Warning' => '—', 'Crashed' => '—'][$s] ?? $s;
+    }
+
+    public static function rotulo(string $nome): string
+    {
+        foreach (self::ROTINAS as $chave => $rotulo) {
+            if ($nome === $chave || str_starts_with($nome, $chave.' ')) {
+                return $rotulo;
+            }
+        }
+
+        return $nome;
+    }
+
     public function index(ResultStore $store): View
     {
         return view('plataforma.saude', [

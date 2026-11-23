@@ -18,7 +18,7 @@
     <tbody>
     @foreach ($resultados->storedCheckResults as $r)
       @php([$classe, $texto] = $rotulo[$r->status] ?? ['', $r->status])
-      <tr><td>{{ $r->label }}</td><td><span class="tag {{ $classe }}">{{ $texto }}</span></td><td>{{ $r->shortSummary }}</td><td>{{ $r->notificationMessage ?: '—' }}</td></tr>
+      <tr><td>{{ $r->label }}</td><td><span class="tag {{ $classe }}">{{ $texto }}</span></td><td>{{ \App\Http\Controllers\SaudeController::resumo($r->shortSummary) }}</td><td>{{ \App\Http\Controllers\SaudeController::traduzir($r->notificationMessage) ?: '—' }}</td></tr>
     @endforeach
     </tbody>
   </table></div>
@@ -29,14 +29,14 @@
   <thead><tr><th>Rotina</th><th>Quando</th><th>Último início</th><th>Último fim</th><th>Última falha</th><th>Situação</th></tr></thead>
   <tbody>
   @forelse ($rotinas as ['t' => $t, 'situacao' => $s])
-    <tr><td>{{ \App\Http\Controllers\SaudeController::ROTINAS[$t->name] ?? $t->name }}<br><code style="font-size:12px">{{ $t->name }}</code></td>
-      <td><code style="font-size:12px">{{ $t->cron_expression }}</code></td>
+    <tr><td>{{ \App\Http\Controllers\SaudeController::rotulo($t->name) }}<br><code style="font-size:12px">{{ \Illuminate\Support\Str::before($t->name, ' ') }}</code></td>
+      <td><code style="font-size:12px;white-space:nowrap">{{ $t->cron_expression }}</code></td>
       <td>{{ $t->last_started_at?->format('d/m H:i') ?? '—' }}</td><td>{{ $t->last_finished_at?->format('d/m H:i') ?? '—' }}</td><td>{{ $t->last_failed_at?->format('d/m H:i') ?? '—' }}</td>
       <td>@switch($s)
         @case('ok')<span class="tag ok">Em dia</span>@break
         @case('falhou')<span class="tag bad">Falhou na última execução</span>@break
         @case('nao_rodou')<span class="tag bad">Não rodou no horário</span>@break
-        @default<span class="tag">Aguardando a 1ª execução</span>
+        @default<span class="tag">Aguardando</span>
       @endswitch</td></tr>
   @empty
     <tr><td colspan="6" class="vazio">Nenhuma rotina monitorada. Rode <code>php artisan schedule-monitor:sync</code> após cada atualização do sistema.</td></tr>

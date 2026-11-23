@@ -43,6 +43,7 @@ class SaudeTest extends TestCase
         $r->assertSee('Banco de dados')->assertSee('Agendador (cron)')->assertSee('Backup recente')->assertSee('Espaço em disco');
         $r->assertSee('Backup automático desativado.');
         $r->assertDontSee('Cliente Exemplo'); // só infraestrutura
+        $r->assertSee('O agendador ainda não rodou. Confira o cron do servidor.')->assertDontSee('did not run');
 
         // O agendador nunca rodou neste teste: a verificação falha e vira notificação para o admin da plataforma (só para ele).
         $admin = User::where('email', 'admin@augi.local')->sole();
@@ -100,6 +101,6 @@ class SaudeTest extends TestCase
         $this->assertSame('aguardando', SaudeController::situacao($novo));
 
         $this->como('admin@augi.local')->get(route('plataforma.saude'))->assertOk()
-            ->assertSee('Lembretes de extrato e conciliação')->assertSee('Falhou na última execução');
+            ->assertSee('Lembretes de extrato e conciliação')->assertSee('Falhou na última execução')->assertSee('Limpeza do histórico das rotinas');
     }
 }
