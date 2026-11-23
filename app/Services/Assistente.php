@@ -29,7 +29,7 @@ final class Assistente
         'Quanto tenho disponível?', 'Quanto vou receber nos próximos 30 dias?', 'Quanto preciso pagar nos próximos 30 dias?',
         'O que vence amanhã?', 'Quais clientes estão atrasados?', 'Quanto gastei com software este mês?',
         'Quais compras estão parceladas?', 'Quanto vem na fatura do cartão?', 'O que falta conciliar?',
-        'Como estará meu caixa?', 'O que precisa da minha atenção?',
+        'Como estará meu caixa?', 'Quais despesas ultrapassaram o orçamento?', 'Quais extratos estão desatualizados?', 'O que precisa da minha atenção?',
     ];
 
     public function __construct(private Financeiro $fin, private PosicaoFinanceira $posicao, private Recebimentos $receb, private Sugestoes $sugestoes) {}
@@ -46,6 +46,8 @@ final class Assistente
             $this->tem($q, ['atencao', 'pendencia', 'resolver', 'sugest', 'prioridade']) => $this->atencao(),
             $this->tem($q, ['concilia']) => $this->conciliar(),
             $this->tem($q, ['fatura', 'cartao']) => $this->fatura(),
+            $this->tem($q, ['orcament', 'ultrapass', 'limite de gasto']) => $this->orcamentos(),
+            $this->tem($q, ['extrato', 'desatualizad']) => $this->extratos(),
             $this->tem($q, ['parcelad', 'parcelament']) => $this->parceladas(),
             $this->tem($q, ['atrasad', 'inadimpl', 'devendo', 'em atraso']) => $this->atrasados(),
             $this->tem($q, ['gastei', 'gasto', 'gastos', 'despesa com', 'despesas com', 'paguei com']) => $this->gastos($q),
@@ -144,10 +146,10 @@ final class Assistente
             ->filter(fn ($w) => mb_strlen($w) >= 4)->contains(fn ($w) => str_contains($q, $w)));
         $tituloIds = Titulo::where('tipo', 'pagar')->whereNull('cancelado_em')->when($cat, fn ($w) => $w->where('categoria_id', $cat->id))->pluck('id');
         // Caixa: dinheiro que saiu no período (baixas não estornadas).
-        $baixas = Movimento::with('parcela.titulo', 'estorno')->where('tipo', 'baixa')->whereBetween('data', [$de->toDateString(), $ate->toDateString()])
+        $baixas = Movimento::with('parcela.titulo', 'estorno')->where('tipo', 'baixa')->whereDate('data', '>=', $de->toDateString())->whereDate('data', '<=', $ate->toDateString())
             ->whereHas('parcela', fn ($w) => $w->whereIn('titulo_id', $tituloIds))->get()->reject->estornado();
         // Competência: despesas lançadas para os meses do período.
-        $competencia = (int) Titulo::whereIn('id', $tituloIds)->whereBetween('competencia', [$de->startOfMonth()->toDateString(), $ate->toDateString()])->sum('valor_total_centavos');
+        $competencia = (int) Titulo::whereIn('id', $tituloIds)->whereDate('competencia', '>=', $de->startOfMonth()->toDateString())->whereDate('competencia', '<=', $ate->toDateString())->sum('valor_total_centavos');
         $nome = $cat?->nome ?? 'todas as categorias';
 
         return ['intencao' => 'gastos', 'titulo' => "Gastos com {$nome} — {$rotulo}", 'destaque' => brl((int) $baixas->sum('valor_centavos')),
@@ -157,6 +159,36 @@ final class Assistente
             'linhas' => $baixas->sortByDesc('data')->take(15)->map(fn ($m) => [$m->data->format('d/m'), $m->parcela->titulo->descricao, brl($m->valor_centavos)])->values()->all(),
             'origem' => $baixas->count().' pagamento(s) entre '.$de->format('d/m/Y').' e '.$ate->format('d/m/Y').'.',
             'links' => [['Despesas por categoria', route('financeiro.painel', ['aba' => 'despesas'])]]];
+    }
+
+    private function orcamentos(): array
+    {
+        $mes = CarbonImmutable::today()->startOfMonth();
+        $l = app(Planejamento::class)->acompanhamento($mes);
+        $fora = $l->where('estado', '!=', 'ok');
+
+        return ['intencao' => 'orcamento', 'titulo' => 'Orçamentos de '.$mes->translatedFormat('F/Y'),
+            'destaque' => $l->isEmpty() ? 'nenhum orçamento' : $l->where('estado', 'excedido')->count().' ultrapassado(s)',
+            'texto' => $l->isEmpty() ? 'Ainda não há orçamentos neste mês.' : ($fora->isEmpty() ? 'Todos abaixo de '.Planejamento::ALERTA_PCT.'% do limite.' : $fora->count().' acima de '.Planejamento::ALERTA_PCT.'% do limite.'),
+            'colunas' => ['Orçamento', 'Orçado', 'Comprometido', 'Uso'],
+            'linhas' => $l->map(fn ($o) => [$o['rotulo'], brl($o['orcado']), brl($o['comprometido']), $o['pct'].'%'.($o['estado'] === 'excedido' ? ' (ultrapassado)' : '')])->all(),
+            'origem' => 'Comprometido = despesas lançadas no mês (pagas ou não), como na tela de Planejamento.',
+            'links' => [['Abrir planejamento', route('planejamento.index')]]];
+    }
+
+    private function extratos(): array
+    {
+        $l = app(LembretesBancarios::class);
+        $contas = ContaFinanceira::where('ativa', true)->orderBy('nome')->get()->map(fn ($c) => ['c' => $c, 's' => $l->situacao($c)]);
+        $atras = $contas->where('s.estado', 'desatualizado');
+
+        return ['intencao' => 'extratos', 'titulo' => 'Extratos bancários', 'destaque' => $atras->count().' desatualizado(s)',
+            'texto' => $atras->isEmpty() ? 'Todas as contas com lembrete estão com o extrato em dia.' : 'Importe o extrato do período que falta para conferir os saldos.',
+            'colunas' => ['Conta', 'Extrato coberto até', 'Situação'],
+            'linhas' => $contas->map(fn ($x) => [$x['c']->nome, $x['c']->extrato_ate?->format('d/m/Y') ?? 'nenhum',
+                ['em_dia' => 'Em dia', 'desatualizado' => 'Desatualizado', 'dispensado' => 'Lembrete dispensado', 'sem_lembrete' => 'Sem lembrete'][$x['s']['estado']] ?? $x['s']['estado']])->values()->all(),
+            'origem' => 'Período coberto pelos extratos importados (não a data do envio), como nos lembretes bancários.',
+            'links' => [['Contas e bancos', route('financeiro.contas')]]];
     }
 
     private function parceladas(): array

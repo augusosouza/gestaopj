@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Papel;
 use App\Models\CategoriaFinanceira;
+use App\Models\CentroCusto;
 use App\Models\CobrancaRegistro;
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
@@ -21,6 +22,7 @@ use App\Services\GoogleAgenda;
 use App\Services\ImportadorExtrato;
 use App\Services\LembretesBancarios;
 use App\Services\LembretesVencimento;
+use App\Services\Planejamento;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
 use Carbon\CarbonImmutable;
@@ -105,6 +107,7 @@ class FinanceiroController extends Controller
         $this->fin->garantirPadroes(ctx()->organizacaoId());
 
         return view('financeiro.novo', [
+            'centros' => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'tipo' => $request->query('tipo') === 'receber' ? 'receber' : 'pagar',
             'categorias' => CategoriaFinanceira::where('ativa', true)->orderBy('nome')->get(),
         ]);
@@ -120,6 +123,7 @@ class FinanceiroController extends Controller
             'contraparte' => ['nullable', 'string', 'max:255'],
             'documento' => ['nullable', 'string', 'max:60'],
             'competencia' => ['required', 'date_format:Y-m'],
+            'centro_custo_id' => ['nullable', Rule::exists('centros_custo', 'id')->where('organizacao_id', $org)->where('ativo', true)],
             'valor' => ['required', 'string'],
             'parcelas' => ['required', 'integer', 'between:1,120'],
             'vencimento' => ['required', 'date'],
@@ -131,13 +135,17 @@ class FinanceiroController extends Controller
             'competencia' => $d['competencia'].'-01',
         ], $this->centavos($d['valor'], 'valor'), (int) $d['parcelas'], $d['vencimento']);
 
+        if (! empty($d['centro_custo_id']) && $d['tipo'] === 'pagar') {
+            app(Planejamento::class)->ratear($t, [$d['centro_custo_id'] => '100']);
+        }
+
         return redirect()->route('financeiro.titulo', $t)->with('ok', 'Lançamento criado.');
     }
 
     public function show(Request $request, Titulo $titulo): View
     {
         $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'lembretes', 'cobranca', 'historico'], true) ? $request->query('aba') : 'resumo';
-        $titulo->load('anexos.enviadoPor', 'origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
+        $titulo->load('rateios.centro', 'categoria.pai', 'anexos.enviadoPor', 'origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
             'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
 
         $historico = Evento::with('user')->where('alvo_type', $titulo->getMorphClass())->where('alvo_id', $titulo->id)->latest('id')->get();
@@ -161,6 +169,7 @@ class FinanceiroController extends Controller
 
         return view('financeiro.titulo', [
             't' => $titulo, 'aba' => $aba, 'historico' => $historico, 'lembretes' => $lembretes,
+            'centrosAtivos' => $aba === 'resumo' && ! $titulo->receber() ? CentroCusto::where('ativo', true)->orderBy('nome')->get() : collect(),
             'cobranca' => $aba === 'cobranca' ? CobrancaRegistro::with('criadoPor')->where('titulo_id', $titulo->id)->orderByDesc('data')->orderByDesc('id')->get() : collect(),
             'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(),
             'chave' => (string) Str::uuid(), // trava contra duplo envio do formulário de baixa
@@ -362,16 +371,21 @@ class FinanceiroController extends Controller
     {
         $this->fin->garantirPadroes(ctx()->organizacaoId());
 
-        return view('financeiro.categorias', ['categorias' => CategoriaFinanceira::orderBy('tipo')->orderBy('nome')->get()]);
+        return view('financeiro.categorias', ['categorias' => CategoriaFinanceira::with('pai.pai')->orderBy('tipo')->orderBy('nome')->get()]);
     }
 
     public function salvarCategoria(Request $request): RedirectResponse
     {
+        $org = ctx()->organizacaoId();
         $d = $request->validate([
             'tipo' => ['required', Rule::in(['receita', 'despesa'])],
             'nome' => ['required', 'string', 'max:80',
-                Rule::unique('categorias_financeiras')->where('organizacao_id', ctx()->organizacaoId())->where('tipo', $request->input('tipo'))],
-        ]);
+                Rule::unique('categorias_financeiras')->where('organizacao_id', $org)->where('tipo', $request->input('tipo'))],
+            'pai_id' => ['nullable', Rule::exists('categorias_financeiras', 'id')->where('organizacao_id', $org)->where('tipo', $request->input('tipo'))],
+        ], ['pai_id.exists' => 'A categoria principal precisa ser do mesmo tipo (receita ou despesa).']);
+        if (! empty($d['pai_id']) && CategoriaFinanceira::find($d['pai_id'])->pai?->pai_id) {
+            throw ValidationException::withMessages(['pai_id' => 'Use no máximo 3 níveis (categoria → subcategoria → detalhe).']);
+        }
         CategoriaFinanceira::create($d);
 
         return back()->with('ok', 'Categoria criada.');

@@ -58,7 +58,8 @@ final class Menu
                 $item('Contas a pagar', route('contas_pagar.index'), $rota('contas_pagar.*') || ($lanc && $tipo === 'pagar')),
                 $item('Compras', route('compras.index'), $rota('compras.*')),
                 $item('Cartões', route('cartoes.index'), $rota('cartoes.*')),
-                $secao('Bancos e análises'),
+                $secao('Planejamento e análises'),
+                $item('Planejamento', route('planejamento.index'), $rota('planejamento.*')),
                 $item('Contas e bancos', route('financeiro.contas'), $rota('financeiro.contas', 'financeiro.conciliacao', 'financeiro.conta*')),
                 $item('Categorias', route('financeiro.categorias'), $rota('financeiro.categorias')),
             ]];

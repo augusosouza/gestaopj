@@ -116,6 +116,15 @@ class RecebimentosCobrancaTest extends TestCase
         $this->como('financeiro@augi.local')->post(route('cobranca.renegociar', $this->t), ['parcelas' => [$p1->id], 'datas' => [], 'motivo' => 'x'])->assertSessionHasErrors('parcelas');
     }
 
+    public function test_recebido_no_ultimo_dia_do_mes_entra_no_mes(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-30 18:00'));
+        $this->como('financeiro@augi.local')->post(route('financeiro.baixar', $this->t->parcelas()->first()), ['conta_id' => $this->conta->id, 'data' => '2026-11-30', 'valor' => '1.000,00'])
+            ->assertSessionHasNoErrors();
+        $this->como('financeiro@augi.local')->get(route('contas_receber.index', ['aba' => 'pagas']))->assertSee('1 recebimento(s)');
+        $this->como('financeiro@augi.local')->get(route('contas_receber.index'))->assertSee('Recebido no mês')->assertSee('R$ 1.000,00');
+    }
+
     public function test_regua_de_cobranca_depois_do_vencimento(): void
     {
         $fin = User::where('email', 'financeiro@augi.local')->sole();

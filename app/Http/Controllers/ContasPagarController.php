@@ -144,7 +144,7 @@ class ContasPagarController extends Controller
     private function pagas(array $f): Collection
     {
         return Movimento::with('parcela.titulo.categoria', 'conta', 'estorno', 'criadoPor')->where('tipo', 'baixa')
-            ->whereBetween('data', [$f['de']->toDateString(), $f['ate']->toDateString()])
+            ->whereDate('data', '>=', $f['de']->toDateString())->whereDate('data', '<=', $f['ate']->toDateString())
             ->whereHas('parcela.titulo', fn ($q) => $q->where('tipo', $this->tipo))
             ->when($f['conta'] ?? null, fn ($q, $c) => $q->where('conta_id', $c))
             ->orderByDesc('data')->orderByDesc('id')->get()->reject->estornado()

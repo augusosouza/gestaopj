@@ -9,6 +9,10 @@
   @csrf <input type="hidden" name="tipo" value="{{ $tipo }}">
   <div class="campo"><label for="descricao">Descrição</label><input id="descricao" name="descricao" value="{{ old('descricao') }}" required placeholder="{{ $tipo === 'receber' ? 'Ex.: Consultoria avulsa' : 'Ex.: Aluguel do escritório' }}"></div>
   <div class="grade">
+    @if ($tipo === 'pagar')
+    @if ($centros->isNotEmpty())<div class="campo"><label for="centro_custo_id">Centro de custo</label><select id="centro_custo_id" name="centro_custo_id"><option value="">—</option>
+      @foreach ($centros as $c)<option value="{{ $c->id }}" @selected(old('centro_custo_id') == $c->id)>{{ $c->rotulo() }}</option>@endforeach</select></div>@endif
+    @endif
     <div class="campo"><label for="categoria_id">Categoria</label><select id="categoria_id" name="categoria_id">
       <option value="">—</option>
       @foreach ($categorias->where('tipo', $tipo === 'receber' ? 'receita' : 'despesa') as $c)<option value="{{ $c->id }}" @selected(old('categoria_id') == $c->id)>{{ $c->nome }}</option>@endforeach

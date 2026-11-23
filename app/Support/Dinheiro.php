@@ -6,6 +6,35 @@ use InvalidArgumentException;
 
 final class Dinheiro
 {
+    /**
+     * Divide $total centavos proporcionalmente aos pesos, somando EXATAMENTE $total.
+     * Método do maior resto: cada parte recebe o piso; os centavos que sobram vão para
+     * as maiores frações (empate: a parte que vem primeiro).
+     *
+     * @param  array<array-key, int>  $pesos  inteiros não negativos (ex.: pontos-base)
+     * @return array<array-key, int>
+     */
+    public static function ratear(int $total, array $pesos): array
+    {
+        $soma = array_sum($pesos);
+        if ($soma <= 0 || min($pesos) < 0) {
+            throw new InvalidArgumentException('Pesos do rateio inválidos.');
+        }
+        $partes = $restos = [];
+        foreach ($pesos as $k => $p) {
+            $partes[$k] = intdiv($total * $p, $soma);
+            $restos[$k] = ($total * $p) % $soma;
+        }
+        $falta = $total - array_sum($partes);
+        $ordem = array_keys($restos);
+        usort($ordem, fn ($a, $b) => [$restos[$b], array_search($a, array_keys($pesos), true)] <=> [$restos[$a], array_search($b, array_keys($pesos), true)]);
+        foreach (array_slice($ordem, 0, $falta) as $k) {
+            $partes[$k]++;
+        }
+
+        return $partes;
+    }
+
     public static function formatar(?int $centavos): string
     {
         if ($centavos === null) {

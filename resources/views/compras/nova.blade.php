@@ -13,6 +13,8 @@
   <div class="grade">
     <div class="campo"><label for="fornecedor">Fornecedor</label><input id="fornecedor" name="fornecedor" value="{{ old('fornecedor') }}"></div>
     <div class="campo"><label for="fornecedor_documento">CNPJ/CPF do fornecedor</label><input id="fornecedor_documento" name="fornecedor_documento" value="{{ old('fornecedor_documento') }}"></div>
+    @if ($centros->isNotEmpty())<div class="campo"><label for="centro_custo_id">Centro de custo</label><select id="centro_custo_id" name="centro_custo_id"><option value="">—</option>
+      @foreach ($centros as $c)<option value="{{ $c->id }}" @selected(old('centro_custo_id') == $c->id)>{{ $c->rotulo() }}</option>@endforeach</select></div>@endif
     <div class="campo"><label for="categoria_id">Categoria</label><select id="categoria_id" name="categoria_id"><option value="">—</option>
       @foreach ($categorias as $c)<option value="{{ $c->id }}" @selected(old('categoria_id') == $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
   </div>

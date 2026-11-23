@@ -23,7 +23,7 @@ final class Sugestoes
     public const TIPOS = [
         'caixa' => 'Saldo projetado insuficiente', 'inadimplencia' => 'Cliente com atraso', 'recorrente' => 'Atraso recorrente',
         'parcial' => 'Recebimento parcial', 'sem_categoria' => 'Lançamento sem categoria', 'duplicado' => 'Pagamento possivelmente duplicado',
-        'fatura' => 'Fatura acima do normal', 'parcelados' => 'Compromisso com parcelamentos', 'bancos' => 'Extrato e conciliação',
+        'fatura' => 'Fatura acima do normal', 'parcelados' => 'Compromisso com parcelamentos', 'bancos' => 'Extrato e conciliação', 'orcamento' => 'Orçamento',
     ];
 
     public function __construct(private Financeiro $fin, private PosicaoFinanceira $posicao, private Recebimentos $receb) {}
@@ -110,6 +110,17 @@ final class Sugestoes
                 'Compras parceladas comprometem '.brl((int) $futuro->sum(fn ($p) => $p->saldo())).' nos próximos 6 meses',
                 $futuro->count().' parcela(s) de '.$futuro->pluck('titulo_id')->unique()->count().' compra(s). Considere isso antes de novas compras a prazo.',
                 'Ver parcelamentos', route('compras.index', ['aba' => 'parcelamentos'])));
+        }
+
+        // 10. Orçamentos do mês: perto do limite (≥ 90%) ou ultrapassados.
+        foreach (app(Planejamento::class)->acompanhamento($hoje->startOfMonth()) as $o) {
+            if ($o['estado'] === 'ok') {
+                continue;
+            }
+            $s->push($this->item('orcamento:'.$o['orcamento']->id.':'.$o['estado'], 'orcamento', $o['estado'] === 'excedido' ? 'bad' : 'warn',
+                ($o['estado'] === 'excedido' ? 'Orçamento ultrapassado: ' : 'Orçamento perto do limite: ').$o['rotulo'],
+                'Comprometido '.brl($o['comprometido']).' de '.brl($o['orcado']).' ('.$o['pct'].'%)'.($o['disponivel'] < 0 ? ', '.brl(-$o['disponivel']).' acima do limite.' : '.'),
+                'Ver planejamento', route('planejamento.index')));
         }
 
         // 9. Extratos e conciliação (mesmas regras dos lembretes bancários).

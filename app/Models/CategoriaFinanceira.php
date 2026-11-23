@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CategoriaFinanceira extends Model
 {
@@ -11,7 +12,24 @@ class CategoriaFinanceira extends Model
 
     protected $table = 'categorias_financeiras';
 
-    protected $fillable = ['organizacao_id', 'tipo', 'nome', 'chave', 'ativa'];
+    protected $fillable = ['organizacao_id', 'tipo', 'pai_id', 'nome', 'chave', 'ativa'];
+
+    public function pai(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'pai_id');
+    }
+
+    /** Categoria principal (o topo da hierarquia). */
+    public function raiz(): self
+    {
+        return $this->pai ? $this->pai->raiz() : $this;
+    }
+
+    /** "Tecnologia → Servidores": caminho completo para exibir. */
+    public function caminho(): string
+    {
+        return $this->pai ? $this->pai->caminho().' → '.$this->nome : $this->nome;
+    }
 
     protected function casts(): array
     {

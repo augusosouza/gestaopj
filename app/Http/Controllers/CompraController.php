@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\LeValores;
 use App\Models\Cartao;
 use App\Models\CategoriaFinanceira;
+use App\Models\CentroCusto;
 use App\Models\Compra;
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
 use App\Services\Compras;
 use App\Services\Financeiro;
+use App\Services\Planejamento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -53,6 +55,7 @@ class CompraController extends Controller
             'categorias' => CategoriaFinanceira::where('ativa', true)->where('tipo', 'despesa')->orderBy('nome')->get(),
             'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(),
             'cartoes' => Cartao::where('ativo', true)->orderBy('nome')->get(),
+            'centros' => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             // Pré-preenchimento vindo do assistente (nada é gravado até confirmar).
             'pre' => $request->only(['valor', 'parcelas', 'modalidade', 'descricao']),
         ]);
@@ -69,6 +72,7 @@ class CompraController extends Controller
             'valor_bruto' => ['nullable', 'string'],
             'desconto' => ['nullable', 'string'], 'juros' => ['nullable', 'string'], 'entrada' => ['nullable', 'string'],
             'categoria_id' => ['nullable', Rule::exists('categorias_financeiras', 'id')->where('organizacao_id', $org)->where('tipo', 'despesa')],
+            'centro_custo_id' => ['nullable', Rule::exists('centros_custo', 'id')->where('organizacao_id', $org)->where('ativo', true)],
             'modalidade' => ['required', Rule::in(array_keys(Compra::MODALIDADES))],
             'conta_id' => ['nullable', Rule::exists('contas_financeiras', 'id')->where('organizacao_id', $org)],
             'cartao_id' => ['nullable', Rule::exists('cartoes', 'id')->where('organizacao_id', $org)],
@@ -101,6 +105,10 @@ class CompraController extends Controller
             'nota_tipo' => $d['nota_tipo'] ?? null, 'nota_numero' => $d['nota_numero'] ?? null, 'nota_chave' => $d['nota_chave'] ?? null,
             'garantia_ate' => $d['garantia_ate'] ?? null, 'observacao' => $d['observacao'] ?? null, 'itens' => $itens,
         ]);
+
+        if (! empty($d['centro_custo_id'])) {
+            app(Planejamento::class)->ratear($compra->titulo, [$d['centro_custo_id'] => '100']);
+        }
 
         return redirect()->route('compras.show', $compra)->with('ok', 'Compra registrada com '.$compra->titulo->parcelas()->count().' parcela(s).');
     }

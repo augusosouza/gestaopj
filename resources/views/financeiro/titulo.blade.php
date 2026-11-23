@@ -53,7 +53,8 @@
       <dt>Tipo</dt><dd>{{ $t->receber() ? 'A receber' : 'A pagar' }}</dd>
       <dt>Descrição</dt><dd>{{ $t->descricao }}</dd>
       <dt>{{ $t->receber() ? 'Pagador' : 'Favorecido' }}</dt><dd>{{ $t->contraparte ?? '—' }}</dd>
-      <dt>Categoria</dt><dd>{{ $t->categoria?->nome ?? '—' }}</dd>
+      <dt>Categoria</dt><dd>{{ $t->categoria?->caminho() ?? '—' }}</dd>
+      <dt>Centros de custo</dt><dd>{{ $t->rateios->isEmpty() ? '—' : $t->rateios->map(fn ($r) => $r->centro->rotulo().' '.number_format($r->percentual_bp / 100, 2, ',', '.').'% ('.brl($r->valor_centavos).')')->join(' · ') }}</dd>
       <dt>Competência</dt><dd>{{ $t->competencia->format('m/Y') }}</dd>
       <dt>Documento</dt><dd>{{ $t->documento ?? '—' }}</dd>
       <dt>Origem</dt><dd>{{ $rotuloOrigem }}</dd>
@@ -68,6 +69,19 @@
         <li><strong style="color:var(--text)">Acréscimos</strong> (juros, multa) aumentam o pagamento sem aumentar o abatimento.</li>
         <li>Pendente = original − dinheiro − descontos − retenções + acréscimos.</li>
       </ul>
+      @if ($opera && ! $t->cancelado() && $centrosAtivos->isNotEmpty())
+        <details style="margin-top:14px" @if ($errors->has('rateio')) open @endif><summary class="link-sum">Rateio por centro de custo</summary>
+          <form method="post" action="{{ route('planejamento.ratear', $t) }}" style="margin-top:8px">@csrf @method('put')
+            @foreach ($centrosAtivos as $c)
+              @php($atual = $t->rateios->firstWhere('centro_custo_id', $c->id))
+              <div class="grade" style="align-items:center;grid-template-columns:1fr 110px"><label for="rt-{{ $c->id }}" style="margin:0">{{ $c->rotulo() }}</label>
+                <input id="rt-{{ $c->id }}" name="rateio[{{ $c->id }}]" inputmode="decimal" placeholder="0" value="{{ $atual ? rtrim(rtrim(number_format($atual->percentual_bp / 100, 2, ',', ''), '0'), ',') : '' }}" aria-label="Percentual para {{ $c->nome }}"></div>
+            @endforeach
+            <p class="sub" style="font-size:12.5px;margin:6px 0">Percentuais somando 100%. Os centavos são distribuídos para que a soma seja exatamente {{ brl($t->valor_total_centavos) }}. Deixe tudo vazio para remover.</p>
+            <button class="sec">Salvar rateio</button>
+          </form>
+        </details>
+      @endif
       @if ($opera && ! $t->cancelado() && ! $t->origem_type && $t->liquidado() === 0)
         <form method="post" action="{{ route('financeiro.cancelar', $t) }}" style="display:flex;gap:8px;margin-top:16px">@csrf
           <input name="motivo" required placeholder="Motivo do cancelamento" aria-label="Motivo do cancelamento"><button class="perigo">Cancelar lançamento</button></form>

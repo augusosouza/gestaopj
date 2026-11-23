@@ -422,7 +422,7 @@ final class Financeiro
 
         return Transferencia::with('origem', 'destino')
             ->where(fn ($q) => $q->where('conta_origem_id', $linha->conta_id)->orWhere('conta_destino_id', $linha->conta_id))
-            ->whereBetween('data', [$d->subDays(5)->toDateString(), $d->addDays(5)->toDateString()])
+            ->whereDate('data', '>=', $d->subDays(5)->toDateString())->whereDate('data', '<=', $d->addDays(5)->toDateString())
             ->where('valor_centavos', abs($linha->valor_centavos))->get()
             ->filter(fn (Transferencia $t) => $t->efeitoEm($linha->conta_id) === $linha->valor_centavos
                 && ! ExtratoLinha::where('transferencia_id', $t->id)->where('conta_id', $linha->conta_id)->exists())
@@ -504,7 +504,7 @@ final class Financeiro
 
         return Movimento::with('parcela.titulo', 'estorno', 'linhaExtrato')
             ->where('conta_id', $linha->conta_id)->where('tipo', 'baixa')
-            ->whereBetween('data', [$d->subDays(5)->toDateString(), $d->addDays(5)->toDateString()])
+            ->whereDate('data', '>=', $d->subDays(5)->toDateString())->whereDate('data', '<=', $d->addDays(5)->toDateString())
             ->where('valor_centavos', abs($linha->valor_centavos))->get()
             ->filter(fn (Movimento $m) => ! $m->estornado() && ! $m->linhaExtrato && $m->efeitoNaConta() === $linha->valor_centavos)
             ->values();

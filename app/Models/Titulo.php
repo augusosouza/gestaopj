@@ -108,4 +108,9 @@ class Titulo extends Model
     {
         return $this->morphMany(Anexo::class, 'anexavel')->latest('id');
     }
+
+    public function rateios(): HasMany
+    {
+        return $this->hasMany(TituloRateio::class)->orderByDesc('valor_centavos');
+    }
 }

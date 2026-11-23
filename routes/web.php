@@ -29,6 +29,7 @@ use App\Http\Controllers\NotificacaoController;
 use App\Http\Controllers\OrganizacaoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PerfilFiscalController;
+use App\Http\Controllers\PlanejamentoController;
 use App\Http\Controllers\PlataformaController;
 use App\Http\Controllers\PrestadorController;
 use App\Http\Controllers\SaudeController;
@@ -148,6 +149,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/contas/{conta}', [FinanceiroController::class, 'conta'])->name('financeiro.conta');
             Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
             // Financeiro 2.0
+            Route::get('/financeiro/planejamento', [PlanejamentoController::class, 'index'])->name('planejamento.index');
             Route::get('/financeiro/contas-a-pagar', [ContasPagarController::class, 'index'])->name('contas_pagar.index');
             Route::get('/financeiro/recebimentos', [ContasPagarController::class, 'index'])->defaults('tipo', 'receber')->name('contas_receber.index');
             Route::get('/financeiro/meu-caixa', [CaixaController::class, 'caixa'])->name('financeiro.caixa');
@@ -194,6 +196,11 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/transferencias/{transferencia}/estorno', [TransferenciaController::class, 'estornar'])->name('transferencias.estornar');
             Route::post('/financeiro/titulos/{titulo}/cobranca', [CobrancaClienteController::class, 'registrar'])->name('cobranca.registrar');
             Route::post('/financeiro/titulos/{titulo}/renegociar', [CobrancaClienteController::class, 'renegociar'])->name('cobranca.renegociar');
+            Route::post('/financeiro/planejamento/orcamentos', [PlanejamentoController::class, 'salvarOrcamento'])->name('planejamento.orcamento');
+            Route::post('/financeiro/planejamento/orcamentos/copiar', [PlanejamentoController::class, 'copiar'])->name('planejamento.copiar');
+            Route::post('/financeiro/planejamento/centros', [PlanejamentoController::class, 'salvarCentro'])->name('planejamento.centro');
+            Route::patch('/financeiro/planejamento/centros/{centro}', [PlanejamentoController::class, 'alternarCentro'])->name('planejamento.centro_alternar');
+            Route::put('/financeiro/titulos/{titulo}/rateio', [PlanejamentoController::class, 'ratear'])->name('planejamento.ratear');
             Route::put('/financeiro/parcelas/{parcela}/vencimento', [LembreteController::class, 'alterarVencimento'])->name('financeiro.vencimento');
             Route::put('/financeiro/titulos/{titulo}/lembretes', [LembreteController::class, 'salvarTitulo'])->name('lembretes.titulo');
             Route::post('/financeiro/titulos/{titulo}/google', [LembreteController::class, 'adicionarGoogle'])->middleware('throttle:20,1')->name('lembretes.google');
