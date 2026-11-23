@@ -76,7 +76,8 @@
         @if (auth()->user()->admin_plataforma)
           <div class="nav-grupo">
             <span>Plataforma</span>
-            <a href="{{ route('plataforma.configuracoes') }}" @class(['ativo' => request()->routeIs('plataforma.*')])>Configurações</a>
+            <a href="{{ route('plataforma.configuracoes') }}" @class(['ativo' => request()->routeIs('plataforma.configuracoes', 'plataforma.salvar')])>Configurações</a>
+            <a href="{{ route('plataforma.backups') }}" @class(['ativo' => request()->routeIs('plataforma.backups*')])>Backups</a>
           </div>
         @endif
 
@@ -103,12 +104,13 @@
   </main>
 </div>
 @else
-<main class="solo">
+<main @class(["solo", "larga" => View::hasSection("larga")])>
   @auth
     <div class="barra" style="margin-bottom:32px">
       <span class="marca">@include('partials.marca')</span>
       <div class="acoes">
-        @if (auth()->user()->admin_plataforma)<a class="sub" style="margin:0" href="{{ route('plataforma.configuracoes') }}">Configurações da plataforma</a>@endif
+        @if (auth()->user()->admin_plataforma)<a class="sub" style="margin:0" href="{{ route('plataforma.configuracoes') }}">Configurações da plataforma</a>
+          <a class="sub" style="margin:0" href="{{ route('plataforma.backups') }}">Backups</a>@endif
         <a class="sub" style="margin:0" href="{{ route('seguranca') }}">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form></div>
     </div>

@@ -157,7 +157,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (91 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (101 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 
@@ -174,6 +174,59 @@ docker compose exec app php artisan gestao:nova-organizacao escritorio 33.444.55
 Configure o envio de e-mail (`MAIL_*` no `.env`). Convites e recuperação de senha dependem dele.
 
 Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 8080. O serviço `agendador` gera a competência todo dia 1º às 06:00. Faça backup do volume `db` **e** do volume `storage` (onde ficam os XMLs).
+
+## Instalação em cPanel (hospedagem compartilhada)
+
+Não precisa de Docker nem de acesso root.
+
+1. **Requisitos:**
+   - PHP **8.3+** (MultiPHP) com as extensões `sodium`, `zip`, `pdo_mysql`, `mbstring`, `intl`, `openssl`, `curl` e `fileinfo`;
+   - MySQL ou MariaDB;
+   - Cron.
+2. **Envio do código:** use *Git Version Control* do cPanel ou um zip que já inclua a pasta `vendor`. Se o cPanel tiver Terminal, rode `composer install --no-dev --optimize-autoloader`.
+3. **Domínio:** aponte a raiz do domínio ou subdomínio para a pasta **`public/`** do projeto.
+4. **`.env`:**
+   - `APP_ENV=production`
+   - `APP_DEBUG=false`
+   - `DB_CONNECTION=mysql` e os dados do banco criado no cPanel
+   - `DANFSE_URL` vazio: o gerador da Receita é um serviço à parte e não roda em hospedagem compartilhada
+5. **Preparação:** `php artisan key:generate`, `php artisan migrate --force` e `php artisan gestao:nova-organizacao …`
+6. **Cron Jobs**, com frequência "a cada minuto", uma única linha:
+   `* * * * * php /home/USUARIO/augi/artisan schedule:run >> /dev/null 2>&1`
+   Essa linha cuida do dia 1º, dos backups e da verificação semanal.
+7. **Permissões:** `storage/` e `bootstrap/cache/` precisam permitir gravação.
+
+## Backup (Plataforma → Backups)
+
+**Completo:** banco de dados e todos os arquivos privados de todas as empresas (XMLs, PDFs, documentos, fechamentos e extratos). Feito em **PHP puro**, então funciona igual em cPanel e em container.
+
+| Item | Como funciona |
+|---|---|
+| **Base** | Banco e todos os arquivos. Uma nova base a cada N dias (padrão: 7) |
+| **Incremental** | Nos horários configurados (padrão: 06:00, 13:00 e 20:00). Banco completo e **só os arquivos novos ou alterados**, mais a lista dos removidos |
+| **Restauração** | De **qualquer ponto**: cada pacote traz um manifesto com todos os arquivos daquele momento e em qual pacote está cada um. Usa só o que está no destino |
+| **Destinos** | Amazon S3, **Google Cloud Storage** (chave HMAC) e compatíveis com S3 (Cloudflare R2, Backblaze B2, Wasabi, MinIO) |
+| **Criptografia** | libsodium (Argon2id + XChaCha20-Poly1305), aplicada **antes** de enviar. Detecta senha errada e também pacote adulterado. A senha nova não invalida os backups antigos |
+| **Integridade** | Confere o tamanho no destino após o envio. A verificação semanal baixa o último pacote, confere o SHA-256 e abre o manifesto |
+| **Retenção** | Mantém as N bases mais recentes (padrão: 8) com seus incrementais e remove as cadeias antigas |
+| **Tela** | Destino, credenciais (guardadas criptografadas e nunca exibidas), horários, retenção, botões "Testar conexão", "Executar agora" e "Executar base completa", histórico com falhas e alerta de atraso, e a **folha de recuperação** (exige a senha da conta) |
+
+**Comandos:**
+
+| Comando | Para quê |
+|---|---|
+| `php artisan backup:executar [--base]` | Executa um backup agora |
+| `php artisan backup:listar` | Lista os pacotes no destino |
+| `php artisan backup:verificar` | Confere o último pacote |
+| `php artisan backup:restaurar [pacote] --confirmar` | Substitui o banco e os arquivos; põe o sistema em manutenção durante o processo |
+| `php artisan backup:restaurar --extrair=/pasta` | Só extrai para conferência, sem alterar o sistema |
+
+**Perda total do servidor:**
+1. Instale o sistema novamente.
+2. Coloque as linhas `BACKUP_*` da folha de recuperação no `.env`.
+3. Rode `migrate`, `backup:listar` e `backup:restaurar --confirmar`.
+
+**Validado de ponta a ponta** em MariaDB 10.11 com destino S3: base, incremental, exclusão de uma tabela inteira, restauração e conferência das 67 relações entre tabelas.
 
 ## Decisões de projeto
 

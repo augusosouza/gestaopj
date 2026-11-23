@@ -1,8 +1,9 @@
 @extends('layouts.app')
 @section('titulo', 'Configurações da plataforma')
+@section('larga', '1')
 @section('conteudo')
 <a class="voltar" href="{{ route('contexto.escolher') }}">← Voltar ao sistema</a>
-<h1>Configurações da plataforma</h1>
+<div class="barra"><h1>Configurações da plataforma</h1><a class="botao sec" href="{{ route('plataforma.backups') }}">Backups</a></div>
 <p class="sub">Identidade do sistema para todas as empresas e escritórios. As mudanças valem na próxima página aberta por qualquer usuário.</p>
 
 <div class="duas">

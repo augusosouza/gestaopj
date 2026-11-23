@@ -224,3 +224,5 @@ button[disabled] { opacity: .45; cursor: not-allowed; }
 .filtros a.ativo { background: var(--text); color: var(--bg); border-color: var(--text); }
 summary.link-sum { cursor: pointer; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
 summary.link-sum:hover { color: var(--text); }
+.solo.larga { max-width: 1180px; }
+.card .num.texto { font-size: 18px; white-space: normal; overflow-wrap: anywhere; }

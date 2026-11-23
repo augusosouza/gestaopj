@@ -2,9 +2,12 @@
 
 use App\Enums\Papel;
 use App\Enums\TipoOrganizacao;
+use App\Models\Backup;
 use App\Models\Organizacao;
 use App\Models\User;
 use App\Models\Vinculo;
+use App\Services\Backup\Backups;
+use App\Services\Backup\ConfigBackup;
 use App\Services\Faturamento;
 use App\Services\Financeiro;
 use App\Support\Competencia;
@@ -53,3 +56,66 @@ Artisan::command('financeiro:sincronizar', function (Financeiro $f) {
     $n = $f->sincronizarLegado();
     $this->info("Títulos criados: {$n['titulos']} · baixas migradas: {$n['baixas']}. Pode rodar de novo sem duplicar.");
 })->purpose('Cria títulos para faturas/cobranças sem título e migra recebimentos/pagamentos antigos (idempotente).');
+
+// ---------------- Backup ----------------
+// Em cPanel basta UM cron: * * * * * php /caminho/artisan schedule:run
+// O verificador roda a cada minuto e dispara nos horários configurados ou quando pedido na tela.
+
+Artisan::command('backup:agenda', function (ConfigBackup $cfg, Backups $b) {
+    if (! $cfg->ativo()) {
+        return;
+    }
+    $solicitado = $cfg->get('solicitado');
+    $agora = now()->format('H:i');
+    if (! $solicitado && ! in_array($agora, $cfg->horarios(), true)) {
+        return;
+    }
+    $cfg->gravar('solicitado', null);
+    $r = $b->executar($solicitado ? 'manual' : 'agenda', $solicitado === 'base');
+    $this->info($r ? "Backup {$r->nome}: {$r->status}" : 'Já havia um backup em andamento.');
+})->purpose('Executa o backup nos horários configurados (chamado a cada minuto pelo agendador).');
+
+Artisan::command('backup:executar {--base : força backup base}', function (Backups $b) {
+    $r = $b->executar('manual', (bool) $this->option('base'));
+    if (! $r) {
+        return $this->warn('Já há um backup em andamento.');
+    }
+    $r->status === 'concluido'
+        ? $this->info("{$r->nome} ({$r->tipo}): {$r->tamanhoLegivel()}, {$r->arquivos_enviados} arquivo(s) enviados de {$r->arquivos_total}.")
+        : $this->error("Falhou: {$r->erro}");
+})->purpose('Executa um backup agora (base ou incremental, conforme a necessidade).');
+
+Artisan::command('backup:verificar', function (ConfigBackup $cfg, Backups $b) {
+    if (! $cfg->ativo() || ! Backup::where('status', 'concluido')->exists()) {
+        return $this->warn('Nenhum backup concluído para verificar.');
+    }
+    $r = $b->verificar();
+    $this->info("Último pacote {$r['nome']} baixado, conferido e aberto: {$r['arquivos']} arquivo(s) no manifesto.");
+})->purpose('Baixa o último backup, confere hash e senha e abre o manifesto.');
+
+Artisan::command('backup:listar', function (Backups $b) {
+    foreach ($b->remotos() as $n) {
+        $this->line($n);
+    }
+})->purpose('Lista os pacotes de backup existentes no destino.');
+
+Artisan::command('backup:restaurar {pacote? : nome do pacote (padrão: o mais recente)} {--extrair= : só extrai para esta pasta, sem alterar o sistema} {--confirmar : confirma a substituição do banco e dos arquivos}', function (Backups $b) {
+    $extrair = $this->option('extrair');
+    if (! $extrair && ! $this->option('confirmar')) {
+        return $this->error('A restauração SUBSTITUI todo o banco e os arquivos. Rode com --confirmar (ou use --extrair=pasta para só conferir).');
+    }
+    if (! $extrair) {
+        $this->call('down');
+    }
+    try {
+        $r = $b->restaurar($this->argument('pacote'), $extrair);
+        $this->info("Restaurado de {$r['pacote']}: {$r['arquivos']} arquivo(s) de {$r['pacotes_usados']} pacote(s)".($extrair ? " em {$extrair}" : '').'.');
+    } finally {
+        if (! $extrair) {
+            $this->call('up');
+        }
+    }
+})->purpose('Restaura banco e arquivos a partir do destino de backup.');
+
+Schedule::command('backup:agenda')->everyMinute()->withoutOverlapping(360);
+Schedule::command('backup:verificar')->weeklyOn(0, '04:17');

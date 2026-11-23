@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\DoisFatoresController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SenhaController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
@@ -50,6 +51,11 @@ Route::middleware('auth')->group(function () {
     Route::middleware('plataforma')->group(function () {
         Route::get('/plataforma/configuracoes', [PlataformaController::class, 'configuracoes'])->name('plataforma.configuracoes');
         Route::put('/plataforma/configuracoes', [PlataformaController::class, 'salvar'])->name('plataforma.salvar');
+        Route::get('/plataforma/backups', [BackupController::class, 'index'])->name('plataforma.backups');
+        Route::put('/plataforma/backups', [BackupController::class, 'salvar'])->name('plataforma.backups.salvar');
+        Route::post('/plataforma/backups/testar', [BackupController::class, 'testar'])->middleware('throttle:10,1')->name('plataforma.backups.testar');
+        Route::post('/plataforma/backups/executar', [BackupController::class, 'executarAgora'])->name('plataforma.backups.executar');
+        Route::post('/plataforma/backups/folha', [BackupController::class, 'folha'])->middleware('throttle:5,1')->name('plataforma.backups.folha');
     });
 
     // Contexto ativo, empresa opcional (carteira do escritório e gestão da equipe)
