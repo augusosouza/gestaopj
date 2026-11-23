@@ -103,6 +103,7 @@ final class Menu
             $grupos[] = ['chave' => 'augi', 'rotulo' => 'Administração Augi', 'icone' => 'plataforma', 'itens' => [
                 $item('Identidade', route('plataforma.configuracoes'), $rota('plataforma.configuracoes', 'plataforma.salvar')),
                 $item('Backups', route('plataforma.backups'), $rota('plataforma.backups*')),
+                $item('Saúde do sistema', route('plataforma.saude'), $rota('plataforma.saude*')),
             ]];
         }
 

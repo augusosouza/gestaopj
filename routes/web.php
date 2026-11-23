@@ -26,6 +26,7 @@ use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PerfilFiscalController;
 use App\Http\Controllers\PlataformaController;
 use App\Http\Controllers\PrestadorController;
+use App\Http\Controllers\SaudeController;
 use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +70,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/plataforma/configuracoes', [PlataformaController::class, 'configuracoes'])->name('plataforma.configuracoes');
         Route::put('/plataforma/configuracoes', [PlataformaController::class, 'salvar'])->name('plataforma.salvar');
         Route::get('/plataforma/backups', [BackupController::class, 'index'])->name('plataforma.backups');
+        Route::get('/plataforma/saude', [SaudeController::class, 'index'])->name('plataforma.saude');
+        Route::post('/plataforma/saude/verificar', [SaudeController::class, 'verificar'])->middleware('throttle:6,1')->name('plataforma.saude.verificar');
         Route::put('/plataforma/backups', [BackupController::class, 'salvar'])->name('plataforma.backups.salvar');
         Route::post('/plataforma/backups/testar', [BackupController::class, 'testar'])->middleware('throttle:10,1')->name('plataforma.backups.testar');
         Route::post('/plataforma/backups/executar', [BackupController::class, 'executarAgora'])->name('plataforma.backups.executar');

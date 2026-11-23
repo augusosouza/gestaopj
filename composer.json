@@ -15,6 +15,8 @@
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.0",
         "pragmarx/google2fa": "^8.0",
+        "spatie/laravel-health": "^1.42",
+        "spatie/laravel-schedule-monitor": "^4.3",
         "spatie/simple-excel": "^3.11"
     },
     "require-dev": {

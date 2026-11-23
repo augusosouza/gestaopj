@@ -45,6 +45,7 @@ class Evento extends Model
             'nota.danfse_gerado' => 'DANFSe gerado (Receita)',
             'fechamento.exportado' => 'Fechamento exportado',
             'plataforma.configuracao' => 'Configuração da plataforma alterada',
+            'plataforma.saude_verificada' => 'Saúde do sistema verificada',
             'contabil.documento_enviado' => 'Documento enviado',
             'financeiro.titulo_criado' => 'Lançamento criado',
             'financeiro.titulo_cancelado' => 'Lançamento cancelado',

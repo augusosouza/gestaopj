@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Str;
+use Spatie\ScheduleMonitor\Models\MonitoredScheduledTaskLogItem;
 
 Artisan::command('gestao:gerar-competencia {competencia? : AAAA-MM (padrão: mês atual)}', function (Faturamento $f) {
     $c = Competencia::de($this->argument('competencia'));
@@ -139,3 +140,8 @@ Artisan::command('exportacoes:limpar', function () {
 })->purpose('Apaga arquivos temporários de exportação com mais de 1 hora.');
 
 Schedule::command('exportacoes:limpar')->hourly();
+
+// Saúde e monitoramento das rotinas (Laravel Health + Schedule Monitor).
+Schedule::command('health:schedule-check-heartbeat')->everyMinute();
+Schedule::command('health:check')->everyFiveMinutes()->withoutOverlapping(10);
+Schedule::command('model:prune', ['--model' => [MonitoredScheduledTaskLogItem::class]])->daily();
