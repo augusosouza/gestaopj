@@ -29,15 +29,15 @@
 </section>
 
 <section class="cards" aria-label="Posição">
-  <div class="card"><div class="rot">Saldo registrado</div><div class="num">{{ brl($p['saldo_atual']) }}</div><div class="det">{{ $p['contas']->count() }} conta(s) · hoje</div></div>
-  <div class="card"><div class="rot">Entradas previstas</div><div class="num">{{ brl($p['a_receber']) }}</div><div class="det">até {{ $p['ate']->format('d/m') }}</div></div>
-  <div class="card"><div class="rot">Saídas previstas</div><div class="num">{{ brl($p['a_pagar']) }}</div><div class="det">inclui vencidas e faturas de cartão</div></div>
-  <div class="card"><div class="rot">Saldo ao fim do período</div><div class="num">{{ brl($p['saldo_final']) }}</div><div class="det">projeção, não dinheiro de hoje</div></div>
+  <div class="card serie-saldo"><div class="rot">Saldo registrado</div><div class="num">{{ brl($p['saldo_atual']) }}</div><div class="det">{{ $p['contas']->count() }} conta(s) · hoje</div></div>
+  <div class="card serie-receita"><div class="rot">Entradas previstas</div><div class="num">{{ brl($p['a_receber']) }}</div><div class="det">até {{ $p['ate']->format('d/m') }}</div></div>
+  <div class="card serie-despesa"><div class="rot">Saídas previstas</div><div class="num">{{ brl($p['a_pagar']) }}</div><div class="det">inclui vencidas e faturas de cartão</div></div>
+  <div class="card serie-projecao"><div class="rot">Saldo ao fim do período</div><div class="num">{{ brl($p['saldo_final']) }}</div><div class="det">projeção, não dinheiro de hoje</div></div>
 </section>
 <section class="cards" aria-label="Detalhes" style="margin-top:12px">
   <div class="card"><div class="rot">Se não entrar nada</div><div class="num" @if ($p['apos_pagar'] < 0) style="color:var(--bad)" @endif>{{ brl($p['apos_pagar']) }}</div><div class="det">saldo − saídas do período</div></div>
-  <div class="card"><div class="rot">Menor saldo previsto</div><div class="num" @if ($p['minimo']['valor'] < 0) style="color:var(--bad)" @endif>{{ brl($p['minimo']['valor']) }}</div><div class="det">em {{ $p['minimo']['data']->format('d/m/Y') }}</div></div>
-  <div class="card"><div class="rot">Recebimentos vencidos</div><div class="num">{{ brl($p['vencidos_receber']) }}</div>
+  <div class="card serie-projecao"><div class="rot">Menor saldo previsto</div><div class="num" @if ($p['minimo']['valor'] < 0) style="color:var(--bad)" @endif>{{ brl($p['minimo']['valor']) }}</div><div class="det">em {{ $p['minimo']['data']->format('d/m/Y') }}</div></div>
+  <div class="card serie-pendencia"><div class="rot">Recebimentos vencidos</div><div class="num">{{ brl($p['vencidos_receber']) }}</div>
     <div class="det">{{ $incluir ? 'considerados hoje' : 'fora da projeção' }} · <a href="{{ route('financeiro.inadimplencia') }}">ver</a></div></div>
   <div class="card"><div class="rot">Cartões em aberto</div><div class="num">{{ brl($p['cartoes']) }}</div><div class="det">todas as faturas · <a href="{{ route('cartoes.index') }}">cartões</a></div></div>
 </section>
@@ -53,35 +53,12 @@
   <button class="sec">Atualizar</button>
 </form>
 
-@php($serie = $p['serie'])
-@php($vals = array_column($serie, 'saldo'))
-@php([$min, $max, $W, $H, $pe, $pd, $ps, $pi] = [min(0, min($vals)), max(1, max($vals)), 720, 220, 64, 16, 16, 28])
-@php($x = fn ($i) => $pe + $i * ($W - $pe - $pd) / max(1, count($serie) - 1))
-@php($y = fn ($v) => $ps + ($max - $v) * ($H - $ps - $pi) / max(1, $max - $min))
-@php($passo = max(1, (int) ceil(count($serie) / 8)))
-<figure class="painel grafico" style="margin-top:16px">
-  <figcaption><strong>Saldo previsto dia a dia</strong> <span class="sub">— {{ $p['hoje']->format('d/m') }} a {{ $p['ate']->format('d/m') }}</span></figcaption>
-  <svg viewBox="0 0 {{ $W }} {{ $H }}" role="img" aria-label="Saldo previsto: começa em {{ brl($p['saldo_atual']) }}, menor valor {{ brl($p['minimo']['valor']) }} em {{ $p['minimo']['data']->format('d/m') }}, termina em {{ brl($p['saldo_final']) }}">
-    @foreach ([$max, ($max + $min) / 2, $min] as $g)
-      <line x1="{{ $pe }}" x2="{{ $W - $pd }}" y1="{{ $y($g) }}" y2="{{ $y($g) }}" class="grade-linha"/>
-      <text x="{{ $pe - 8 }}" y="{{ $y($g) + 4 }}" text-anchor="end" class="eixo">{{ number_format($g / 100000, 1, ',', '.') }} mil</text>
-    @endforeach
-    @if ($min < 0)<line x1="{{ $pe }}" x2="{{ $W - $pd }}" y1="{{ $y(0) }}" y2="{{ $y(0) }}" class="linha-zero"/>@endif
-    <polyline class="serie" points="@foreach ($serie as $i => $f){{ round($x($i), 1) }},{{ round($y($f['saldo']), 1) }} @endforeach"/>
-    @foreach ($serie as $i => $f)
-      @if ($f['entradas'] || $f['saidas'] || $i === 0)
-        <g class="ponto @if ($f['saldo'] < 0) neg @endif">
-          <circle cx="{{ $x($i) }}" cy="{{ $y($f['saldo']) }}" r="12" class="alvo"/>
-          <circle cx="{{ $x($i) }}" cy="{{ $y($f['saldo']) }}" r="4"/>
-          <title>{{ $f['data']->format('d/m') }}: saldo {{ brl($f['saldo']) }}@if ($f['entradas']) · entradas {{ brl($f['entradas']) }}@endif @if ($f['saidas']) · saídas {{ brl($f['saidas']) }}@endif</title>
-        </g>
-      @endif
-      @if ($i % $passo === 0)<text x="{{ $x($i) }}" y="{{ $H - 8 }}" text-anchor="middle" class="eixo">{{ $f['data']->format('d/m') }}</text>@endif
-    @endforeach
-    <text x="{{ $x(count($serie) - 1) }}" y="{{ $y(end($serie)['saldo']) - 10 }}" text-anchor="end" class="rotulo-direto">{{ brl(end($serie)['saldo']) }}</text>
-  </svg>
-  <p class="sub" style="margin:6px 0 0;font-size:12.5px">Cada ponto é um dia com entrada ou saída prevista. Pagamentos vencidos entram hoje. Passe o mouse para ver os valores.</p>
-</figure>
+<x-grafico.linha titulo="Saldo previsto dia a dia" :sub="$p['hoje']->format('d/m').' a '.$p['ate']->format('d/m')" serie="projecao" :tracejado="true" style="margin-top:16px"
+  :pontos="collect($p['serie'])->map(fn ($f, $i) => ['rotulo' => $f['data']->format('d/m'), 'valor' => $f['saldo'], 'marcar' => $i === 0 || $f['entradas'] || $f['saidas'],
+    'dica' => $f['data']->format('d/m').': saldo '.brl($f['saldo']).($f['entradas'] ? ' · entradas '.brl($f['entradas']) : '').($f['saidas'] ? ' · saídas '.brl($f['saidas']) : '')])->all()"
+  destaque-inicial="Hoje" :rotulo-final="brl(end($p['serie'])['saldo'])"
+  :descricao="'Saldo previsto: começa em '.brl($p['saldo_atual']).', menor valor '.brl($p['minimo']['valor']).' em '.$p['minimo']['data']->format('d/m').', termina em '.brl($p['saldo_final'])"
+  nota="Ponto azul = saldo registrado hoje; linha tracejada = projeção. Cada ponto é um dia com entrada ou saída prevista; pagamentos vencidos entram hoje." />
 
 <div class="duas" style="margin-top:16px">
   <form method="get" action="{{ route('financeiro.caixa') }}#simular" class="painel" id="simular">

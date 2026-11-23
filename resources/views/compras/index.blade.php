@@ -37,7 +37,7 @@
       <tr><td><a href="{{ route('compras.show', $c) }}">{{ $c->descricao }}</a><br><span class="sub" style="font-size:12.5px">{{ $c->fornecedor ?? '—' }} · {{ $c->data_compra->format('d/m/Y') }}</span></td>
         <td>{{ $c->noCartao() ? $c->cartao?->rotulo() : \App\Models\Compra::MODALIDADES[$c->modalidade] }}</td>
         <td style="min-width:160px">{{ $pagas }} de {{ $t->parcelas->count() }} parcelas
-          <div class="progresso" role="img" aria-label="{{ $pagas }} de {{ $t->parcelas->count() }} pagas"><span style="width:{{ round($t->liquidado() * 100 / max(1, $t->valor_total_centavos)) }}%"></span></div></td>
+          <div class="progresso serie-despesa" role="img" aria-label="{{ $pagas }} de {{ $t->parcelas->count() }} pagas"><span style="width:{{ round($t->liquidado() * 100 / max(1, $t->valor_total_centavos)) }}%"></span></div></td>
         <td class="n">{{ brl($t->liquidado()) }}</td><td class="n">{{ brl($t->saldo()) }}</td>
         <td>{{ $prox ? $prox->vencimento->format('d/m/Y').' · '.brl($prox->saldo()) : 'quitada' }}</td></tr>
     @empty

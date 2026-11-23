@@ -18,14 +18,14 @@
 
 @if ($aba === 'resumo')
   <section class="cards" aria-label="Indicadores da competência">
-    <div class="card"><div class="rot">Saldo nas contas</div><div class="num">{{ brl($p['saldo_contas']) }}</div><div class="det">hoje · <a href="{{ route('financeiro.contas') }}">contas</a></div></div>
-    <div class="card"><div class="rot">Receitas previstas</div><div class="num">{{ brl($p['receitas_previstas']) }}</div>
+    <div class="card serie-saldo"><div class="rot">Saldo nas contas</div><div class="num">{{ brl($p['saldo_contas']) }}</div><div class="det">hoje · <a href="{{ route('financeiro.contas') }}">contas</a></div></div>
+    <div class="card serie-receita"><div class="rot">Receitas previstas</div><div class="num">{{ brl($p['receitas_previstas']) }}</div>
       <div class="progresso" role="img" aria-label="{{ $pct($p['receitas_realizadas'], $p['receitas_previstas']) }}% recebido"><span style="width:{{ $pct($p['receitas_realizadas'], $p['receitas_previstas']) }}%"></span></div>
       <div class="det">recebido {{ brl($p['receitas_realizadas']) }} ({{ $pct($p['receitas_realizadas'], $p['receitas_previstas']) }}%)</div></div>
-    <div class="card"><div class="rot">Despesas previstas</div><div class="num">{{ brl($p['despesas_previstas']) }}</div>
+    <div class="card serie-despesa"><div class="rot">Despesas previstas</div><div class="num">{{ brl($p['despesas_previstas']) }}</div>
       <div class="progresso" role="img" aria-label="{{ $pct($p['despesas_realizadas'], $p['despesas_previstas']) }}% pago"><span style="width:{{ $pct($p['despesas_realizadas'], $p['despesas_previstas']) }}%"></span></div>
       <div class="det">pago {{ brl($p['despesas_realizadas']) }} ({{ $pct($p['despesas_realizadas'], $p['despesas_previstas']) }}%)</div></div>
-    <div class="card"><div class="rot">Resultado previsto</div><div class="num">{{ brl($p['receitas_previstas'] - $p['despesas_previstas']) }}</div><div class="det">receitas − despesas da competência</div></div>
+    <div class="card serie-comparativo"><div class="rot">Resultado previsto</div><div class="num">{{ brl($p['receitas_previstas'] - $p['despesas_previstas']) }}</div><div class="det">receitas − despesas da competência</div></div>
   </section>
 
   <h2>Ações necessárias</h2>
@@ -39,35 +39,18 @@
   @endforelse
 
 @elseif ($aba === 'fluxo')
-  @php($vals = array_column($fluxo, 'saldo'))
-  @php([$min, $max, $W, $H, $pe, $pd, $ps, $pi] = [min(0, min($vals)), max(1, max($vals)), 720, 220, 64, 16, 16, 28])
-  @php($x = fn ($i) => $pe + $i * ($W - $pe - $pd) / max(1, count($fluxo) - 1))
-  @php($y = fn ($v) => $ps + ($max - $v) * ($H - $ps - $pi) / max(1, $max - $min))
   @php($negativo = collect($fluxo)->firstWhere('saldo', '<', 0))
   @if ($negativo)
     <div class="aviso bad"><strong>Atenção:</strong> o saldo projetado fica negativo na semana de {{ $negativo['inicio']->format('d/m') }} ({{ brl($negativo['saldo']) }}).</div>
   @endif
-  <figure class="painel grafico">
-    <figcaption><strong>Saldo projetado por semana</strong> <span class="sub">— próximas 12 semanas</span></figcaption>
-    <svg viewBox="0 0 {{ $W }} {{ $H }}" role="img" aria-label="Saldo projetado: de {{ brl($fluxo[0]['saldo']) }} a {{ brl(end($fluxo)['saldo']) }}">
-      @foreach ([$max, ($max + $min) / 2, $min] as $g)
-        <line x1="{{ $pe }}" x2="{{ $W - $pd }}" y1="{{ $y($g) }}" y2="{{ $y($g) }}" class="grade-linha"/>
-        <text x="{{ $pe - 8 }}" y="{{ $y($g) + 4 }}" text-anchor="end" class="eixo">{{ number_format($g / 100000, 0, ',', '.') }} mil</text>
-      @endforeach
-      @if ($min < 0)<line x1="{{ $pe }}" x2="{{ $W - $pd }}" y1="{{ $y(0) }}" y2="{{ $y(0) }}" class="linha-zero"/>@endif
-      <polyline class="serie" points="@foreach ($fluxo as $i => $f){{ round($x($i), 1) }},{{ round($y($f['saldo']), 1) }} @endforeach"/>
-      @foreach ($fluxo as $i => $f)
-        <g class="ponto @if ($f['saldo'] < 0) neg @endif">
-          <circle cx="{{ $x($i) }}" cy="{{ $y($f['saldo']) }}" r="14" class="alvo"/>
-          <circle cx="{{ $x($i) }}" cy="{{ $y($f['saldo']) }}" r="4"/>
-          <title>Semana de {{ $f['inicio']->format('d/m') }}: saldo {{ brl($f['saldo']) }} (entradas {{ brl($f['entradas']) }}, saídas {{ brl($f['saidas']) }})</title>
-        </g>
-        @if ($i % 2 === 0)<text x="{{ $x($i) }}" y="{{ $H - 8 }}" text-anchor="middle" class="eixo">{{ $f['inicio']->format('d/m') }}</text>@endif
-      @endforeach
-      <text x="{{ $x(count($fluxo) - 1) }}" y="{{ $y(end($fluxo)['saldo']) - 10 }}" text-anchor="end" class="rotulo-direto">{{ brl(end($fluxo)['saldo']) }}</text>
-    </svg>
-    <p class="sub" style="margin:6px 0 0;font-size:12.5px">Parcelas vencidas e não pagas entram na primeira semana. Passe o mouse nos pontos para ver os valores.</p>
-  </figure>
+  <x-grafico.linha titulo="Saldo projetado por semana" sub="próximas 12 semanas" serie="projecao" :tracejado="true"
+    :pontos="collect($fluxo)->map(fn ($f) => ['rotulo' => $f['inicio']->format('d/m'), 'valor' => $f['saldo'], 'dica' => 'Semana de '.$f['inicio']->format('d/m').': saldo '.brl($f['saldo']).' (entradas '.brl($f['entradas']).', saídas '.brl($f['saidas']).')'])->all()"
+    :rotulos="6" :rotulo-final="brl(end($fluxo)['saldo'])"
+    :descricao="'Saldo projetado: de '.brl($fluxo[0]['saldo']).' a '.brl(end($fluxo)['saldo'])"
+    nota="Linha tracejada = projeção. Parcelas vencidas e não pagas entram na primeira semana. Passe o mouse nos pontos para ver os valores." />
+  <x-grafico.colunas titulo="Entradas e saídas previstas por semana" style="margin-top:12px"
+    :periodos="collect($fluxo)->map(fn ($f) => $f['inicio']->format('d/m'))->all()"
+    :series="[['nome' => 'Entradas', 'serie' => 'receita', 'valores' => array_column($fluxo, 'entradas')], ['nome' => 'Saídas', 'serie' => 'despesa', 'valores' => array_column($fluxo, 'saidas')]]" />
   <div class="tabela" style="margin-top:12px"><table>
     <thead><tr><th>Semana</th><th class="n">Entradas previstas</th><th class="n">Saídas previstas</th><th class="n">Saldo projetado</th></tr></thead>
     <tbody>
@@ -79,33 +62,11 @@
   </table></div>
 
 @else
-  @php($maxCat = max(1, $categorias->max('valor') ?? 1))
-  @php($maxFav = max(1, $favorecidos->max('valor') ?? 1))
   <div class="duas">
-    <figure class="painel grafico">
-      <figcaption><strong>Despesas por categoria</strong> <span class="sub">— total {{ brl($categorias->sum('valor')) }}</span></figcaption>
-      @forelse ($categorias as $c)
-        <div class="barra-h" title="{{ $c['nome'] }}: {{ brl($c['valor']) }} previsto, {{ brl($c['pago']) }} pago, {{ $c['qtd'] }} lançamento(s)">
-          <span class="barra-rotulo">{{ $c['nome'] }}</span>
-          <span class="barra-trilho"><span class="barra-valor" style="width:{{ max(1, round($c['valor'] * 100 / $maxCat)) }}%"></span></span>
-          <span class="barra-numero">{{ brl($c['valor']) }}</span>
-        </div>
-      @empty
-        <p class="vazio">Nenhuma despesa nesta competência.</p>
-      @endforelse
-    </figure>
-    <figure class="painel grafico">
-      <figcaption><strong>Maiores destinos</strong> <span class="sub">— fornecedores e prestadores</span></figcaption>
-      @forelse ($favorecidos as $f)
-        <div class="barra-h" title="{{ $f['nome'] }}: {{ brl($f['valor']) }} em {{ $f['qtd'] }} lançamento(s)">
-          <span class="barra-rotulo">{{ $f['nome'] }}</span>
-          <span class="barra-trilho"><span class="barra-valor" style="width:{{ max(1, round($f['valor'] * 100 / $maxFav)) }}%"></span></span>
-          <span class="barra-numero">{{ brl($f['valor']) }}</span>
-        </div>
-      @empty
-        <p class="vazio">Nenhuma despesa nesta competência.</p>
-      @endforelse
-    </figure>
+    <x-grafico.barras titulo="Despesas por categoria" :sub="'total '.brl($categorias->sum('valor'))" serie="despesa" vazio="Nenhuma despesa nesta competência."
+      :itens="$categorias->map(fn ($c) => ['rotulo' => $c['nome'], 'valor' => $c['valor'], 'dica' => $c['nome'].': '.brl($c['valor']).' previsto, '.brl($c['pago']).' pago, '.$c['qtd'].' lançamento(s)'])->all()" />
+    <x-grafico.barras titulo="Maiores destinos" sub="fornecedores e prestadores" serie="despesa" vazio="Nenhuma despesa nesta competência."
+      :itens="$favorecidos->map(fn ($f) => ['rotulo' => $f['nome'], 'valor' => $f['valor'], 'dica' => $f['nome'].': '.brl($f['valor']).' em '.$f['qtd'].' lançamento(s)'])->all()" />
   </div>
   @if ($categorias->isNotEmpty())
   <div class="tabela" style="margin-top:12px"><table>

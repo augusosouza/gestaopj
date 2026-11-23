@@ -15,7 +15,7 @@
   <div class="card"><div class="rot">Total contratado</div><div class="num">{{ brl($c->total_centavos) }}</div>
     <div class="det">{{ brl($c->valor_bruto_centavos) }}@if ($c->desconto_centavos) − desc. {{ brl($c->desconto_centavos) }}@endif @if ($c->juros_centavos) + juros {{ brl($c->juros_centavos) }}@endif</div></div>
   <div class="card"><div class="rot">Pago</div><div class="num">{{ brl($t->liquidado()) }}</div>
-    <div class="progresso" role="img" aria-label="{{ round($t->liquidado() * 100 / max(1, $c->total_centavos)) }}% quitado"><span style="width:{{ round($t->liquidado() * 100 / max(1, $c->total_centavos)) }}%"></span></div>
+    <div class="progresso serie-despesa" role="img" aria-label="{{ round($t->liquidado() * 100 / max(1, $c->total_centavos)) }}% quitado"><span style="width:{{ round($t->liquidado() * 100 / max(1, $c->total_centavos)) }}%"></span></div>
     <div class="det">{{ $pagas }} de {{ $t->parcelas->count() }} parcela(s)</div></div>
   <div class="card"><div class="rot">Restante</div><div class="num">{{ brl($c->cancelada() ? 0 : $t->saldo()) }}</div><div class="det">{{ $t->vencido() ? 'há parcela vencida' : 'em dia' }}</div></div>
   <div class="card"><div class="rot">Forma</div><div class="num texto">{{ $c->noCartao() ? $c->cartao?->rotulo() : \App\Models\Compra::MODALIDADES[$c->modalidade] }}</div>

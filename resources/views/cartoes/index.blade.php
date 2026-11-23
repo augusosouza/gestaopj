@@ -16,7 +16,7 @@
       <td class="n">{{ $c->limite_centavos ? brl($c->limite_centavos) : '—' }}</td>
       <td class="n">{{ brl($emAberto[$c->id]) }}</td>
       <td class="n" @if ($c->limite_centavos && $c->limiteDisponivel() < 0) style="color:var(--bad)" @endif>{{ $c->limite_centavos ? brl($c->limite_centavos - $emAberto[$c->id]) : '—' }}</td>
-      <td style="min-width:120px">@if ($c->limite_centavos)<div class="progresso" role="img" aria-label="{{ $uso }}% do limite"><span style="width:{{ $uso }}%"></span></div><span class="sub" style="font-size:12px">{{ $uso }}%</span>@else — @endif</td>
+      <td style="min-width:120px">@if ($c->limite_centavos)<div class="progresso serie-pendencia" role="img" aria-label="{{ $uso }}% do limite"><span style="width:{{ $uso }}%"></span></div><span class="sub" style="font-size:12px">{{ $uso }}%</span>@else — @endif</td>
       <td>{{ $c->responsavel?->name ?? '—' }}</td>
     </tr>
   @empty
