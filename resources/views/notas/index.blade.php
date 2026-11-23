@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('titulo', 'Notas fiscais')
 @section('conteudo')
+@php($danfse = app(\App\Services\Receita\GeradorDanfse::class)->habilitado())
 <div class="barra">
   <div><h1>Notas fiscais</h1><p class="sub" style="margin:0">NFS-e emitidas pela empresa e recebidas de prestadores</p></div>
   <form method="get">
@@ -26,7 +27,9 @@
         <td>{{ $n->tomador_nome ?? '—' }}@if ($n->tomador_documento)<br><span class="mono">{{ doc($n->tomador_documento) }}</span>@endif</td>
         <td>{{ $n->competencia?->format('m/Y') ?? '—' }}</td>
         <td class="n">{{ brl($n->valor_servicos_centavos) }}</td>
-        <td>@if ($n->temXml())<a href="{{ route('notas.xml', $n) }}">Baixar</a>@else<span class="tag warn">Só chave</span>@endif</td>
+        <td>@if ($n->temXml())<a href="{{ route('notas.xml', $n) }}">XML</a>
+          @if ($danfse) · <a href="{{ route('notas.danfse', $n) }}">PDF</a>@endif
+          @else<span class="tag warn">Só chave</span>@endif</td>
       </tr>
     @empty
       <tr><td colspan="7" class="vazio">Nenhuma nota encontrada.</td></tr>

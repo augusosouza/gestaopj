@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Evento;
 use App\Models\NotaFiscal;
+use App\Services\Receita\ComponenteIndisponivel;
+use App\Services\Receita\GeradorDanfse;
 use App\Support\Competencia;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -24,12 +27,31 @@ class NotaFiscalController extends Controller
         return view('notas.index', compact('notas', 'competencia', 'direcao'));
     }
 
-    public function xml(Request $request, NotaFiscal $nota): StreamedResponse
+    /** DANFSe em PDF pelo gerador oficial da Receita. */
+    public function danfse(NotaFiscal $nota, GeradorDanfse $gerador): StreamedResponse|RedirectResponse
+    {
+        $this->autorizar($nota);
+        try {
+            $caminho = $gerador->pdf($nota);
+        } catch (ComponenteIndisponivel $e) {
+            return back()->withErrors(['danfse' => $e->getMessage()]);
+        }
+
+        return Storage::disk('local')->download($caminho, "DANFSe-{$nota->chave_acesso}.pdf", ['Content-Type' => 'application/pdf']);
+    }
+
+    /** Prestador só acessa notas das próprias cobranças. */
+    private function autorizar(NotaFiscal $nota): void
     {
         $ctx = ctx();
         if ($ctx->ehPrestador()) {
             abort_unless($nota->cobranca && $nota->cobranca->prestador_id === $ctx->prestadorId(), 404);
         }
+    }
+
+    public function xml(Request $request, NotaFiscal $nota): StreamedResponse
+    {
+        $this->autorizar($nota);
         abort_unless($nota->xml_path && Storage::disk('local')->exists($nota->xml_path), 404);
         Evento::registrar('nota.xml_baixado', $nota);
 

@@ -10,7 +10,11 @@
     <dt>Valor do serviço</dt><dd>{{ brl($nota->valor_servicos_centavos) }}</dd>
     <dt>Valor líquido</dt><dd>{{ brl($nota->valor_liquido_centavos) }}</dd>
     <dt>Ambiente</dt><dd>@if ($nota->ambiente === '2')<span class="tag warn">Produção restrita (teste)</span>@else Produção @endif</dd>
-    <dt>XML</dt><dd><a href="{{ route('notas.xml', $nota) }}">Baixar XML</a></dd>
+    <dt>Arquivos</dt><dd><a href="{{ route('notas.xml', $nota) }}">XML</a>
+      @if (app(\App\Services\Receita\GeradorDanfse::class)->habilitado() || $nota->danfse_path)
+        · <a href="{{ route('notas.danfse', $nota) }}">PDF (DANFSe)</a>
+        @if ($nota->danfse_versao)<span class="sub" style="font-size:12px"> gerador Receita {{ $nota->danfse_versao }}</span>@endif
+      @endif</dd>
   @else
     <dt>XML</dt><dd><span class="tag warn">Somente chave informada</span></dd>
   @endif

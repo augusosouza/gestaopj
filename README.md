@@ -56,6 +56,16 @@ A competência comparada é a **declarada na nota** (`dCompet`), não a data de 
 
 Notas com chave já registrada na empresa são recusadas no envio (duplicidade).
 
+## Componentes da Receita Federal
+
+Componentes de código aberto publicados pela Receita no GitHub, que rodam **sem certificado digital** e como serviços internos (sem porta exposta, sem enviar dados para fora). Cada um é compilado do código-fonte num **commit fixo**: atualizar é uma decisão explícita.
+
+| Componente | Situação | Uso no sistema |
+|---|---|---|
+| [Gerador de DANFSe](https://github.com/ReceitaFederal/calculadora-rtc-gerador-danfse) 1.0.0 (`8d79e6b`), Go, MIT | ✅ Integrado | Link **PDF (DANFSe)** em cada nota com XML. O PDF é gerado uma vez, guardado ao lado do XML e marcado com a versão do componente |
+
+Configuração: `DANFSE_URL` (no Docker Compose já vem `http://danfse:8080`). Vazio desliga o recurso. Erros do componente aparecem como mensagem clara e não quebram a tela.
+
 ## Área do contador
 
 Empresa e escritório trabalham na **mesma tela de competência** (`/contabil/AAAA-MM`), cada um com as próprias ações:
@@ -120,7 +130,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (73 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (78 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

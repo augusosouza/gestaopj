@@ -78,6 +78,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/cobrancas/{cobranca}/nota', [CobrancaController::class, 'enviarNota'])->name('cobrancas.nota');
         Route::post('/cobrancas/{cobranca}/xml', [CobrancaController::class, 'anexarXml'])->middleware('papel:admin,financeiro,prestador')->name('cobrancas.xml');
         Route::get('/notas/{nota}/xml', [NotaFiscalController::class, 'xml'])->name('notas.xml');
+        Route::get('/notas/{nota}/danfse', [NotaFiscalController::class, 'danfse'])->middleware('throttle:30,1')->name('notas.danfse');
 
         // Leitura interna: empresa e escritório
         Route::middleware('papel:admin,financeiro,analista,revisor')->group(function () {

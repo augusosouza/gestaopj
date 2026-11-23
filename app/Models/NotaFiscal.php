@@ -17,12 +17,12 @@ class NotaFiscal extends Model
         'direcao', 'chave_acesso', 'numero', 'emitente_documento', 'emitente_nome',
         'tomador_documento', 'tomador_nome', 'competencia', 'emitida_em', 'codigo_servico',
         'descricao_servico', 'valor_servicos_centavos', 'valor_liquido_centavos', 'ambiente',
-        'origem', 'xml_path', 'xml_sha256', 'enviada_por',
+        'origem', 'xml_path', 'xml_sha256', 'danfse_path', 'danfse_versao', 'danfse_gerado_em', 'enviada_por',
     ];
 
     protected function casts(): array
     {
-        return ['competencia' => 'date', 'emitida_em' => 'datetime'];
+        return ['competencia' => 'date', 'emitida_em' => 'datetime', 'danfse_gerado_em' => 'datetime'];
     }
 
     public function fatura(): HasOne

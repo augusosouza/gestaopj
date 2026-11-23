@@ -1,6 +1,7 @@
-# Piloto em VPS Linux: app Laravel + MariaDB + agendador (gera competência todo dia 1º).
-# Fases 2 e 3 adicionam aqui os serviços internos (calculadoras Java e gerador de DANFSe em Go),
-# sem portas expostas, acessíveis só pela rede interna "gestao".
+# Piloto em VPS Linux: app Laravel + MariaDB + agendador (gera competência todo dia 1º)
+# + componentes oficiais da Receita Federal como serviços internos, sem portas expostas,
+# acessíveis só pela rede interna "gestao". Cada componente é compilado do código-fonte
+# público da Receita num commit fixo: atualizar é uma decisão explícita (troque o commit).
 services:
   app:
     build: .
@@ -8,6 +9,8 @@ services:
     environment:
       DB_CONNECTION: mariadb
       DB_HOST: db
+      DANFSE_URL: http://danfse:8080
+      DANFSE_VERSAO: "1.0.0 (8d79e6b)"
     ports: ["8080:80"]
     volumes: ["storage:/var/www/html/storage"]
     depends_on:
@@ -26,6 +29,20 @@ services:
     volumes: ["storage:/var/www/html/storage"]
     depends_on:
       app: { condition: service_started }
+    networks: [gestao]
+    restart: unless-stopped
+
+  # Gerador de DANFSe da Receita Federal (MIT) — XML da NFS-e → PDF.
+  # https://github.com/ReceitaFederal/calculadora-rtc-gerador-danfse — versão 1.0.0
+  danfse:
+    build: https://github.com/ReceitaFederal/calculadora-rtc-gerador-danfse.git#8d79e6b2f7fad6375340afcb51c85ed370c64a14
+    environment:
+      LOG_LEVEL: warn
+      XML_MAX_SIZE_BYTES: "1048576"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/ready"]
+      interval: 15s
+      retries: 5
     networks: [gestao]
     restart: unless-stopped
 
