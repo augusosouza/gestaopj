@@ -9,3 +9,6 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Extratos de teste: preservar bytes exatos (CRLF, CP-1252)
+tests/fixtures/ofx/*.ofx -text
