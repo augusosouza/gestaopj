@@ -252,6 +252,7 @@ final class GoogleAgenda
      */
     public static function overrides(array $dias, array $canais): array
     {
+        $dias = array_values(array_filter($dias, fn ($d) => $d >= 0)); // o Google só avisa antes do evento; a régua pós-vencimento é interna
         rsort($dias);
         $out = [];
         $primeiro = in_array('popup', $canais, true) ? 'popup' : 'email';

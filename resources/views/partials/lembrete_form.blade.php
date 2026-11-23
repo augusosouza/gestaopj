@@ -2,7 +2,7 @@
 <label class="marcar" style="margin-bottom:10px"><input type="checkbox" name="ativo" value="1" @checked($cfg['ativo'])> Lembrar destes vencimentos</label>
 <fieldset class="bloco" style="margin-bottom:10px"><legend>Quando avisar</legend>
   <div class="lembrete-dias">
-    @foreach (\App\Models\LembreteConfig::DIAS as $d => $rot)
+    @foreach (\App\Models\LembreteConfig::diasPara($tipoLembrete ?? 'pagar') as $d => $rot)
       <label class="marcar"><input type="checkbox" name="dias[]" value="{{ $d }}" @checked(in_array($d, $cfg['dias'], true))> {{ $rot }}</label>
     @endforeach
   </div>

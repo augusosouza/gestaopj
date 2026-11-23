@@ -52,7 +52,7 @@ final class Menu
                 $item('Lançamentos', route('financeiro.index'), $lanc && ! in_array($tipo, ['receber', 'pagar'], true)),
                 $item('Transferências', route('transferencias.index'), $rota('transferencias.*')),
                 $secao('Recebimentos'),
-                $item('Contas a receber', route('financeiro.index', ['tipo' => 'receber']), $lanc && $tipo === 'receber'),
+                $item('Contas a receber', route('contas_receber.index'), $rota('contas_receber.*') || ($lanc && $tipo === 'receber')),
                 $item('Inadimplência', route('financeiro.inadimplencia'), $rota('financeiro.inadimplencia')),
                 $secao('Pagamentos'),
                 $item('Contas a pagar', route('contas_pagar.index'), $rota('contas_pagar.*') || ($lanc && $tipo === 'pagar')),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Papel;
 use App\Models\CategoriaFinanceira;
+use App\Models\CobrancaRegistro;
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
 use App\Models\ExtratoLinha;
@@ -135,7 +136,7 @@ class FinanceiroController extends Controller
 
     public function show(Request $request, Titulo $titulo): View
     {
-        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'lembretes', 'historico'], true) ? $request->query('aba') : 'resumo';
+        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'lembretes', 'cobranca', 'historico'], true) ? $request->query('aba') : 'resumo';
         $titulo->load('anexos.enviadoPor', 'origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
             'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
 
@@ -160,6 +161,7 @@ class FinanceiroController extends Controller
 
         return view('financeiro.titulo', [
             't' => $titulo, 'aba' => $aba, 'historico' => $historico, 'lembretes' => $lembretes,
+            'cobranca' => $aba === 'cobranca' ? CobrancaRegistro::with('criadoPor')->where('titulo_id', $titulo->id)->orderByDesc('data')->orderByDesc('id')->get() : collect(),
             'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(),
             'chave' => (string) Str::uuid(), // trava contra duplo envio do formulário de baixa
         ]);

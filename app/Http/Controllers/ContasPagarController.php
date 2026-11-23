@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CategoriaFinanceira;
+use App\Models\CobrancaRegistro;
 use App\Models\Compra;
 use App\Models\ContaFinanceira;
 use App\Models\Movimento;
@@ -16,43 +17,71 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
- * FIN-REM-01 — Central de Contas a Pagar.
- * Abas: Visão geral, Em aberto, Parcelamentos, Calendário, Pagas. Usa os mesmos títulos,
- * parcelas e baixas do financeiro (nada é duplicado); faturas de cartão aparecem uma vez.
+ * Central de Contas a Pagar e de Recebimentos (FIN-REM-01 + Augi 3.0, itens 7 e 11).
+ * A mesma central serve os dois lados, sobre os mesmos títulos, parcelas e baixas do
+ * financeiro (nada é duplicado). Faturas de cartão aparecem uma vez, só em "a pagar".
  */
 class ContasPagarController extends Controller
 {
-    public const ABAS = ['visao' => 'Visão geral', 'aberto' => 'Em aberto', 'parcelamentos' => 'Parcelamentos', 'calendario' => 'Calendário', 'pagas' => 'Pagas'];
+    public const ABAS = ['visao' => 'Visão geral', 'aberto' => 'Em aberto', 'vencidas' => 'Vencidas', 'parcelamentos' => 'Parceladas', 'pagas' => 'Pagas', 'calendario' => 'Calendário'];
 
-    public function index(Request $request, PosicaoFinanceira $pos): View
+    public const ABAS_RECEBER = ['visao' => 'Visão geral', 'aberto' => 'Em aberto', 'vencidas' => 'Atrasados', 'pagas' => 'Recebidos',
+        'cobrancas' => 'Cobranças', 'renegociacoes' => 'Renegociações', 'calendario' => 'Calendário'];
+
+    private string $tipo = 'pagar';
+
+    public static function abas(string $tipo): array
     {
-        $aba = array_key_exists((string) $request->query('aba'), self::ABAS) ? $request->query('aba') : 'visao';
+        return $tipo === 'receber' ? self::ABAS_RECEBER : self::ABAS;
+    }
+
+    public function index(Request $request, PosicaoFinanceira $pos, string $tipo = 'pagar'): View
+    {
+        $this->tipo = $tipo === 'receber' ? 'receber' : 'pagar';
+        $abas = self::abas($this->tipo);
+        $aba = array_key_exists((string) $request->query('aba'), $abas) ? $request->query('aba') : 'visao';
         $hoje = CarbonImmutable::today();
         $f = $this->filtros($request);
+        if ($aba === 'vencidas') {
+            $f['situacao'] = 'vencido';
+        }
         $abertas = $this->abertas($f);
+        $todasAbertas = $aba === 'vencidas' ? $this->abertas(array_diff_key($f, ['situacao' => 1])) : $abertas;
         $mes = $hoje->startOfMonth();
-        $pagasMes = $this->pagas(['de' => $mes, 'ate' => $hoje->endOfMonth()] + $f);
+        $pagasMes = $this->pagas(['de' => $mes, 'ate' => $hoje->endOfMonth()] + array_diff_key($f, ['de' => 1, 'ate' => 1]));
+        $vencidas = $todasAbertas->where('atrasado', true);
+        $aVencer = $todasAbertas->where('atrasado', false);
 
         $ind = [
-            'aberto' => (int) $abertas->sum('saldo'),
-            'qtd' => $abertas->count(),
-            'sete' => (int) $abertas->filter(fn ($r) => ! $r['atrasado'] && $r['vencimento']->lte($hoje->addDays(7)))->sum('saldo'),
-            'atrasado' => (int) $abertas->where('atrasado', true)->sum('saldo'),
-            'qtd_atrasado' => $abertas->where('atrasado', true)->count(),
+            'aberto' => (int) $todasAbertas->sum('saldo'),
+            'qtd' => $todasAbertas->count(),
+            'hoje' => (int) $aVencer->filter(fn ($r) => $r['vencimento']->isSameDay($hoje))->sum('saldo'),
+            'sete' => (int) $aVencer->filter(fn ($r) => $r['vencimento']->lte($hoje->addDays(7)))->sum('saldo'),
+            'trinta' => (int) $aVencer->filter(fn ($r) => $r['vencimento']->lte($hoje->addDays(30)))->sum('saldo'),
+            'atrasado' => (int) $vencidas->sum('saldo'),
+            'qtd_atrasado' => $vencidas->count(),
             'pago_mes' => (int) $pagasMes->sum('valor'),
+            'inadimplentes' => $vencidas->pluck('fornecedor')->filter()->unique()->count(),
+            'renegociado' => $this->tipo === 'receber' ? (int) CobrancaRegistro::where('tipo', 'renegociacao')->whereDate('data', '>=', $mes)->get()
+                ->sum(fn ($r) => $r->detalhes['valor'] ?? 0) : 0,
         ];
-        $dados = ['aba' => $aba, 'f' => $f, 'ind' => $ind, 'hoje' => $hoje,
-            'categorias' => CategoriaFinanceira::where('tipo', 'despesa')->orderBy('nome')->get(),
+        $ind['previsto_mes'] = (int) $todasAbertas->filter(fn ($r) => $r['vencimento']->isSameMonth($hoje))->sum('saldo') + $ind['pago_mes'];
+        $dados = ['tipo' => $this->tipo, 'abas' => $abas, 'aba' => $aba, 'f' => $f, 'ind' => $ind, 'hoje' => $hoje,
+            'categorias' => CategoriaFinanceira::where('tipo', $this->tipo === 'receber' ? 'receita' : 'despesa')->orderBy('nome')->get(),
             'contas' => ContaFinanceira::orderBy('nome')->get(), 'chave' => (string) Str::uuid()];
 
-        return view('contas_pagar.index', $dados + match ($aba) {
-            'visao' => ['proximos' => $abertas->take(8), 'semanas' => $this->porSemana($abertas, $hoje),
+        return view('contas.index', $dados + match ($aba) {
+            'visao' => ['proximos' => $abertas->where('atrasado', false)->take(8)->values(), 'atrasadosTop' => $vencidas->take(5)->values(),
+                'semanas' => $this->porSemana($abertas, $hoje),
                 'categoriasTop' => $abertas->groupBy('categoria')->map(fn ($g, $k) => ['rotulo' => $k ?: 'Sem categoria', 'valor' => (int) $g->sum('saldo')])->sortByDesc('valor')->take(6)->values(),
                 'caixa' => $pos->projetar(30)],
-            'aberto' => ['linhas' => $abertas],
+            'aberto', 'vencidas' => ['linhas' => $abertas],
             'parcelamentos' => ['parcelados' => $this->parcelados($f)],
             'calendario' => $this->calendario($request, $abertas),
-            'pagas' => ['pagas' => $pagas = $this->pagas($f + ['de' => $f['de'] ?? $mes, 'ate' => $f['ate'] ?? $hoje->endOfMonth()])],
+            'pagas' => ['pagas' => $this->pagas($f + ['de' => $f['de'] ?? $mes, 'ate' => $f['ate'] ?? $hoje->endOfMonth()])],
+            'cobrancas' => ['registros' => CobrancaRegistro::with('titulo', 'parcela', 'responsavel')->whereIn('tipo', ['contato', 'promessa'])
+                ->orderByDesc('data')->orderByDesc('id')->limit(300)->get(), 'vencidasCobrar' => $vencidas->take(20)->values()],
+            'renegociacoes' => ['registros' => CobrancaRegistro::with('titulo', 'criadoPor')->where('tipo', 'renegociacao')->orderByDesc('data')->limit(300)->get()],
         });
     }
 
@@ -76,7 +105,7 @@ class ContasPagarController extends Controller
     {
         $hoje = CarbonImmutable::today();
         $ps = Parcela::with(['titulo' => fn ($q) => $q->withCount('parcelas'), 'titulo.categoria', 'titulo.origem', 'movimentos.estornoDe', 'fatura.cartao'])
-            ->whereHas('titulo', fn ($q) => $q->where('tipo', 'pagar')->whereNull('cancelado_em'))
+            ->whereHas('titulo', fn ($q) => $q->where('tipo', $this->tipo)->whereNull('cancelado_em'))
             ->orderBy('vencimento')->orderBy('id')->get()->filter(fn (Parcela $p) => $p->saldo() > 0);
 
         $linhas = $ps->whereNull('fatura_cartao_id')->map(function (Parcela $p) use ($hoje) {
@@ -116,7 +145,7 @@ class ContasPagarController extends Controller
     {
         return Movimento::with('parcela.titulo.categoria', 'conta', 'estorno', 'criadoPor')->where('tipo', 'baixa')
             ->whereBetween('data', [$f['de']->toDateString(), $f['ate']->toDateString()])
-            ->whereHas('parcela.titulo', fn ($q) => $q->where('tipo', 'pagar'))
+            ->whereHas('parcela.titulo', fn ($q) => $q->where('tipo', $this->tipo))
             ->when($f['conta'] ?? null, fn ($q, $c) => $q->where('conta_id', $c))
             ->orderByDesc('data')->orderByDesc('id')->get()->reject->estornado()
             ->filter(fn (Movimento $m) => (! isset($f['categoria']) || $m->parcela->titulo->categoria_id === $f['categoria'])
@@ -127,7 +156,7 @@ class ContasPagarController extends Controller
 
     private function parcelados(array $f): Collection
     {
-        return Titulo::with('parcelas.movimentos.estornoDe', 'categoria', 'origem')->where('tipo', 'pagar')->whereNull('cancelado_em')
+        return Titulo::with('parcelas.movimentos.estornoDe', 'categoria', 'origem')->where('tipo', $this->tipo)->whereNull('cancelado_em')
             ->has('parcelas', '>', 1)->orderByDesc('id')->get()
             ->filter(fn (Titulo $t) => $t->saldo() > 0 && (! isset($f['categoria']) || $t->categoria_id === $f['categoria'])
                 && (! isset($f['fornecedor']) || Str::contains(Str::lower($t->contraparte.' '.$t->descricao), Str::lower($f['fornecedor']))))

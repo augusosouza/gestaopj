@@ -12,6 +12,14 @@ class LembreteConfig extends Model
 
     public const DIAS = [15 => '15 dias antes', 10 => '10 dias antes', 5 => '5 dias antes', 1 => '1 dia antes', 0 => 'No dia do vencimento'];
 
+    /** Régua de cobrança (só contas a receber): avisos internos depois do vencimento, enquanto não for pago. */
+    public const DIAS_DEPOIS = [-3 => '3 dias depois', -7 => '7 dias depois', -15 => '15 dias depois'];
+
+    public static function diasPara(string $tipo): array
+    {
+        return $tipo === 'receber' ? self::DIAS + self::DIAS_DEPOIS : self::DIAS;
+    }
+
     public const TIPOS = ['pagar' => 'Contas a pagar', 'receber' => 'Contas a receber', 'cartao' => 'Faturas de cartão'];
 
     public const CANAIS = ['popup' => 'Notificação do Google Agenda', 'email' => 'E-mail do Google Agenda'];

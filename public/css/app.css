@@ -379,3 +379,5 @@ table.itens td { padding: 3px 6px 3px 0; }
 .previa-lembretes { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
 .opcao-radio { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 8px; cursor: pointer; }
 .opcao-radio input { width: auto; margin-top: 4px; }
+.cards.cards-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1200px) { .cards.cards-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.cards-6 .card:nth-child(4) { border-left: 0; } }

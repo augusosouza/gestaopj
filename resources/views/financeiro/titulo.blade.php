@@ -5,6 +5,7 @@
   $opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
   $verbo = $t->receber() ? 'Recebido' : 'Pago';
   $lista = $t->receber() ? 'Contas a receber' : 'Contas a pagar';
+  $listaUrl = $t->receber() ? route('contas_receber.index') : route('contas_pagar.index');
   $movs = $t->parcelas->flatMap->movimentos->sortBy('id');
   $abaUrl = fn ($a) => route('financeiro.titulo', [$t, 'aba' => $a]);
   $origem = $t->origem_type === (new \App\Models\Fatura)->getMorphClass() ? ['Ver fatura', route('faturas.show', $t->origem_id)]
@@ -17,7 +18,7 @@
     default => 'Lançamento manual',
   };
 @endphp
-<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $lista => route('financeiro.index', ['tipo' => $t->tipo, 'competencia' => $t->competencia->format('Y-m')]), $t->descricao => null]"
+<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $lista => $listaUrl, $t->descricao => null]"
   :titulo="$t->descricao" :sub="'Competência '.$t->competencia->translatedFormat('F \d\e Y').($t->contraparte ? ' · '.$t->contraparte : '').' · '.($t->categoria?->nome ?? 'sem categoria')">
   <div style="margin-top:6px">@include('financeiro._situacao')</div>
   <x-slot:acoes>
@@ -42,6 +43,7 @@
   [$t->receber() ? 'Recebimentos' : 'Pagamentos', $abaUrl('pagamentos'), $aba === 'pagamentos', $movs->count()],
   ['Documentos', $abaUrl('documentos'), $aba === 'documentos', ($t->anexos->count() + ($t->origem instanceof \App\Models\Compra ? $t->origem->anexos->count() : 0)) ?: null],
   ['Lembretes', $abaUrl('lembretes'), $aba === 'lembretes'],
+  ...($t->receber() ? [['Cobrança', $abaUrl('cobranca'), $aba === 'cobranca']] : []),
   ['Histórico', $abaUrl('historico'), $aba === 'historico'],
 ]" />
 
@@ -158,6 +160,8 @@
     </script>
   @endif
 
+@elseif ($aba === 'cobranca' && $t->receber())
+  @include('financeiro._cobranca')
 @elseif ($aba === 'lembretes')
   @if ($t->parcelas->contains(fn ($p) => $p->fatura_cartao_id))
     <div class="aviso info">Compra no cartão: o lembrete é o da <strong>fatura</strong> (configure em <a href="{{ route('configuracoes.vencimentos') }}">Lembretes de vencimento → Faturas de cartão</a>).</div>
@@ -168,7 +172,7 @@
       <form method="post" action="{{ route('lembretes.titulo', $t) }}" class="painel">@csrf @method('put')
         <strong>Meus lembretes deste lançamento</strong>
         <p class="sub" style="font-size:12.5px;margin:2px 0 10px">{{ ['obrigacao' => 'Ajuste próprio deste lançamento.', 'usuario' => 'Usando o seu padrão.', 'sistema' => 'Usando o padrão do sistema.'][$lembretes['cfg']['origem']] }}</p>
-        @include('partials.lembrete_form', ['cfg' => $lembretes['cfg'], 'id' => 't'.$t->id])
+        @include('partials.lembrete_form', ['cfg' => $lembretes['cfg'], 'id' => 't'.$t->id, 'tipoLembrete' => $t->tipo])
         <div class="acoes" style="flex-wrap:wrap"><button>Salvar para este lançamento</button>
           @if ($lembretes['cfg']['origem'] === 'obrigacao')<button class="sec" name="restaurar" value="1">Voltar ao meu padrão</button>@endif</div>
       </form>
@@ -177,7 +181,7 @@
         @foreach ($lembretes['parcelas'] as $x)
           <div style="margin-top:10px"><strong style="font-size:13.5px">Parcela {{ $x['p']->numero }} · vence {{ $x['p']->vencimento->format('d/m/Y') }} · saldo {{ brl($x['p']->saldo()) }}</strong>
             @if ($lembretes['cfg']['ativo'] && $x['momentos'])
-              <ul class="previa-lembretes">@foreach ($x['momentos'] as $m)<li @if ($m['em']->isPast()) style="color:var(--faint)" @endif>{{ $m['em']->format('d/m/Y \à\s H:i') }} — {{ \App\Models\LembreteConfig::DIAS[$m['dias']] }}@if ($m['em']->isPast()) (já passou)@endif</li>@endforeach</ul>
+              <ul class="previa-lembretes">@foreach ($x['momentos'] as $m)<li @if ($m['em']->isPast()) style="color:var(--faint)" @endif>{{ $m['em']->format('d/m/Y \à\s H:i') }} — {{ \App\Models\LembreteConfig::diasPara($t->tipo)[$m['dias']] }}@if ($m['em']->isPast()) (já passou)@endif</li>@endforeach</ul>
             @else<p class="sub" style="font-size:13px;margin:4px 0 0">Sem lembretes.</p>@endif
             <div style="margin-top:4px;font-size:12.5px">
               @if ($ev = $lembretes['eventos']->get($x['p']->id))<span class="tag {{ $ev->erro ? 'warn' : 'ok' }}">{{ $ev->erro ? 'Google: erro, será refeito' : 'No Google Agenda' }}</span>@endif

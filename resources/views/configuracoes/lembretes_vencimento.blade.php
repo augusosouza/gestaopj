@@ -9,7 +9,8 @@
   <form method="post" action="{{ route('configuracoes.vencimentos.salvar', $tipo) }}" class="painel" style="margin-bottom:14px">@csrf @method('put')
     <strong>{{ $rotulo }}</strong>
     <p class="sub" style="font-size:12.5px;margin:2px 0 10px">{{ $configs[$tipo]['origem'] === 'sistema' ? 'Usando o padrão do sistema (5 e 1 dia antes e no dia, às 9h).' : 'Seu padrão.' }}</p>
-    @include('partials.lembrete_form', ['cfg' => $configs[$tipo], 'id' => $tipo])
+    @if ($tipo === 'receber')<p class="sub" style="font-size:12.5px;margin:-6px 0 8px">Régua de cobrança: os avisos "depois" lembram a equipe de cobrar o cliente enquanto o valor não entrar.</p>@endif
+    @include('partials.lembrete_form', ['cfg' => $configs[$tipo], 'id' => $tipo, 'tipoLembrete' => $tipo])
     <button>Salvar padrão</button>
   </form>
 @endforeach

@@ -8,6 +8,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CaixaController;
 use App\Http\Controllers\CartaoController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\CobrancaClienteController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
 use App\Http\Controllers\CompraController;
@@ -148,6 +149,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
             // Financeiro 2.0
             Route::get('/financeiro/contas-a-pagar', [ContasPagarController::class, 'index'])->name('contas_pagar.index');
+            Route::get('/financeiro/recebimentos', [ContasPagarController::class, 'index'])->defaults('tipo', 'receber')->name('contas_receber.index');
             Route::get('/financeiro/meu-caixa', [CaixaController::class, 'caixa'])->name('financeiro.caixa');
             Route::get('/financeiro/agenda', [CaixaController::class, 'agenda'])->name('financeiro.agenda');
             Route::get('/financeiro/recebimentos/inadimplencia', [CaixaController::class, 'inadimplencia'])->name('financeiro.inadimplencia');
@@ -190,6 +192,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/cartoes/faturas/{faturaCartao}/pagar', [CartaoController::class, 'pagar'])->middleware('throttle:30,1')->name('cartoes.pagar');
             Route::post('/financeiro/transferencias', [TransferenciaController::class, 'store'])->name('transferencias.store');
             Route::post('/financeiro/transferencias/{transferencia}/estorno', [TransferenciaController::class, 'estornar'])->name('transferencias.estornar');
+            Route::post('/financeiro/titulos/{titulo}/cobranca', [CobrancaClienteController::class, 'registrar'])->name('cobranca.registrar');
+            Route::post('/financeiro/titulos/{titulo}/renegociar', [CobrancaClienteController::class, 'renegociar'])->name('cobranca.renegociar');
             Route::put('/financeiro/parcelas/{parcela}/vencimento', [LembreteController::class, 'alterarVencimento'])->name('financeiro.vencimento');
             Route::put('/financeiro/titulos/{titulo}/lembretes', [LembreteController::class, 'salvarTitulo'])->name('lembretes.titulo');
             Route::post('/financeiro/titulos/{titulo}/google', [LembreteController::class, 'adicionarGoogle'])->middleware('throttle:20,1')->name('lembretes.google');

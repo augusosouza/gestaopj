@@ -93,8 +93,10 @@ final class LembretesVencimento
         $dias = array_values(array_unique(array_map('intval', $d['dias'] ?? [])));
         $erro = match (true) {
             ! array_key_exists($tipo, LembreteConfig::TIPOS) => 'Tipo inválido.',
-            array_diff($dias, array_keys(LembreteConfig::DIAS)) !== [] => 'Escolha entre 15, 10, 5 e 1 dia antes e o dia do vencimento.',
-            count($dias) > 5 => 'No máximo 5 lembretes.',
+            array_diff($dias, array_keys(LembreteConfig::diasPara($tipo))) !== [] => $tipo === 'receber'
+                ? 'Escolha entre 15, 10, 5 e 1 dia antes, o dia do vencimento e 3, 7 ou 15 dias depois.'
+                : 'Escolha entre 15, 10, 5 e 1 dia antes e o dia do vencimento.',
+            count(array_filter($dias, fn ($d) => $d >= 0)) > 5 => 'No máximo 5 lembretes até o vencimento.',
             ! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) ($d['hora'] ?? '')) => 'Horário inválido.',
             array_diff($d['canais_google'] ?? [], array_keys(LembreteConfig::CANAIS)) !== [] => 'Canal inválido.',
             default => null,
@@ -123,7 +125,8 @@ final class LembretesVencimento
         $hoje = $agora->setTimezone(config('app.timezone'))->startOfDay();
         $n = 0;
         foreach (Organizacao::where('tipo', 'empresa')->pluck('id') as $orgId) {
-            $itens = $this->compromissos($orgId, $hoje, $hoje->addDays(max(array_keys(LembreteConfig::DIAS))));
+            // Janela: de 15 dias atrás (régua de cobrança pós-vencimento) a 15 dias à frente.
+            $itens = $this->compromissos($orgId, $hoje->subDays(max(array_map('abs', array_keys(LembreteConfig::DIAS_DEPOIS)))), $hoje->addDays(max(array_keys(LembreteConfig::DIAS))));
             if ($itens->isEmpty()) {
                 continue;
             }
@@ -138,8 +141,9 @@ final class LembretesVencimento
                             continue;
                         }
                         $chave = sprintf('venc:%s%d:%s:%d', $i['alvo'] === 'fatura' ? 'f' : 'p', $i['id'], $i['vencimento']->format('Ymd'), $mo['dias']);
-                        $quando = match ($mo['dias']) {
-                            0 => 'Vence hoje', 1 => 'Vence amanhã', default => "Vence em {$mo['dias']} dias"
+                        $quando = match (true) {
+                            $mo['dias'] < 0 => 'Cobrar: atrasado há '.abs($mo['dias']).' dias',
+                            $mo['dias'] === 0 => 'Vence hoje', $mo['dias'] === 1 => 'Vence amanhã', default => "Vence em {$mo['dias']} dias"
                         };
                         $verbo = $i['tipo'] === 'receber' ? 'A receber' : 'A pagar';
                         $n += (int) Notificacao::avisar($u->id, $orgId, 'vencimento', $chave, "{$quando}: {$i['descricao']}",

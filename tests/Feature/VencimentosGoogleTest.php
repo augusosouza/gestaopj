@@ -294,7 +294,8 @@ class VencimentosGoogleTest extends TestCase
         $this->como('financeiro@augi.local')->post(route('financeiro.store'), ['tipo' => 'pagar', 'descricao' => 'Internet', 'contraparte' => 'Provedor', 'competencia' => '2026-11',
             'valor' => '200,00', 'parcelas' => 1, 'vencimento' => '2026-11-15'])->assertSessionHasNoErrors(); // atrasada
         $r = $this->como('financeiro@augi.local')->get(route('contas_pagar.index'))->assertOk();
-        $r->assertSee('Total em aberto')->assertSee('R$ 1.600,00')->assertSee('Contas atrasadas')->assertSee('R$ 200,00');
+        $r->assertSee('Total em aberto')->assertSee('R$ 1.600,00')->assertSee('Vencido')->assertSee('Vence hoje')->assertSee('Próximos 30 dias')->assertSee('R$ 200,00');
+        $this->como('financeiro@augi.local')->get(route('contas_pagar.index', ['aba' => 'vencidas']))->assertSee('Internet')->assertDontSee('Aluguel do escritório');
         foreach (array_keys(ContasPagarController::ABAS) as $aba) {
             $this->como('financeiro@augi.local')->get(route('contas_pagar.index', ['aba' => $aba]))->assertOk();
         }
