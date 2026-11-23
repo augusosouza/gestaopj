@@ -30,6 +30,8 @@ class ConfiguracoesController extends Controller
                 ['Contas e bancos', 'Contas, saldo inicial, ativar/desativar.', route('financeiro.contas'), 'banco conta saldo'],
                 ['Lembretes bancários', 'Quando cobrar a atualização do extrato de cada conta.', route('configuracoes.lembretes'), 'extrato lembrete importação frequência ofx'],
                 ['Categorias', 'Categorias de receitas e despesas.', route('financeiro.categorias'), 'categoria despesa receita plano de contas'],
+                ['Lembretes de vencimento', 'Quando avisar sobre contas a pagar, a receber e faturas (15, 10, 5, 1 dia antes e no dia).', route('configuracoes.vencimentos'), 'lembrete aviso vencimento alerta notificação conta pagar'],
+                ['Google Agenda', 'Sincronizar vencimentos com o Google Agenda, com lembretes.', route('integracoes.google'), 'google agenda calendario calendar integração integracao sincronizar'],
                 ['Cartões', 'Cartões corporativos: limite, fechamento, vencimento e responsável.', route('cartoes.index'), 'cartao credito fatura limite fechamento vencimento'],
                 ['Sugestões', 'Ver, adiar ou dispensar as sugestões automáticas.', route('inteligencia.sugestoes'), 'sugestao alerta assistente inteligencia dispensar'],
             ]],

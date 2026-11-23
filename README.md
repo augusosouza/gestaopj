@@ -122,6 +122,13 @@ Cada data tem o seu lugar:
 - **Qualidade**: teste de mutação (Infection) no CI com controle contra medição falsa; 96% nos serviços de Compras e Meu Caixa (meta 80%). Ver `docs/qualidade.md`.
 - **PHP 8.3** mantido; o workflow de testes também roda em 8.4/8.5 para antecipar a futura atualização.
 
+## Central de vencimentos e Google Agenda (FIN-REM-01)
+
+- **Contas a pagar** (`/financeiro/contas-a-pagar`): indicadores (em aberto, vence em 7 dias, atrasadas, pago no mês) e abas Visão geral, Em aberto, Parcelamentos, Calendário e Pagas. Filtros por período, categoria, fornecedor, conta, valor e situação; atalhos de próximos 7/15/30 dias; **pagamento rápido** (inclusive parcial) direto na lista; alerta quando os vencimentos superam o caixa previsto.
+- **Lembretes de vencimento**: 15, 10, 5 e 1 dia antes e no dia, no horário escolhido (horário de Brasília). Padrão por usuário para contas a pagar, a receber e faturas de cartão; ajuste por lançamento na aba **Lembretes**. Avisos internos sem repetição; param quando a conta é quitada; o pagamento parcial mantém os avisos do saldo.
+- **Alterar vencimento** (renegociação) com motivo e auditoria; lembretes e eventos são recalculados.
+- **Google Agenda** opcional: OAuth por usuário e por empresa, agenda separada ou existente, um evento por parcela (ou por fatura), até 5 lembretes, atualização do mesmo evento, título discreto por padrão. Ver `docs/google-agenda.md`.
+
 ## Navegação e configurações
 
 - **Menu por grupos** (Operação, Financeiro — com seções Visão geral, Movimentações, Recebimentos, Pagamentos, Bancos e análises —, Fiscal, Inteligência, Contabilidade, Administração, Administração Augi), montado conforme o papel em `App\Support\Menu`. O grupo da página atual abre sozinho; os demais lembram a escolha no navegador.
@@ -203,7 +210,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (182 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
+Testes: `php artisan test` (196 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

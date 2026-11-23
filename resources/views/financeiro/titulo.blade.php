@@ -41,6 +41,7 @@
   ['Parcelas', $abaUrl('parcelas'), $aba === 'parcelas', $t->parcelas->count()],
   [$t->receber() ? 'Recebimentos' : 'Pagamentos', $abaUrl('pagamentos'), $aba === 'pagamentos', $movs->count()],
   ['Documentos', $abaUrl('documentos'), $aba === 'documentos', ($t->anexos->count() + ($t->origem instanceof \App\Models\Compra ? $t->origem->anexos->count() : 0)) ?: null],
+  ['Lembretes', $abaUrl('lembretes'), $aba === 'lembretes'],
   ['Histórico', $abaUrl('historico'), $aba === 'historico'],
 ]" />
 
@@ -74,13 +75,19 @@
 
 @elseif ($aba === 'parcelas')
   <div class="tabela"><table>
-    <thead><tr><th>Parcela</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Abatido</th><th class="n">Saldo</th><th>Situação</th><th>Fatura</th></tr></thead>
+    <thead><tr><th>Parcela</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Abatido</th><th class="n">Saldo</th><th>Situação</th><th>Fatura</th><th></th></tr></thead>
     <tbody>
     @foreach ($t->parcelas as $p)
       <tr><td>{{ $p->numero }}/{{ $t->parcelas->count() }}</td><td>{{ $p->vencimento->format('d/m/Y') }}</td><td class="n">{{ brl($p->valor_centavos) }}</td>
         <td class="n">{{ brl($p->abatido()) }}</td><td class="n">{{ brl($p->saldo()) }}</td>
         <td>@if ($p->saldo() === 0)<span class="tag ok">Quitada</span>@elseif ($p->vencida())<span class="tag bad">Vencida</span>@elseif ($p->abatido() > 0)<span class="tag info">Parcial</span>@else<span class="tag warn">Em aberto</span>@endif</td>
-        <td>@if ($p->fatura)<a href="{{ route('cartoes.fatura', $p->fatura) }}">{{ $p->fatura->cartao->nome }} · {{ $p->fatura->rotulo() }}</a>@else — @endif</td></tr>
+        <td>@if ($p->fatura)<a href="{{ route('cartoes.fatura', $p->fatura) }}">{{ $p->fatura->cartao->nome }} · {{ $p->fatura->rotulo() }}</a>@else — @endif</td>
+        <td>@if ($opera && ! $p->fatura_cartao_id && $p->saldo() > 0 && ! $t->cancelado())
+          <details><summary class="link-sum">alterar vencimento</summary>
+            <form method="post" action="{{ route('financeiro.vencimento', $p) }}" style="display:grid;gap:6px;margin-top:6px;min-width:200px">@csrf @method('put')
+              <input type="date" name="vencimento" value="{{ $p->vencimento->toDateString() }}" required aria-label="Novo vencimento">
+              <input name="motivo" required placeholder="Motivo (ex.: renegociado)" aria-label="Motivo"><button class="sec">Salvar</button></form>
+          </details>@endif</td></tr>
     @endforeach
     </tbody>
   </table></div>
@@ -149,6 +156,43 @@
         atualizar();
       })();
     </script>
+  @endif
+
+@elseif ($aba === 'lembretes')
+  @if ($t->parcelas->contains(fn ($p) => $p->fatura_cartao_id))
+    <div class="aviso info">Compra no cartão: o lembrete é o da <strong>fatura</strong> (configure em <a href="{{ route('configuracoes.vencimentos') }}">Lembretes de vencimento → Faturas de cartão</a>).</div>
+  @elseif ($lembretes['parcelas']->isEmpty())
+    <p class="painel vazio">Nada em aberto: sem lembretes para este lançamento.</p>
+  @else
+    <div class="duas">
+      <form method="post" action="{{ route('lembretes.titulo', $t) }}" class="painel">@csrf @method('put')
+        <strong>Meus lembretes deste lançamento</strong>
+        <p class="sub" style="font-size:12.5px;margin:2px 0 10px">{{ ['obrigacao' => 'Ajuste próprio deste lançamento.', 'usuario' => 'Usando o seu padrão.', 'sistema' => 'Usando o padrão do sistema.'][$lembretes['cfg']['origem']] }}</p>
+        @include('partials.lembrete_form', ['cfg' => $lembretes['cfg'], 'id' => 't'.$t->id])
+        <div class="acoes" style="flex-wrap:wrap"><button>Salvar para este lançamento</button>
+          @if ($lembretes['cfg']['origem'] === 'obrigacao')<button class="sec" name="restaurar" value="1">Voltar ao meu padrão</button>@endif</div>
+      </form>
+      <div class="painel">
+        <strong>Prévia</strong>
+        @foreach ($lembretes['parcelas'] as $x)
+          <div style="margin-top:10px"><strong style="font-size:13.5px">Parcela {{ $x['p']->numero }} · vence {{ $x['p']->vencimento->format('d/m/Y') }} · saldo {{ brl($x['p']->saldo()) }}</strong>
+            @if ($lembretes['cfg']['ativo'] && $x['momentos'])
+              <ul class="previa-lembretes">@foreach ($x['momentos'] as $m)<li @if ($m['em']->isPast()) style="color:var(--faint)" @endif>{{ $m['em']->format('d/m/Y \à\s H:i') }} — {{ \App\Models\LembreteConfig::DIAS[$m['dias']] }}@if ($m['em']->isPast()) (já passou)@endif</li>@endforeach</ul>
+            @else<p class="sub" style="font-size:13px;margin:4px 0 0">Sem lembretes.</p>@endif
+            <div style="margin-top:4px;font-size:12.5px">
+              @if ($ev = $lembretes['eventos']->get($x['p']->id))<span class="tag {{ $ev->erro ? 'warn' : 'ok' }}">{{ $ev->erro ? 'Google: erro, será refeito' : 'No Google Agenda' }}</span>@endif
+              @if (! $lembretes['conexao'] || $lembretes['conexao']->status !== 'ativa')<a href="{{ $x['link'] }}" target="_blank" rel="noopener">Adicionar ao Google Agenda (manual)</a>@endif
+            </div>
+          </div>
+        @endforeach
+        <p class="sub" style="font-size:12.5px;margin-top:12px">Horário de Brasília. Os avisos aparecem na central de notificações do Augi; pagou, eles param. Pagamento parcial mantém os avisos do saldo.</p>
+        @if ($lembretes['conexao'] && $lembretes['conexao']->status === 'ativa' && ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
+          <form method="post" action="{{ route('lembretes.google', $t) }}">@csrf<button class="sec">Atualizar no Google Agenda agora</button></form>
+        @elseif (! $lembretes['conexao'])
+          <p style="font-size:13px"><a href="{{ route('integracoes.google') }}">Conectar o Google Agenda</a> para sincronizar automaticamente.</p>
+        @endif
+      </div>
+    </div>
   @endif
 
 @elseif ($aba === 'documentos')

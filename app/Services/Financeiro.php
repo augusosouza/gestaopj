@@ -100,6 +100,30 @@ final class Financeiro
         });
     }
 
+    /**
+     * Renegocia o vencimento de uma parcela em aberto. Fica na auditoria (de, para, motivo);
+     * lembretes internos e eventos do Google Agenda são recalculados a partir da nova data.
+     */
+    public function alterarVencimento(Parcela $p, string $novaData, string $motivo): void
+    {
+        $p->loadMissing('titulo', 'movimentos.estornoDe');
+        $nova = CarbonImmutable::parse($novaData)->toDateString();
+        $erro = match (true) {
+            $p->titulo->cancelado() => 'Lançamento cancelado.',
+            $p->fatura_cartao_id !== null => 'Parcela de cartão vence com a fatura; não pode ter vencimento próprio.',
+            $p->saldo() === 0 => 'Parcela já quitada.',
+            $nova === $p->vencimento->toDateString() => 'A nova data é igual à atual.',
+            default => null,
+        };
+        if ($erro) {
+            throw ValidationException::withMessages(['vencimento' => $erro]);
+        }
+        $de = $p->vencimento->toDateString();
+        $p->update(['vencimento' => $nova]);
+        Evento::registrar('financeiro.vencimento_alterado', $p->titulo, ['parcela' => $p->numero, 'de' => CarbonImmutable::parse($de)->format('d/m/Y'),
+            'para' => CarbonImmutable::parse($nova)->format('d/m/Y'), 'motivo' => $motivo]);
+    }
+
     public function cancelarTitulo(Titulo $t, string $motivo): void
     {
         if ($t->origem_type) {

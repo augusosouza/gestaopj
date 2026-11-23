@@ -3,6 +3,7 @@
 use App\Enums\Papel;
 use App\Enums\TipoOrganizacao;
 use App\Models\Backup;
+use App\Models\GoogleConexao;
 use App\Models\Organizacao;
 use App\Models\User;
 use App\Models\Vinculo;
@@ -11,7 +12,9 @@ use App\Services\Backup\ConfigBackup;
 use App\Services\Exportacao;
 use App\Services\Faturamento;
 use App\Services\Financeiro;
+use App\Services\GoogleAgenda;
 use App\Services\LembretesBancarios;
+use App\Services\LembretesVencimento;
 use App\Support\Competencia;
 use App\Support\Documento;
 use Illuminate\Support\Facades\Artisan;
@@ -146,3 +149,24 @@ Schedule::command('exportacoes:limpar')->hourly();
 Schedule::command('health:schedule-check-heartbeat')->everyMinute();
 Schedule::command('health:check')->everyFiveMinutes()->withoutOverlapping(10);
 Schedule::command('model:prune', ['--model' => [MonitoredScheduledTaskLogItem::class]])->daily();
+
+Artisan::command('financeiro:vencimentos', function (LembretesVencimento $l) {
+    $this->info('Avisos de vencimento criados: '.$l->notificar());
+})->purpose('Gera os lembretes internos de vencimento (contas a pagar, a receber e faturas de cartão).');
+
+Schedule::command('financeiro:vencimentos')->everyTenMinutes()->withoutOverlapping(30);
+
+Artisan::command('google:sincronizar', function (GoogleAgenda $g) {
+    $n = 0;
+    foreach (GoogleConexao::withoutGlobalScope('organizacao')->where('status', 'ativa')->get() as $c) {
+        try {
+            $st = $g->sincronizar($c);
+            $n += $st['criados'] + $st['atualizados'] + $st['removidos'];
+        } catch (Throwable $e) {
+            report($e); // uma conexão com problema não impede as outras
+        }
+    }
+    $this->info("Eventos alterados no Google Agenda: {$n}");
+})->purpose('Sincroniza vencimentos com o Google Agenda (Augi → Google).');
+
+Schedule::command('google:sincronizar')->everyFifteenMinutes()->withoutOverlapping(30);

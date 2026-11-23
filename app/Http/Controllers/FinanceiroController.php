@@ -7,6 +7,8 @@ use App\Models\CategoriaFinanceira;
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
 use App\Models\ExtratoLinha;
+use App\Models\GoogleConexao;
+use App\Models\GoogleEvento;
 use App\Models\Movimento;
 use App\Models\Parcela;
 use App\Models\Titulo;
@@ -14,8 +16,10 @@ use App\Models\Transferencia;
 use App\Models\User;
 use App\Models\Vinculo;
 use App\Services\Financeiro;
+use App\Services\GoogleAgenda;
 use App\Services\ImportadorExtrato;
 use App\Services\LembretesBancarios;
+use App\Services\LembretesVencimento;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
 use Carbon\CarbonImmutable;
@@ -131,14 +135,31 @@ class FinanceiroController extends Controller
 
     public function show(Request $request, Titulo $titulo): View
     {
-        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'historico'], true) ? $request->query('aba') : 'resumo';
+        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'lembretes', 'historico'], true) ? $request->query('aba') : 'resumo';
         $titulo->load('anexos.enviadoPor', 'origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
             'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
 
         $historico = Evento::with('user')->where('alvo_type', $titulo->getMorphClass())->where('alvo_id', $titulo->id)->latest('id')->get();
 
+        $lembretes = null;
+        if ($aba === 'lembretes') {
+            $l = app(LembretesVencimento::class);
+            $cfg = $l->config(auth()->id(), $titulo->organizacao_id, $titulo->tipo, $titulo->id);
+            $conexao = GoogleConexao::where('user_id', auth()->id())->first();
+            $lembretes = [
+                'cfg' => $cfg, 'conexao' => $conexao,
+                'eventos' => $conexao ? GoogleEvento::where('google_conexao_id', $conexao->id)->where('alvo', 'parcela')
+                    ->whereIn('alvo_id', $titulo->parcelas->pluck('id'))->get()->keyBy('alvo_id') : collect(),
+                'parcelas' => $titulo->parcelas->filter(fn ($p) => $p->saldo() > 0 && ! $p->fatura_cartao_id)->map(fn ($p) => [
+                    'p' => $p, 'momentos' => $l->momentos(CarbonImmutable::parse($p->vencimento->toDateString()), $cfg),
+                    'link' => GoogleAgenda::linkModelo(($titulo->receber() ? 'Receber: ' : 'Pagar: ').$titulo->descricao,
+                        CarbonImmutable::parse($p->vencimento->toDateString()), $cfg['hora'], 'Abrir no Augi Gestão: '.route('financeiro.titulo', $titulo)),
+                ])->values(),
+            ];
+        }
+
         return view('financeiro.titulo', [
-            't' => $titulo, 'aba' => $aba, 'historico' => $historico,
+            't' => $titulo, 'aba' => $aba, 'historico' => $historico, 'lembretes' => $lembretes,
             'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(),
             'chave' => (string) Str::uuid(), // trava contra duplo envio do formulário de baixa
         ]);

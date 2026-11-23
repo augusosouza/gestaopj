@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Google Agenda (FIN-REM-01). Credenciais OAuth do projeto no Google Cloud — só no .env, nunca no banco.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'), // vazio = {APP_URL}/integracoes/google/retorno
+    ],
+
 ];

@@ -55,7 +55,7 @@ final class Menu
                 $item('Contas a receber', route('financeiro.index', ['tipo' => 'receber']), $lanc && $tipo === 'receber'),
                 $item('Inadimplência', route('financeiro.inadimplencia'), $rota('financeiro.inadimplencia')),
                 $secao('Pagamentos'),
-                $item('Contas a pagar', route('financeiro.index', ['tipo' => 'pagar']), $lanc && $tipo === 'pagar'),
+                $item('Contas a pagar', route('contas_pagar.index'), $rota('contas_pagar.*') || ($lanc && $tipo === 'pagar')),
                 $item('Compras', route('compras.index'), $rota('compras.*')),
                 $item('Cartões', route('cartoes.index'), $rota('cartoes.*')),
                 $secao('Bancos e análises'),
