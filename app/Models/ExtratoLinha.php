@@ -13,7 +13,7 @@ class ExtratoLinha extends Model
     protected $table = 'extrato_linhas';
 
     protected $fillable = ['organizacao_id', 'conta_id', 'data', 'valor_centavos', 'descricao', 'identificador', 'arquivo',
-        'movimento_id', 'conciliado_por', 'conciliado_em', 'ignorada'];
+        'movimento_id', 'transferencia_id', 'conciliado_por', 'conciliado_em', 'ignorada'];
 
     protected function casts(): array
     {
@@ -28,5 +28,21 @@ class ExtratoLinha extends Model
     public function movimento(): BelongsTo
     {
         return $this->belongsTo(Movimento::class);
+    }
+
+    public function transferencia(): BelongsTo
+    {
+        return $this->belongsTo(Transferencia::class);
+    }
+
+    public function conciliada(): bool
+    {
+        return $this->movimento_id !== null || $this->transferencia_id !== null;
+    }
+
+    /** Linhas que ainda pedem conferência (sem baixa, sem transferência e não ignoradas). */
+    public function scopePendentes($q)
+    {
+        return $q->whereNull('movimento_id')->whereNull('transferencia_id')->where('ignorada', false);
     }
 }

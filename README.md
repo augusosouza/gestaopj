@@ -88,9 +88,33 @@ Cada data tem o seu lugar:
 - **Compatibilidade:** `php artisan financeiro:sincronizar` (também executado na migração) cria títulos para faturas e cobranças antigas e converte os pagamentos já registrados em baixas. É idempotente.
 - **Permissões:** a empresa opera (admin, financeiro); o escritório só consulta; o prestador não acessa.
 
+## Financeiro 2.0 — compras, cartões, caixa e decisões
+
+**Regra de ouro:** uma obrigação é **um** título com parcelas. Nenhum módulo cria um segundo registro para a mesma dívida.
+
+- **Compras** (`Financeiro → Compras`): fornecedor, itens (o valor passa a ser a soma deles), desconto, juros, entrada, parcelas, nota (tipo, número, chave), garantia. A compra gera **um** título a pagar; a entrada é a parcela 1 e pode ser registrada como já paga. Cancelar só sem pagamentos (com pagamentos, estorne antes).
+- **Cartões corporativos**: limite, fechamento, vencimento, conta que paga e responsável (sem número completo, CVV ou senha). Compra no cartão: cada parcela vai para a fatura certa (compra no dia do fechamento ou depois entra na seguinte) e vence com ela.
+  - **Pagar a fatura** quita as parcelas das compras — a despesa **não** é lançada de novo. Parcela de cartão não pode ser paga avulsa.
+  - **Encargos** (juros, IOF, multa) viram um título próprio em "Juros e encargos financeiros".
+  - Limite disponível = limite − parcelas não pagas.
+- **Transferências entre contas**: mexem só nos saldos (não são receita nem despesa). Tarifa vira despesa em "Tarifas bancárias". Imutáveis: estorno é uma transferência inversa. Conciliam com o extrato.
+- **Meu Caixa** (`/financeiro/meu-caixa`): *o que posso fazer com o dinheiro de hoje sem comprometer os próximos vencimentos?*
+  - Projeção **dia a dia** por data de vencimento (7/15/30/60/90 dias). Um recebimento depois de um pagamento não "cobre" o pagamento: o sistema aponta o dia em que falta dinheiro.
+  - **Livre para decidir** = menor saldo previsto no período.
+  - Pagamentos vencidos entram hoje; recebimentos vencidos ficam de fora por padrão (opção para incluir).
+  - **Simulação** de gasto ou entrada, sem gravar nada.
+  - **Saldo confirmado pelo banco**: o saldo do OFX (LEDGERBAL) comparado ao registrado no Augi naquela data.
+- **Agenda financeira**: próximos vencimentos (com atrasados) e visão de mês; faturas de cartão aparecem uma vez.
+- **Inadimplência**: vencidos por cliente e faixa (1–7, 8–15, 16–30, 31–60, +60 dias); marca quem atrasou os três últimos vencimentos.
+- **Sugestões** (`Inteligência → Sugestões`), por regras: falta de caixa projetada, cliente com atraso, atraso recorrente, recebimento parcial, lançamento sem categoria, possível pagamento duplicado, fatura 30% acima da média, comprometimento com parcelamentos, extrato e conciliação. Cada uma tem motivo, valores e ação; pode ser adiada (3/7 dias) ou dispensada, com auditoria.
+- **Assistente sem tokens** (`Inteligência → Assistente`): perguntas como "Quanto tenho disponível?", "O que vence amanhã?", "Quanto gastei com software este mês?", "Como estará meu caixa?". Um interpretador de regras escolhe uma consulta pronta (o texto nunca vira SQL) e responde com os **mesmos serviços das telas**, mostrando a origem do número. "Quero registrar uma compra de R$ 2.400 em seis parcelas" abre o formulário preenchido para revisão — nada é gravado sem confirmação. Funciona sem nenhuma chave de IA.
+- **Permissões**: empresa (admin, financeiro) opera; escritório consulta; prestador não vê nada disso.
+
+**Ainda não feito** (próximas etapas): orçamentos e metas, centros de custo e rateio, subcategorias e etiquetas, aprovação por alçada, relatórios/DRE gerencial e exportação, filtros salvos e personalização do painel, prévia antes de importar extrato, conciliação de uma linha com várias baixas, pagamento parcial e parcelamento de fatura de cartão, devolução parcial de compra, anexos (comprovantes), lembretes de cobrança por e-mail/WhatsApp, portal do pagador, integração bancária (boletos/Pix) e IA generativa opcional.
+
 ## Navegação e configurações
 
-- **Menu por grupos** (Operação, Financeiro, Fiscal, Contabilidade, Administração, Administração Augi), montado conforme o papel em `App\Support\Menu`. O grupo da página atual abre sozinho; os demais lembram a escolha no navegador.
+- **Menu por grupos** (Operação, Financeiro — com seções Visão geral, Movimentações, Recebimentos, Pagamentos, Bancos e análises —, Fiscal, Inteligência, Contabilidade, Administração, Administração Augi), montado conforme o papel em `App\Support\Menu`. O grupo da página atual abre sozinho; os demais lembram a escolha no navegador.
 - **Padrão de tela:** trilha (breadcrumb) + título + ações (`<x-cabecalho>`) e abas (`<x-abas>`).
 - **Central de configurações** (`/configuracoes`, admin e financeiro) com busca: Minha conta, Empresa, Financeiro, Fiscal, Equipe e acessos. A identidade da plataforma e os backups ficam à parte, em **Administração Augi**.
 - **Notificações** internas com contador de não lidas; abrir uma notificação troca para a empresa certa, se você tiver acesso a ela.
@@ -169,7 +193,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (115 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
+Testes: `php artisan test` (130 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

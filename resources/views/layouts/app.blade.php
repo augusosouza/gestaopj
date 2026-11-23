@@ -47,6 +47,7 @@
           <details class="menu-grupo" data-grupo="{{ $g['chave'] }}" @if ($g['ativo']) open data-fixo @endif>
             <summary>@include('partials.icone', ['nome' => $g['icone']]) <span>{{ $g['rotulo'] }}</span></summary>
             @foreach ($g['itens'] as $i)
+              @if (isset($i['secao']))<span class="menu-secao">{{ $i['secao'] }}</span>@continue @endif
               <a href="{{ $i['url'] }}" @class(['ativo' => $i['ativo']]) @if ($i['ativo']) aria-current="page" @endif>{{ $i['rotulo'] }}</a>
             @endforeach
           </details>

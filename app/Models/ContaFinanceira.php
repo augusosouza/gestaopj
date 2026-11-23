@@ -21,12 +21,12 @@ class ContaFinanceira extends Model
 
     protected $fillable = ['organizacao_id', 'nome', 'tipo', 'banco', 'identificacao', 'saldo_inicial_centavos', 'saldo_inicial_em', 'ativa',
         'lembrete_ativo', 'lembrete_frequencia', 'lembrete_dia', 'lembrete_hora', 'lembrete_antecedencia', 'lembrete_repetir_dias',
-        'lembrete_responsavel_id', 'extrato_ate', 'extrato_importado_em', 'lembrete_dispensado_ate', 'lembrete_dispensa_motivo'];
+        'lembrete_responsavel_id', 'extrato_ate', 'extrato_importado_em', 'lembrete_dispensado_ate', 'lembrete_dispensa_motivo', 'saldo_extrato_centavos', 'saldo_extrato_em'];
 
     protected function casts(): array
     {
         return ['saldo_inicial_em' => 'date', 'ativa' => 'boolean', 'lembrete_ativo' => 'boolean', 'extrato_ate' => 'date',
-            'extrato_importado_em' => 'datetime', 'lembrete_dispensado_ate' => 'date'];
+            'extrato_importado_em' => 'datetime', 'lembrete_dispensado_ate' => 'date', 'saldo_extrato_em' => 'date'];
     }
 
     public function responsavel(): BelongsTo
@@ -72,6 +72,9 @@ class ContaFinanceira extends Model
         foreach ($movs as $m) {
             $saldo += $m->efeitoNaConta();
         }
+        // Transferências entre contas da empresa: mexem no saldo, não em receitas/despesas.
+        $saldo += (int) Transferencia::where('conta_destino_id', $this->id)->whereDate('data', '<=', $em)->sum('valor_centavos');
+        $saldo -= (int) Transferencia::where('conta_origem_id', $this->id)->whereDate('data', '<=', $em)->sum('valor_centavos');
 
         return $saldo;
     }

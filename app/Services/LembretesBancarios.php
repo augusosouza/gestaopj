@@ -31,7 +31,7 @@ final class LembretesBancarios
         if ($exigido && $exigido->lt(CarbonImmutable::instance($c->saldo_inicial_em))) {
             $exigido = null;
         }
-        $aConciliar = ExtratoLinha::withoutGlobalScope('organizacao')->where('conta_id', $c->id)->whereNull('movimento_id')->where('ignorada', false);
+        $aConciliar = ExtratoLinha::withoutGlobalScope('organizacao')->where('conta_id', $c->id)->pendentes();
         $n = (clone $aConciliar)->count();
         $antigas = (clone $aConciliar)->whereDate('data', '<', $agora->subDays(7))->count();
 

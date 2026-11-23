@@ -11,7 +11,7 @@ class Parcela extends Model
 {
     use DaOrganizacao;
 
-    protected $fillable = ['organizacao_id', 'titulo_id', 'numero', 'vencimento', 'valor_centavos'];
+    protected $fillable = ['organizacao_id', 'titulo_id', 'numero', 'vencimento', 'valor_centavos', 'fatura_cartao_id'];
 
     protected function casts(): array
     {
@@ -21,6 +21,11 @@ class Parcela extends Model
     public function titulo(): BelongsTo
     {
         return $this->belongsTo(Titulo::class);
+    }
+
+    public function fatura(): BelongsTo
+    {
+        return $this->belongsTo(FaturaCartao::class, 'fatura_cartao_id');
     }
 
     public function movimentos(): HasMany

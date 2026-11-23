@@ -28,6 +28,9 @@ final class ImportadorExtrato
         $datas = array_column($linhas, 'data');
         $inicio = ($ofx ? $this->dataOfx($conteudo, 'DTSTART') : null) ?? ($datas ? min($datas) : null);
         $fim = ($ofx ? $this->dataOfx($conteudo, 'DTEND') : null) ?? ($datas ? max($datas) : null);
+        if ($ofx) {
+            $this->saldoInformado($conta, $conteudo);
+        }
         if ($ofx && $linhas === [] && $fim) {
             // Extrato OFX sem movimento no período é válido: comprova a cobertura.
             $this->registrar($conta, $nomeArquivo, $inicio, $fim, 0, 0);
@@ -67,6 +70,25 @@ final class ImportadorExtrato
         app(LembretesBancarios::class)->registrarCobertura($conta, $fim);
         Evento::registrar('financeiro.extrato_importado', $conta, ['arquivo' => $arquivo, 'novas' => $novas, 'repetidas' => $repetidas,
             'periodo' => ($inicio ? CarbonImmutable::parse($inicio)->format('d/m/Y') : '?').' a '.($fim ? CarbonImmutable::parse($fim)->format('d/m/Y') : '?')]);
+    }
+
+    /** Saldo que o banco informa no OFX (LEDGERBAL): vira o "saldo confirmado" da conta, se for o mais recente. */
+    private function saldoInformado(ContaFinanceira $conta, string $s): void
+    {
+        if (! preg_match('/<LEDGERBAL>(.*?)(?:<\/LEDGERBAL>|<AVAILBAL>|<\/STMTRS>|$)/si', $s, $b)
+            || ! preg_match('/<BALAMT>\s*([-+]?[\d.,]+)/i', $b[1], $v)) {
+            return;
+        }
+        $em = $this->dataOfx($b[1], 'DTASOF') ?? $this->dataOfx($s, 'DTEND');
+        if (! $em || ($conta->saldo_extrato_em && $conta->saldo_extrato_em->toDateString() > $em)) {
+            return;
+        }
+        try {
+            $centavos = $this->centavos(str_replace(',', '.', $v[1]));
+        } catch (\Throwable) {
+            return;
+        }
+        $conta->update(['saldo_extrato_centavos' => $centavos, 'saldo_extrato_em' => $em]);
     }
 
     private function dataOfx(string $s, string $tag): ?string

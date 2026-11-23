@@ -14,7 +14,10 @@ class Titulo extends Model
     use DaOrganizacao;
 
     protected $fillable = ['organizacao_id', 'tipo', 'descricao', 'categoria_id', 'contraparte', 'competencia',
-        'valor_total_centavos', 'documento', 'origem_type', 'origem_id', 'cancelado_em', 'motivo_cancelamento', 'criado_por'];
+        'valor_total_centavos', 'documento', 'forma', 'origem_type', 'origem_id', 'cancelado_em', 'motivo_cancelamento', 'criado_por'];
+
+    public const FORMAS = ['pix' => 'Pix', 'boleto' => 'Boleto', 'transferencia' => 'Transferência', 'dinheiro' => 'Dinheiro',
+        'cartao_debito' => 'Cartão de débito', 'cartao_credito' => 'Cartão de crédito', 'deposito' => 'Depósito', 'outro' => 'Outro'];
 
     protected function casts(): array
     {

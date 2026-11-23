@@ -15,6 +15,7 @@ use App\Models\Fatura;
 use App\Models\Movimento;
 use App\Models\Parcela;
 use App\Models\Titulo;
+use App\Models\Transferencia;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -42,11 +43,22 @@ final class Financeiro
         }
     }
 
+    /** Categoria padrão pela chave. Empresas antigas ganham a categoria (ou a chave na de mesmo nome) quando ela for usada. */
     public function categoriaPadrao(int $orgId, string $chave): ?CategoriaFinanceira
     {
         $this->garantirPadroes($orgId);
+        $q = fn () => CategoriaFinanceira::withoutGlobalScope('organizacao')->where('organizacao_id', $orgId);
+        if ($c = $q()->where('chave', $chave)->first()) {
+            return $c;
+        }
+        $padrao = collect(CategoriaFinanceira::PADRAO)->first(fn ($p) => $p[2] === $chave);
+        if (! $padrao) {
+            return null;
+        }
+        $c = $q()->where('tipo', $padrao[0])->where('nome', $padrao[1])->first();
+        $c ? $c->update(['chave' => $chave]) : $c = CategoriaFinanceira::create(['organizacao_id' => $orgId, 'tipo' => $padrao[0], 'nome' => $padrao[1], 'chave' => $chave]);
 
-        return CategoriaFinanceira::withoutGlobalScope('organizacao')->where('organizacao_id', $orgId)->where('chave', $chave)->first();
+        return $c;
     }
 
     /** Conta usada quando o fluxo antigo não informa conta: a primeira ativa, ou uma "Conta principal". */
@@ -187,11 +199,11 @@ final class Financeiro
     // ---------------- Baixa e estorno ----------------
 
     /**
-     * @param  array{conta_id: int, data: string, valor: int, desconto?: int, retencao?: int, acrescimo?: int, observacao?: ?string, chave?: ?string}  $d
+     * @param  array{conta_id: int, data: string, valor: int, desconto?: int, retencao?: int, acrescimo?: int, observacao?: ?string, chave?: ?string, via_fatura?: bool}  $d
      */
     public function baixar(Parcela $parcela, array $d): Movimento
     {
-        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'observacao' => null, 'chave' => null];
+        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'observacao' => null, 'chave' => null, 'via_fatura' => false];
 
         // Duplo envio do mesmo formulário: devolve a baixa já registrada, sem criar outra.
         if ($d['chave'] && ($ja = Movimento::where('chave_idempotencia', $d['chave'])->first())) {
@@ -206,6 +218,8 @@ final class Financeiro
 
             $erro = match (true) {
                 $t->cancelado() => 'Título cancelado.',
+                // Compra no cartão sai do caixa quando a fatura é paga: pagar a parcela avulsa duplicaria a saída.
+                $parcela->fatura_cartao_id && ! $d['via_fatura'] => 'Parcela de cartão de crédito: registre o pagamento pela fatura do cartão.',
                 ! $conta || $conta->organizacao_id !== $parcela->organizacao_id => 'Conta inválida ou inativa.',
                 $d['valor'] < 0 || $d['desconto'] < 0 || $d['retencao'] < 0 || $d['acrescimo'] < 0 => 'Valores não podem ser negativos.',
                 $d['valor'] + $d['desconto'] + $d['retencao'] === 0 => 'Informe o valor da baixa.',
@@ -331,7 +345,7 @@ final class Financeiro
             $linha = ExtratoLinha::lockForUpdate()->findOrFail($linha->id);
             $m->load('estorno', 'linhaExtrato', 'parcela.titulo');
             $erro = match (true) {
-                $linha->movimento_id !== null => 'Esta linha do extrato já está conciliada.',
+                $linha->conciliada() => 'Esta linha do extrato já está conciliada.',
                 $m->linhaExtrato !== null => 'Este movimento já está conciliado com outra linha.',
                 $m->tipo !== 'baixa' || $m->estornado() => 'Só baixas ativas podem ser conciliadas.',
                 $m->conta_id !== $linha->conta_id => 'O movimento é de outra conta.',
@@ -348,12 +362,115 @@ final class Financeiro
 
     public function desconciliar(ExtratoLinha $linha): void
     {
-        if (! $linha->movimento_id) {
+        if (! $linha->conciliada()) {
             return;
         }
-        $mov = $linha->movimento_id;
-        $linha->update(['movimento_id' => null, 'conciliado_por' => null, 'conciliado_em' => null]);
-        Evento::registrar('financeiro.desconciliado', $linha, ['movimento' => $mov]);
+        $dados = array_filter(['movimento' => $linha->movimento_id, 'transferencia' => $linha->transferencia_id]);
+        $linha->update(['movimento_id' => null, 'transferencia_id' => null, 'conciliado_por' => null, 'conciliado_em' => null]);
+        Evento::registrar('financeiro.desconciliado', $linha, $dados);
+    }
+
+    /** Liga a linha do extrato a uma transferência entre contas (mesma conta, mesmo valor e sentido). */
+    public function conciliarTransferencia(ExtratoLinha $linha, Transferencia $t): void
+    {
+        DB::transaction(function () use ($linha, $t) {
+            $linha = ExtratoLinha::lockForUpdate()->findOrFail($linha->id);
+            $jaNaConta = ExtratoLinha::where('transferencia_id', $t->id)->where('conta_id', $linha->conta_id)->exists();
+            $erro = match (true) {
+                $linha->conciliada() => 'Esta linha do extrato já está conciliada.',
+                $jaNaConta => 'Esta transferência já está conciliada com outra linha desta conta.',
+                $t->efeitoEm($linha->conta_id) === 0 => 'A transferência não envolve esta conta.',
+                $t->efeitoEm($linha->conta_id) !== $linha->valor_centavos => 'Valor ou sentido diferentes: extrato '.brl($linha->valor_centavos).', transferência '.brl($t->efeitoEm($linha->conta_id)).'.',
+                default => null,
+            };
+            if ($erro) {
+                throw ValidationException::withMessages(['transferencia_id' => $erro]);
+            }
+            $linha->update(['transferencia_id' => $t->id, 'conciliado_por' => auth()->id(), 'conciliado_em' => now(), 'ignorada' => false]);
+            Evento::registrar('financeiro.conciliado', $linha, ['transferencia' => $t->id]);
+        });
+    }
+
+    /** Transferências da conta com o mesmo valor e sentido da linha, até 5 dias de distância. */
+    public function sugestoesTransferencia(ExtratoLinha $linha): Collection
+    {
+        $d = CarbonImmutable::instance($linha->data);
+
+        return Transferencia::with('origem', 'destino')
+            ->where(fn ($q) => $q->where('conta_origem_id', $linha->conta_id)->orWhere('conta_destino_id', $linha->conta_id))
+            ->whereBetween('data', [$d->subDays(5)->toDateString(), $d->addDays(5)->toDateString()])
+            ->where('valor_centavos', abs($linha->valor_centavos))->get()
+            ->filter(fn (Transferencia $t) => $t->efeitoEm($linha->conta_id) === $linha->valor_centavos
+                && ! ExtratoLinha::where('transferencia_id', $t->id)->where('conta_id', $linha->conta_id)->exists())
+            ->values();
+    }
+
+    // ---------------- Transferências entre contas ----------------
+
+    /**
+     * Transferência entre contas da empresa. Não é receita nem despesa.
+     * A tarifa, se houver, vira uma despesa própria (categoria Tarifas bancárias), já paga pela conta de origem.
+     */
+    public function transferir(int $orgId, int $origemId, int $destinoId, string $data, int $valor, ?string $descricao, int $tarifa = 0, ?string $chave = null): Transferencia
+    {
+        if ($chave && ($ja = Transferencia::where('chave_idempotencia', $chave)->first())) {
+            return $ja;
+        }
+        $origem = ContaFinanceira::where('ativa', true)->find($origemId);
+        $destino = ContaFinanceira::where('ativa', true)->find($destinoId);
+        $erro = match (true) {
+            ! $origem || ! $destino || $origem->organizacao_id !== $orgId || $destino->organizacao_id !== $orgId => 'Escolha duas contas ativas da empresa.',
+            $origem->id === $destino->id => 'A conta de origem e a de destino precisam ser diferentes.',
+            $valor <= 0 => 'Informe um valor positivo.',
+            $tarifa < 0 => 'A tarifa não pode ser negativa.',
+            CarbonImmutable::parse($data)->gt(now()) => 'A data da transferência não pode ser futura.',
+            default => null,
+        };
+        if ($erro) {
+            throw ValidationException::withMessages(['valor' => $erro]);
+        }
+        $this->exigirMesAberto($orgId, $data, 'data');
+
+        return DB::transaction(function () use ($orgId, $origem, $destino, $data, $valor, $descricao, $tarifa, $chave) {
+            $t = Transferencia::create([
+                'organizacao_id' => $orgId, 'conta_origem_id' => $origem->id, 'conta_destino_id' => $destino->id, 'data' => $data,
+                'valor_centavos' => $valor, 'descricao' => $descricao, 'chave_idempotencia' => $chave, 'criado_por' => auth()->id(),
+            ]);
+            if ($tarifa > 0) {
+                $tt = $this->criarTitulo($orgId, ['tipo' => 'pagar', 'descricao' => 'Tarifa de transferência — '.$origem->nome,
+                    'categoria_id' => $this->categoriaPadrao($orgId, 'tarifas')?->id, 'contraparte' => $origem->banco ?: $origem->nome,
+                    'competencia' => CarbonImmutable::parse($data)->startOfMonth()->toDateString(), 'documento' => 'Transf. #'.$t->id], $tarifa, 1, $data);
+                $this->baixar($tt->parcelas()->first(), ['conta_id' => $origem->id, 'data' => $data, 'valor' => $tarifa, 'observacao' => 'Tarifa da transferência #'.$t->id]);
+            }
+            Evento::registrar('financeiro.transferencia', $t, ['de' => $origem->nome, 'para' => $destino->nome, 'valor' => $valor, 'tarifa' => $tarifa]);
+
+            return $t;
+        });
+    }
+
+    public function estornarTransferencia(Transferencia $t, string $motivo): Transferencia
+    {
+        return DB::transaction(function () use ($t, $motivo) {
+            $t = Transferencia::lockForUpdate()->with('estorno')->findOrFail($t->id);
+            $erro = match (true) {
+                $t->estorno_de_id !== null => 'Este registro já é um estorno.',
+                $t->estorno !== null => 'Esta transferência já foi estornada.',
+                ExtratoLinha::where('transferencia_id', $t->id)->exists() => 'Transferência conciliada com o extrato. Desfaça a conciliação antes de estornar.',
+                default => null,
+            };
+            if ($erro) {
+                throw ValidationException::withMessages(['motivo' => $erro]);
+            }
+            $hoje = now()->toDateString();
+            $this->exigirMesAberto($t->organizacao_id, $hoje, 'motivo');
+            $e = Transferencia::create([
+                'organizacao_id' => $t->organizacao_id, 'conta_origem_id' => $t->conta_destino_id, 'conta_destino_id' => $t->conta_origem_id,
+                'data' => $hoje, 'valor_centavos' => $t->valor_centavos, 'descricao' => 'Estorno: '.$motivo, 'estorno_de_id' => $t->id, 'criado_por' => auth()->id(),
+            ]);
+            Evento::registrar('financeiro.transferencia_estornada', $t, ['motivo' => $motivo]);
+
+            return $e;
+        });
     }
 
     /** Baixas ativas da mesma conta, mesmo valor e sentido, até 5 dias de distância. */
@@ -465,7 +582,7 @@ final class Financeiro
             'vencido_receber' => (int) $vencidas->filter(fn ($x) => $x[0]->receber())->sum(fn ($x) => $x[1]->saldo()),
             'vencido_pagar' => (int) $vencidas->reject(fn ($x) => $x[0]->receber())->sum(fn ($x) => $x[1]->saldo()),
             'saldo_contas' => (int) ContaFinanceira::where('ativa', true)->get()->sum(fn ($c) => $c->saldo()),
-            'nao_conciliadas' => ExtratoLinha::whereNull('movimento_id')->where('ignorada', false)->count(),
+            'nao_conciliadas' => ExtratoLinha::pendentes()->count(),
         ];
     }
 }

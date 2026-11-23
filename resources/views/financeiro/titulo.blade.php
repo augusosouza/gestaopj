@@ -8,14 +8,21 @@
   $movs = $t->parcelas->flatMap->movimentos->sortBy('id');
   $abaUrl = fn ($a) => route('financeiro.titulo', [$t, 'aba' => $a]);
   $origem = $t->origem_type === (new \App\Models\Fatura)->getMorphClass() ? ['Ver fatura', route('faturas.show', $t->origem_id)]
-    : ($t->origem_type === (new \App\Models\Cobranca)->getMorphClass() ? ['Ver cobrança', route('cobrancas.show', $t->origem_id)] : null);
+    : ($t->origem_type === (new \App\Models\Cobranca)->getMorphClass() ? ['Ver cobrança', route('cobrancas.show', $t->origem_id)]
+    : ($t->origem_type === (new \App\Models\Compra)->getMorphClass() ? ['Ver compra', route('compras.show', $t->origem_id)] : null));
+  $rotuloOrigem = match ($t->origem_type) {
+    (new \App\Models\Fatura)->getMorphClass() => 'Fatura de cliente',
+    (new \App\Models\Cobranca)->getMorphClass() => 'Cobrança de prestador',
+    (new \App\Models\Compra)->getMorphClass() => 'Compra'.($t->parcelas->contains(fn ($p) => $p->fatura_cartao_id) ? ' no cartão de crédito' : ''),
+    default => 'Lançamento manual',
+  };
 @endphp
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $lista => route('financeiro.index', ['tipo' => $t->tipo, 'competencia' => $t->competencia->format('Y-m')]), $t->descricao => null]"
   :titulo="$t->descricao" :sub="'Competência '.$t->competencia->translatedFormat('F \d\e Y').($t->contraparte ? ' · '.$t->contraparte : '').' · '.($t->categoria?->nome ?? 'sem categoria')">
   <div style="margin-top:6px">@include('financeiro._situacao')</div>
   <x-slot:acoes>
     @if ($origem)<a class="botao sec" href="{{ $origem[1] }}">{{ $origem[0] }}</a>@endif
-    @if ($opera && ! $t->cancelado() && $t->saldo() > 0)<a class="botao" href="{{ $abaUrl('pagamentos') }}#registrar">Registrar {{ $t->receber() ? 'recebimento' : 'pagamento' }}</a>@endif
+    @if ($opera && ! $t->cancelado() && $t->saldo() > 0 && ! $t->parcelas->contains(fn ($p) => $p->fatura_cartao_id))<a class="botao" href="{{ $abaUrl('pagamentos') }}#registrar">Registrar {{ $t->receber() ? 'recebimento' : 'pagamento' }}</a>@endif
   </x-slot:acoes>
 </x-cabecalho>
 @if ($t->cancelado())<div class="aviso info">Cancelado em {{ $t->cancelado_em->format('d/m/Y') }}: {{ $t->motivo_cancelamento }}</div>@endif
@@ -45,7 +52,8 @@
       <dt>Categoria</dt><dd>{{ $t->categoria?->nome ?? '—' }}</dd>
       <dt>Competência</dt><dd>{{ $t->competencia->format('m/Y') }}</dd>
       <dt>Documento</dt><dd>{{ $t->documento ?? '—' }}</dd>
-      <dt>Origem</dt><dd>{{ $origem ? ($t->receber() ? 'Fatura de cliente' : 'Cobrança de prestador') : 'Lançamento manual' }}</dd>
+      <dt>Origem</dt><dd>{{ $rotuloOrigem }}</dd>
+      <dt>Forma prevista</dt><dd>{{ \App\Models\Titulo::FORMAS[$t->forma] ?? '—' }}</dd>
       <dt>Próximo vencimento</dt><dd>{{ $t->parcelas->first(fn ($p) => $p->saldo() > 0)?->vencimento->format('d/m/Y') ?? '—' }}</dd>
     </dl></div>
     <div class="painel">
@@ -65,12 +73,13 @@
 
 @elseif ($aba === 'parcelas')
   <div class="tabela"><table>
-    <thead><tr><th>Parcela</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Abatido</th><th class="n">Saldo</th><th>Situação</th></tr></thead>
+    <thead><tr><th>Parcela</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Abatido</th><th class="n">Saldo</th><th>Situação</th><th>Fatura</th></tr></thead>
     <tbody>
     @foreach ($t->parcelas as $p)
       <tr><td>{{ $p->numero }}/{{ $t->parcelas->count() }}</td><td>{{ $p->vencimento->format('d/m/Y') }}</td><td class="n">{{ brl($p->valor_centavos) }}</td>
         <td class="n">{{ brl($p->abatido()) }}</td><td class="n">{{ brl($p->saldo()) }}</td>
-        <td>@if ($p->saldo() === 0)<span class="tag ok">Quitada</span>@elseif ($p->vencida())<span class="tag bad">Vencida</span>@elseif ($p->abatido() > 0)<span class="tag info">Parcial</span>@else<span class="tag warn">Em aberto</span>@endif</td></tr>
+        <td>@if ($p->saldo() === 0)<span class="tag ok">Quitada</span>@elseif ($p->vencida())<span class="tag bad">Vencida</span>@elseif ($p->abatido() > 0)<span class="tag info">Parcial</span>@else<span class="tag warn">Em aberto</span>@endif</td>
+        <td>@if ($p->fatura)<a href="{{ route('cartoes.fatura', $p->fatura) }}">{{ $p->fatura->cartao->nome }} · {{ $p->fatura->rotulo() }}</a>@else — @endif</td></tr>
     @endforeach
     </tbody>
   </table></div>
@@ -102,7 +111,11 @@
     </tbody>
   </table></div>
 
-  @if ($opera && ! $t->cancelado() && ($aberta = $t->parcelas->first(fn ($p) => $p->saldo() > 0)))
+  @php($aberta = $t->parcelas->first(fn ($p) => $p->saldo() > 0))
+  @if ($opera && ! $t->cancelado() && $aberta && $aberta->fatura_cartao_id)
+    <div class="aviso info" id="registrar" style="margin-top:14px">Compra no cartão de crédito: as parcelas são pagas <strong>pela fatura</strong>, para a despesa não sair duas vezes do caixa.
+      <a href="{{ route('cartoes.fatura', $aberta->fatura) }}">Abrir fatura {{ $aberta->fatura->rotulo() }}</a></div>
+  @elseif ($opera && ! $t->cancelado() && $aberta)
     <form method="post" action="{{ route('financeiro.baixar', $aberta) }}" class="painel" id="registrar" style="margin-top:14px"
       data-saldo="{{ $aberta->saldo() }}">
       @csrf <input type="hidden" name="chave" value="{{ $chave }}-{{ $aberta->id }}">

@@ -4,9 +4,12 @@ use App\Http\Controllers\Auth\DoisFatoresController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\CaixaController;
+use App\Http\Controllers\CartaoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
+use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ConfiguracoesController;
 use App\Http\Controllers\ContabilController;
 use App\Http\Controllers\ContextoController;
@@ -14,6 +17,7 @@ use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\EscritorioController;
 use App\Http\Controllers\FaturaController;
 use App\Http\Controllers\FinanceiroController;
+use App\Http\Controllers\InteligenciaController;
 use App\Http\Controllers\NotaFiscalController;
 use App\Http\Controllers\NotificacaoController;
 use App\Http\Controllers\OrganizacaoController;
@@ -21,6 +25,7 @@ use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PerfilFiscalController;
 use App\Http\Controllers\PlataformaController;
 use App\Http\Controllers\PrestadorController;
+use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -133,6 +138,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/contas/{conta}/conciliacao', [FinanceiroController::class, 'conciliacao'])->name('financeiro.conciliacao');
             Route::get('/financeiro/contas/{conta}', [FinanceiroController::class, 'conta'])->name('financeiro.conta');
             Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
+            // Financeiro 2.0
+            Route::get('/financeiro/meu-caixa', [CaixaController::class, 'caixa'])->name('financeiro.caixa');
+            Route::get('/financeiro/agenda', [CaixaController::class, 'agenda'])->name('financeiro.agenda');
+            Route::get('/financeiro/recebimentos/inadimplencia', [CaixaController::class, 'inadimplencia'])->name('financeiro.inadimplencia');
+            Route::get('/financeiro/compras', [CompraController::class, 'index'])->name('compras.index');
+            Route::get('/financeiro/compras/{compra}', [CompraController::class, 'show'])->whereNumber('compra')->name('compras.show');
+            Route::get('/financeiro/cartoes', [CartaoController::class, 'index'])->name('cartoes.index');
+            Route::get('/financeiro/cartoes/{cartao}', [CartaoController::class, 'show'])->whereNumber('cartao')->name('cartoes.show');
+            Route::get('/financeiro/cartoes/faturas/{faturaCartao}', [CartaoController::class, 'fatura'])->name('cartoes.fatura');
+            Route::get('/financeiro/transferencias', [TransferenciaController::class, 'index'])->name('transferencias.index');
+            Route::get('/inteligencia/assistente', [InteligenciaController::class, 'assistente'])->name('inteligencia.assistente');
+            Route::get('/inteligencia/sugestoes', [InteligenciaController::class, 'sugestoes'])->name('inteligencia.sugestoes');
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
             Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');
@@ -152,6 +169,17 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/extrato/{linha}/ignorar', [FinanceiroController::class, 'ignorar'])->name('financeiro.ignorar');
             Route::post('/financeiro/categorias', [FinanceiroController::class, 'salvarCategoria'])->name('financeiro.categoria_salvar');
             Route::patch('/financeiro/categorias/{categoria}', [FinanceiroController::class, 'alternarCategoria'])->name('financeiro.categoria_alternar');
+            Route::post('/financeiro/extrato/{linha}/conciliar-transferencia', [FinanceiroController::class, 'conciliarTransferencia'])->name('financeiro.conciliar_transferencia');
+            // Financeiro 2.0
+            Route::get('/financeiro/compras/nova', [CompraController::class, 'create'])->name('compras.create');
+            Route::post('/financeiro/compras', [CompraController::class, 'store'])->name('compras.store');
+            Route::post('/financeiro/compras/{compra}/cancelar', [CompraController::class, 'cancelar'])->name('compras.cancelar');
+            Route::post('/financeiro/cartoes', [CartaoController::class, 'store'])->name('cartoes.store');
+            Route::patch('/financeiro/cartoes/{cartao}', [CartaoController::class, 'atualizar'])->name('cartoes.atualizar');
+            Route::post('/financeiro/cartoes/faturas/{faturaCartao}/pagar', [CartaoController::class, 'pagar'])->middleware('throttle:30,1')->name('cartoes.pagar');
+            Route::post('/financeiro/transferencias', [TransferenciaController::class, 'store'])->name('transferencias.store');
+            Route::post('/financeiro/transferencias/{transferencia}/estorno', [TransferenciaController::class, 'estornar'])->name('transferencias.estornar');
+            Route::post('/inteligencia/sugestoes/dispensar', [InteligenciaController::class, 'dispensar'])->name('inteligencia.dispensar');
         });
 
         // Área do contador: empresa envia, escritório confere e fecha.

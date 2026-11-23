@@ -30,6 +30,8 @@ class ConfiguracoesController extends Controller
                 ['Contas e bancos', 'Contas, saldo inicial, ativar/desativar.', route('financeiro.contas'), 'banco conta saldo'],
                 ['Lembretes bancários', 'Quando cobrar a atualização do extrato de cada conta.', route('configuracoes.lembretes'), 'extrato lembrete importação frequência ofx'],
                 ['Categorias', 'Categorias de receitas e despesas.', route('financeiro.categorias'), 'categoria despesa receita plano de contas'],
+                ['Cartões', 'Cartões corporativos: limite, fechamento, vencimento e responsável.', route('cartoes.index'), 'cartao credito fatura limite fechamento vencimento'],
+                ['Sugestões', 'Ver, adiar ou dispensar as sugestões automáticas.', route('inteligencia.sugestoes'), 'sugestao alerta assistente inteligencia dispensar'],
             ]],
             ['Fiscal', 'Regimes tributários por CNPJ.', [
                 ['Perfis fiscais', 'Regime de cada CNPJ e vigência, confirmados pelo contador.', route('perfis.index'), 'regime simples lucro presumido ibs cbs'],

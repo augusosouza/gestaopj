@@ -10,6 +10,7 @@ use App\Models\ExtratoLinha;
 use App\Models\Movimento;
 use App\Models\Parcela;
 use App\Models\Titulo;
+use App\Models\Transferencia;
 use App\Models\User;
 use App\Models\Vinculo;
 use App\Services\Financeiro;
@@ -39,12 +40,14 @@ class FinanceiroController extends Controller
         $situacao = in_array($request->query('situacao'), ['aberto', 'parcial', 'liquidado', 'vencido', 'cancelado'], true) ? $request->query('situacao') : null;
         $todos = $request->query('periodo') === 'todos';
         $busca = trim((string) $request->query('q'));
-        $categoriaId = $request->integer('categoria') ?: null;
+        $semCategoria = $request->query('categoria') === 'nenhuma';
+        $categoriaId = $semCategoria ? null : ($request->integer('categoria') ?: null);
 
         $titulos = Titulo::with('parcelas.movimentos.estornoDe', 'categoria')
             ->when(! $todos, fn ($q) => $q->whereDate('competencia', $competencia))
             ->when($tipo, fn ($q) => $q->where('tipo', $tipo))
             ->when($categoriaId, fn ($q) => $q->where('categoria_id', $categoriaId))
+            ->when($semCategoria, fn ($q) => $q->whereNull('categoria_id')->whereNull('cancelado_em'))
             ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w->where('descricao', 'like', "%{$busca}%")
                 ->orWhere('contraparte', 'like', "%{$busca}%")->orWhere('documento', 'like', "%{$busca}%")))
             ->orderBy('competencia')->orderBy('id')->limit(500)->get()
@@ -114,7 +117,7 @@ class FinanceiroController extends Controller
     public function show(Request $request, Titulo $titulo): View
     {
         $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'historico'], true) ? $request->query('aba') : 'resumo';
-        $titulo->load('parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
+        $titulo->load('origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
             'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
 
         $historico = Evento::with('user')->where('alvo_type', $titulo->getMorphClass())->where('alvo_id', $titulo->id)->latest('id')->get();
@@ -173,7 +176,7 @@ class FinanceiroController extends Controller
 
         return view('financeiro.contas', [
             'contas' => $contas, 'situacoes' => $contas->mapWithKeys(fn ($c) => [$c->id => $l->situacao($c)]),
-            'pendentes' => ExtratoLinha::whereNull('movimento_id')->where('ignorada', false)->selectRaw('conta_id, count(*) n')->groupBy('conta_id')->pluck('n', 'conta_id'),
+            'pendentes' => ExtratoLinha::pendentes()->selectRaw('conta_id, count(*) n')->groupBy('conta_id')->pluck('n', 'conta_id'),
         ]);
     }
 
@@ -255,13 +258,14 @@ class FinanceiroController extends Controller
     public function conciliacao(Request $request, ContaFinanceira $conta): View
     {
         $mostrar = $request->query('mostrar') === 'todas' ? 'todas' : 'pendentes';
-        $linhas = ExtratoLinha::with('movimento.parcela.titulo')->where('conta_id', $conta->id)
-            ->when($mostrar === 'pendentes', fn ($q) => $q->whereNull('movimento_id')->where('ignorada', false))
+        $linhas = ExtratoLinha::with('movimento.parcela.titulo', 'transferencia.origem', 'transferencia.destino')->where('conta_id', $conta->id)
+            ->when($mostrar === 'pendentes', fn ($q) => $q->pendentes())
             ->orderByDesc('data')->orderByDesc('id')->limit(300)->get();
 
         return view('financeiro.conciliacao', [
             'conta' => $conta, 'linhas' => $linhas, 'mostrar' => $mostrar,
-            'sugestoes' => $linhas->whereNull('movimento_id')->mapWithKeys(fn ($l) => [$l->id => $this->fin->sugestoes($l)]),
+            'sugestoes' => $linhas->reject->conciliada()->mapWithKeys(fn ($l) => [$l->id => $this->fin->sugestoes($l)]),
+            'sugestoesTransf' => $linhas->reject->conciliada()->mapWithKeys(fn ($l) => [$l->id => $this->fin->sugestoesTransferencia($l)]),
             'saldo' => $conta->saldo(),
         ]);
     }
@@ -290,6 +294,15 @@ class FinanceiroController extends Controller
         return back()->with('ok', 'Conciliado.');
     }
 
+    public function conciliarTransferencia(Request $request, ExtratoLinha $linha): RedirectResponse
+    {
+        $d = $request->validate(['transferencia_id' => ['required', 'integer']]);
+        $t = Transferencia::find($d['transferencia_id']) ?? throw ValidationException::withMessages(['transferencia_id' => 'Transferência não encontrada.']);
+        $this->fin->conciliarTransferencia($linha, $t);
+
+        return back()->with('ok', 'Conciliado com a transferência.');
+    }
+
     public function desconciliar(ExtratoLinha $linha): RedirectResponse
     {
         $this->fin->desconciliar($linha);
@@ -299,7 +312,7 @@ class FinanceiroController extends Controller
 
     public function ignorar(ExtratoLinha $linha): RedirectResponse
     {
-        abort_if($linha->movimento_id !== null, 422, 'Linha conciliada.');
+        abort_if($linha->conciliada(), 422, 'Linha conciliada.');
         $linha->update(['ignorada' => ! $linha->ignorada]);
 
         return back()->with('ok', $linha->ignorada ? 'Linha marcada como sem lançamento correspondente.' : 'Linha voltou para pendentes.');

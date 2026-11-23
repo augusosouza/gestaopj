@@ -80,6 +80,8 @@ a:hover { color: var(--accent); text-decoration-thickness: 2px; }
 .menu-grupo[open] > summary, .menu-grupo[data-fixo] > summary { color: var(--l-text); }
 .menu-grupo > a { display: block; padding: 6px 10px 6px 38px; border-radius: 5px; color: var(--l-muted); text-decoration: none; font-size: 14px; }
 .menu-grupo > a:hover { color: var(--l-text); background: var(--l-hover); }
+.menu-secao { display: block; padding: 10px 10px 3px 38px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--l-muted); opacity: .75; }
+.menu-grupo > .menu-secao:first-of-type { padding-top: 4px; }
 .menu-grupo > a.ativo { color: var(--l-text); background: var(--l-ativo); box-shadow: inset 3px 0 0 var(--accent); font-weight: 500; }
 .menu-grupo { margin-bottom: 2px; }
 .contador { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 600; text-align: center; line-height: 20px; }
@@ -295,3 +297,43 @@ summary.link-sum:hover { color: var(--text); }
 .config-item { display: grid; gap: 2px; padding: 9px 10px; margin: 0 -10px; border-radius: 5px; color: var(--text); text-decoration: none; }
 .config-item:hover { background: var(--bg); }
 .config-item span { font-size: 13px; color: var(--muted); }
+
+/* ---------- Financeiro 2.0: Meu Caixa, agenda, compras, assistente ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.decisao { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; border-left: 3px solid var(--text); }
+.decisao .rot { color: var(--muted); font-size: 13px; }
+.num-grande { font-size: 34px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; }
+.marcar { display: inline-flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--text); margin: 0 14px 0 0; cursor: pointer; }
+.marcar input { width: auto; margin: 0; }
+.contas-filtro { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+.linha-kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.linha-kv:last-of-type { border-bottom: 0; }
+.dia-agenda { margin-top: 22px; font-size: 15px; }
+.calendario { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.cal-cab, .cal-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-cab span { padding: 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--line); }
+.cal-dia { min-height: 92px; padding: 6px 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.cal-dia:nth-child(7n) { border-right: 0; }
+.cal-dia.fora { background: var(--bg); color: var(--faint); }
+.cal-dia.hoje .cal-num { background: var(--text); color: var(--surface); border-radius: 10px; padding: 0 6px; }
+.cal-num { font-weight: 500; }
+.cal-itens { display: grid; gap: 1px; margin-top: 4px; text-decoration: none; }
+.cal-ent { color: var(--ok); }
+.cal-sai { color: var(--text); }
+.cal-qtd { color: var(--muted); font-size: 11.5px; }
+@media (max-width: 700px) { .cal-dia { min-height: 64px; padding: 4px; font-size: 10.5px; } .cal-qtd { display: none; } }
+.bloco { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px 4px; margin: 0 0 16px; }
+.bloco legend { padding: 0 6px; font-weight: 600; font-size: 13.5px; }
+table.itens { width: 100%; border-collapse: collapse; margin: 10px 0 12px; }
+table.itens th { text-align: left; font-size: 12.5px; color: var(--muted); font-weight: 500; padding: 4px 6px 4px 0; }
+table.itens td { padding: 3px 6px 3px 0; }
+.total-calc { padding: 8px 0; font-size: 18px; font-weight: 500; }
+.cliente-atraso > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.pergunta { display: flex; gap: 8px; max-width: 760px; }
+.pergunta input { flex: 1; font-size: 15px; }
+.sugeridas { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 18px; max-width: 900px; }
+.chip { display: inline-block; padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 14px; font-size: 13px; text-decoration: none; color: var(--muted); background: var(--surface); }
+.chip:hover, .chip.ativo { color: var(--text); border-color: var(--text); }
+.resposta { max-width: 900px; }
+.sugestao .acoes { align-items: flex-start; }
+.dispensar-form { display: grid; gap: 6px; margin-top: 6px; min-width: 240px; }

@@ -10,7 +10,7 @@ use App\Models\User;
  * Menu lateral hierárquico, montado a partir do papel e do contexto ativo.
  * Regra: só aparece o que a pessoa pode usar e o que já existe no sistema.
  *
- * Cada grupo: ['chave', 'rotulo', 'icone', 'itens' => [[rotulo, url, ativo]]].
+ * Cada grupo: ['chave', 'rotulo', 'icone', 'itens' => [[rotulo, url, ativo] | ['secao' => rótulo]]].
  */
 final class Menu
 {
@@ -42,11 +42,23 @@ final class Menu
             ]))];
 
             $lanc = $rota('financeiro.index', 'financeiro.novo', 'financeiro.titulo');
+            $secao = fn (string $rotulo) => ['secao' => $rotulo];
             $grupos[] = ['chave' => 'financeiro', 'rotulo' => 'Financeiro', 'icone' => 'financeiro', 'itens' => [
+                $secao('Visão geral'),
                 $item('Painel financeiro', route('financeiro.painel'), $rota('financeiro.painel')),
+                $item('Meu Caixa', route('financeiro.caixa'), $rota('financeiro.caixa')),
+                $item('Agenda', route('financeiro.agenda'), $rota('financeiro.agenda')),
+                $secao('Movimentações'),
                 $item('Lançamentos', route('financeiro.index'), $lanc && ! in_array($tipo, ['receber', 'pagar'], true)),
+                $item('Transferências', route('transferencias.index'), $rota('transferencias.*')),
+                $secao('Recebimentos'),
                 $item('Contas a receber', route('financeiro.index', ['tipo' => 'receber']), $lanc && $tipo === 'receber'),
+                $item('Inadimplência', route('financeiro.inadimplencia'), $rota('financeiro.inadimplencia')),
+                $secao('Pagamentos'),
                 $item('Contas a pagar', route('financeiro.index', ['tipo' => 'pagar']), $lanc && $tipo === 'pagar'),
+                $item('Compras', route('compras.index'), $rota('compras.*')),
+                $item('Cartões', route('cartoes.index'), $rota('cartoes.*')),
+                $secao('Bancos e análises'),
                 $item('Contas e bancos', route('financeiro.contas'), $rota('financeiro.contas', 'financeiro.conciliacao', 'financeiro.conta*')),
                 $item('Categorias', route('financeiro.categorias'), $rota('financeiro.categorias')),
             ]];
@@ -54,6 +66,13 @@ final class Menu
             $grupos[] = ['chave' => 'fiscal', 'rotulo' => 'Fiscal', 'icone' => 'fiscal', 'itens' => [
                 $item('Notas fiscais', route('notas.index'), $rota('notas.*')),
                 $item('Perfis fiscais', route('perfis.index'), $rota('perfis.*')),
+            ]];
+        }
+
+        if ($c->empresa() && $c->ehInterno()) {
+            $grupos[] = ['chave' => 'inteligencia', 'rotulo' => 'Inteligência', 'icone' => 'inteligencia', 'itens' => [
+                $item('Assistente', route('inteligencia.assistente'), $rota('inteligencia.assistente')),
+                $item('Sugestões', route('inteligencia.sugestoes'), $rota('inteligencia.sugestoes')),
             ]];
         }
 
