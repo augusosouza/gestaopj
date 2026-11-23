@@ -44,6 +44,18 @@ class Evento extends Model
             'nota.xml_baixado' => 'XML baixado',
             'fechamento.exportado' => 'Fechamento exportado',
             'plataforma.configuracao' => 'Configuração da plataforma alterada',
+            'contabil.documento_enviado' => 'Documento enviado',
+            'contabil.documento_baixado' => 'Documento baixado',
+            'contabil.enviada' => 'Empresa concluiu o envio',
+            'contabil.solicitacao_criada' => 'Solicitação do contador',
+            'contabil.solicitacao_respondida' => 'Solicitação respondida',
+            'contabil.solicitacao_aceita' => 'Solicitação resolvida',
+            'contabil.solicitacao_devolvida' => 'Solicitação devolvida',
+            'contabil.solicitacao_cancelada' => 'Solicitação cancelada',
+            'contabil.etapa' => 'Etapa alterada',
+            'contabil.fechada' => 'Competência fechada',
+            'contabil.reaberta' => 'Competência reaberta',
+            'contabil.versao_baixada' => 'Pacote do fechamento baixado',
         ][$this->acao] ?? $this->acao;
     }
 

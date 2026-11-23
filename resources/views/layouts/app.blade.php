@@ -51,6 +51,10 @@
               @endif
               <a href="{{ route('perfis.index') }}" @class(['ativo' => request()->routeIs('perfis.*')])>Perfis fiscais</a>
             </div>
+            <div class="nav-grupo">
+              <span>Contábil</span>
+              <a href="{{ route('contabil.index') }}" @class(['ativo' => request()->routeIs('contabil.*')])>{{ $c->ehEscritorio() ? 'Fechamento contábil' : 'Envios ao contador' }}</a>
+            </div>
           @endif
         @endif
 

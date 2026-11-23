@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
+use App\Http\Controllers\ContabilController;
 use App\Http\Controllers\ContextoController;
 use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\EscritorioController;
@@ -103,6 +104,30 @@ Route::middleware('auth')->group(function () {
         // Perfil fiscal: empresa registra, contador confirma.
         Route::post('/perfis-fiscais', [PerfilFiscalController::class, 'store'])->middleware('papel:admin,analista,revisor')->name('perfis.store');
         Route::post('/perfis-fiscais/{perfil}/confirmar', [PerfilFiscalController::class, 'confirmar'])->middleware('papel:analista,revisor')->name('perfis.confirmar');
+
+        // Área do contador: empresa envia, escritório confere e fecha.
+        Route::middleware('papel:admin,financeiro,analista,revisor')->group(function () {
+            Route::get('/contabil', [ContabilController::class, 'index'])->name('contabil.index');
+            Route::get('/contabil/documentos/{documento}', [ContabilController::class, 'baixarDocumento'])->name('contabil.documento');
+            Route::get('/contabil/versoes/{versao}', [ContabilController::class, 'baixarVersao'])->name('contabil.versao');
+            Route::get('/contabil/{mes}', [ContabilController::class, 'show'])->where('mes', '\d{4}-\d{2}')->name('contabil.show');
+        });
+        Route::middleware('papel:admin,financeiro')->group(function () {
+            Route::post('/contabil/{mes}/documentos', [ContabilController::class, 'enviarDocumento'])->where('mes', '\d{4}-\d{2}')->name('contabil.enviar_documento');
+            Route::post('/contabil/{mes}/enviar', [ContabilController::class, 'enviar'])->where('mes', '\d{4}-\d{2}')->name('contabil.enviar');
+            Route::post('/contabil/solicitacoes/{solicitacao}/responder', [ContabilController::class, 'responder'])->name('contabil.responder');
+        });
+        Route::middleware('papel:analista,revisor')->group(function () {
+            Route::post('/contabil/{mes}/solicitacoes', [ContabilController::class, 'solicitar'])->where('mes', '\d{4}-\d{2}')->name('contabil.solicitar');
+            Route::post('/contabil/solicitacoes/{solicitacao}/aceitar', [ContabilController::class, 'aceitar'])->name('contabil.aceitar');
+            Route::post('/contabil/solicitacoes/{solicitacao}/devolver', [ContabilController::class, 'devolver'])->name('contabil.devolver');
+            Route::post('/contabil/solicitacoes/{solicitacao}/cancelar', [ContabilController::class, 'cancelar'])->name('contabil.cancelar');
+            Route::post('/contabil/{mes}/etapa', [ContabilController::class, 'etapa'])->where('mes', '\d{4}-\d{2}')->name('contabil.etapa');
+        });
+        Route::middleware('papel:revisor')->group(function () {
+            Route::post('/contabil/{mes}/fechar', [ContabilController::class, 'fechar'])->where('mes', '\d{4}-\d{2}')->name('contabil.fechar');
+            Route::post('/contabil/{mes}/reabrir', [ContabilController::class, 'reabrir'])->where('mes', '\d{4}-\d{2}')->name('contabil.reabrir');
+        });
 
         // Administração da empresa
         Route::middleware('papel:admin')->group(function () {

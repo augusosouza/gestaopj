@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Enums\StatusCobranca;
 use App\Enums\StatusFatura;
+use App\Enums\StatusSolicitacao;
 use App\Models\Cobranca;
 use App\Models\Fatura;
+use App\Models\Solicitacao;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -37,7 +39,7 @@ final class Fechamento
             'devido_aprovado' => (int) $aPagar->where('status', StatusCobranca::Aprovada)->sum('valor_centavos'),
             'pago_prestadores' => (int) $cobrancas->sum('valor_pago_centavos'),
             'custo_total' => (int) $cobrancas->sum('valor_centavos'),
-            'pendencias' => $this->pendencias($faturas, $cobrancas),
+            'pendencias' => $this->pendencias($faturas, $cobrancas)->merge($this->pedidosDoContador($competencia)),
             'contratos' => $this->porContrato($faturas, $cobrancas),
             'faturas' => $faturas,
             'cobrancas' => $cobrancas,
@@ -71,6 +73,17 @@ final class Fechamento
         return $p;
     }
 
+    /** Solicitações do escritório ainda sem resposta da empresa. */
+    private function pedidosDoContador(CarbonImmutable $competencia): Collection
+    {
+        return Solicitacao::with('competenciaContabil')
+            ->where('status', StatusSolicitacao::Aberta)
+            ->whereHas('competenciaContabil', fn ($q) => $q->whereDate('competencia', $competencia->toDateString()))
+            ->get()
+            ->map(fn ($s) => ['tipo' => 'Pedido do contador', 'quem' => $s->titulo, 'ref' => $s->prazo ? 'prazo '.$s->prazo->format('d/m') : '—',
+                'valor' => null, 'url' => route('contabil.show', $competencia->format('Y-m'))]);
+    }
+
     private function porContrato(Collection $faturas, Collection $cobrancas): Collection
     {
         return $faturas->map(function (Fatura $f) use ($cobrancas) {
@@ -87,7 +100,10 @@ final class Fechamento
     }
 
     /** ZIP para a contabilidade: CSVs do mês + XMLs emitidos e recebidos. */
-    public function exportar(CarbonImmutable $competencia): string
+    /**
+     * @param  null|callable(ZipArchive): void  $complemento  acrescenta arquivos ao pacote (ex.: fechamento contábil)
+     */
+    public function exportar(CarbonImmutable $competencia, ?callable $complemento = null): string
     {
         $r = $this->resumo($competencia);
         $arquivo = tempnam(sys_get_temp_dir(), 'fech').'.zip';
@@ -118,6 +134,9 @@ final class Fechamento
             ['competencia', 'faturado', 'recebido', 'custo_prestadores', 'pago_prestadores', 'devido_prestadores', 'pendencias'],
             [$competencia->format('m/Y'), $valor($r['faturado']), $valor($r['recebido']), $valor($r['custo_total']), $valor($r['pago_prestadores']), $valor($r['devido_prestadores']), $r['pendencias']->count()],
         ]));
+        if ($complemento) {
+            $complemento($zip);
+        }
         $zip->close();
 
         return $arquivo;

@@ -208,3 +208,17 @@ input.codigo { font-family: var(--mono); font-size: 18px; letter-spacing: 0.2em;
 .codigos code { font-family: var(--mono); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; text-align: center; }
 .slogan { color: var(--muted); margin: -32px 0 36px; font-size: 13.5px; }
 .assinatura { margin-top: 40px; font-size: 12.5px; color: var(--faint); }
+/* Etapas do fechamento contábil */
+.etapas { display: flex; list-style: none; padding: 0; margin: 0 0 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.etapas li { flex: 1; padding: 10px 14px; font-size: 13px; color: var(--faint); border-left: 1px solid var(--line); position: relative; }
+.etapas li:first-child { border-left: 0; }
+.etapas li.feita { color: var(--muted); }
+.etapas li.feita::before { content: "✓ "; color: var(--ok); }
+.etapas li.atual { color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+@media (max-width: 600px) { .etapas { flex-direction: column; } .etapas li { border-left: 0; border-top: 1px solid var(--line); } .etapas li:first-child { border-top: 0; } }
+.resposta { margin-top: 10px; padding: 8px 12px; border-left: 2px solid var(--line-strong); background: var(--bg); border-radius: 0 var(--radius) var(--radius) 0; }
+button[disabled] { opacity: .45; cursor: not-allowed; }
+.filtros { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 12px; }
+.filtros a { text-decoration: none; color: var(--muted); padding: 5px 11px; border: 1px solid var(--line-strong); border-radius: 99px; font-size: 13px; background: var(--surface); }
+.filtros a:hover { color: var(--text); border-color: var(--faint); }
+.filtros a.ativo { background: var(--text); color: var(--bg); border-color: var(--text); }

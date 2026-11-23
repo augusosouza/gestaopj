@@ -56,6 +56,23 @@ A competência comparada é a **declarada na nota** (`dCompet`), não a data de 
 
 Notas com chave já registrada na empresa são recusadas no envio (duplicidade).
 
+## Área do contador
+
+Empresa e escritório trabalham na **mesma tela de competência** (`/contabil/AAAA-MM`), cada um com as próprias ações:
+
+| Quem | Faz |
+|---|---|
+| **Empresa** (admin, financeiro) | Envia documentos do mês (extrato, folha, guias, comprovantes, notas de compra; PDF, XML, planilha, OFX, imagem ou ZIP, até 10 MB), responde as solicitações com texto ou anexo e avisa "concluí o envio" |
+| **Analista** | Vê os dados do mês (faturado, recebido, custos, notas), baixa documentos, pede o que falta (com prazo), aceita ou devolve respostas e conduz coleta → conferência → revisão |
+| **Revisor** | Tudo do analista, mais **fechar** e **reabrir** (reabrir exige justificativa) |
+
+- **Fechar** exige a etapa "Em revisão" e nenhuma solicitação pendente. Grava uma **versão imutável**: pacote .zip com planilhas, XMLs das notas, documentos enviados, solicitações e um LEIA-ME com o SHA-256 de cada documento. O hash do pacote fica registrado.
+- **Reabrir** volta para revisão e preserva a versão anterior. O fechamento seguinte gera a v2, a v3 e assim por diante.
+- Competência fechada: nada é enviado nem alterado.
+- **Carteira do escritório:** situação de cada empresa no mês (etapa, documentos, pedidos abertos, respostas a conferir), com filtros "aguardando a empresa", "aguardando o escritório", "prontas para revisão" e "fechadas". "Abrir" leva direto à competência.
+- Pedidos abertos do contador aparecem nas pendências do painel da empresa.
+- Arquivos ficam no disco privado, separados por empresa (`contabil/{empresa}/{AAAA-MM}/`). Todo envio, download, mudança de etapa, fechamento e reabertura vai para a auditoria.
+
 ## Configurações da plataforma
 
 Em **Plataforma → Configurações** (`/plataforma/configuracoes`), o **administrador da plataforma** altera, sem reiniciar nada:
@@ -103,7 +120,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (66 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (73 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 
@@ -143,8 +160,8 @@ Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 
 |---|---|
 | **1. Fundação** | ✅ Organizações, vínculos datados, contexto ativo, escritório com autorização e atribuição, isolamento por empresa (inclusive URL, arquivo e exportação), login, recuperação de acesso, convites, auditoria, armazenamento privado, **2FA (TOTP) obrigatório para administradores e revisores**, **CNPJ alfanumérico**. ⏳ Falta: painel do administrador da plataforma. |
 | **2. Operação mensal** | 🟡 Contratos, recorrência idempotente, demonstrativo do prestador, importação de XML com duplicidade por chave e hash, divergências, recebimento e pagamento. ⏳ Falta: medição (horas, plantões, adicionais aprovados), revisões contratuais com vigência, parcelas, baixa parcial e estorno, contestação pelo prestador, nota dividida entre contratos. |
-| **3. Fechamento piloto** | 🟡 Exportação .zip e confirmação de perfil fiscal. ⏳ Falta: etapas (coleta, conferência, revisão, fechada), pendências com responsável e prazo, retrato versionado, reabertura justificada, carteira com prazos e indicadores. |
-| 4 a 6 | ⏳ Integrações RTC/NFS-e/ADN, conciliação bancária, planejamento e revenda. |
+| **3. Fechamento piloto** | ✅ Etapas (coleta, conferência, revisão, fechada), solicitações com prazo e resposta item a item, documentos da empresa, fechamento com versão imutável e hashes, reabertura justificada, carteira com situação por empresa. ⏳ Falta: checklist configurável por escritório, comparação entre versões, contas contábeis e layout de exportação por software contábil, indicadores de tempo de fechamento. |
+| 4 a 6 | ⏳ Componentes da Receita (calculadoras RTC e gerador de DANFSe), emissão pela API da NFS-e, ADN, conciliação bancária, planejamento e revenda. |
 
 **CNPJ alfanumérico**: aceito em todo o sistema (validação conforme IN RFB 2.229/2024, conferida com o exemplo oficial `12.ABC.345/01DE-35`). Ponto em aberto: a chave de acesso da NFS-e é numérica; como ela representa um emitente com CNPJ alfanumérico depende do leiaute oficial. A verificação "CNPJ contido na chave" é só um aviso e não bloqueia nada.
 
