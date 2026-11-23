@@ -2,12 +2,8 @@
 @section('titulo', 'Backups')
 @section('larga', '1')
 @section('conteudo')
-<a class="voltar" href="{{ route('plataforma.configuracoes') }}">← Configurações da plataforma</a>
-<div class="barra">
-  <div>
-    <h1>Backups</h1>
-    <p class="sub">Banco de dados e arquivos de todas as empresas, criptografados antes de sair do servidor. Base periódica + incrementais nos horários definidos.</p>
-  </div>
+<div class="barra" style="margin-bottom:8px">
+  <x-cabecalho :trilha="['Administração Augi' => null, 'Backups' => null]" titulo="Backups" sub="Banco de dados e arquivos de todas as empresas, criptografados antes de sair do servidor. Base periódica + incrementais nos horários definidos." />
   @if ($c['destino'] !== 'desligado')
     <div class="acoes">
       <form method="post" action="{{ route('plataforma.backups.testar') }}">@csrf<button class="sec">Testar conexão</button></form>

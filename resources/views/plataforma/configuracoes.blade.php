@@ -2,8 +2,7 @@
 @section('titulo', 'Configurações da plataforma')
 @section('larga', '1')
 @section('conteudo')
-<a class="voltar" href="{{ route('contexto.escolher') }}">← Voltar ao sistema</a>
-<div class="barra"><h1>Configurações da plataforma</h1><a class="botao sec" href="{{ route('plataforma.backups') }}">Backups</a></div>
+<x-cabecalho :trilha="['Administração Augi' => null, 'Identidade' => null]" titulo="Identidade da plataforma" />
 <p class="sub">Identidade do sistema para todas as empresas e escritórios. As mudanças valem na próxima página aberta por qualquer usuário.</p>
 
 <div class="duas">

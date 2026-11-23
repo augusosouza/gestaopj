@@ -369,6 +369,83 @@ final class Financeiro
             ->values();
     }
 
+    // ---------------- Análises do painel ----------------
+
+    /**
+     * Saldo projetado por semana: saldo atual + parcelas em aberto pelo vencimento
+     * (receber soma, pagar subtrai). Vencidas entram na primeira semana.
+     *
+     * @return list<array{inicio: CarbonImmutable, fim: CarbonImmutable, entradas: int, saidas: int, saldo: int}>
+     */
+    public function fluxoCaixa(int $semanas = 12): array
+    {
+        $saldo = (int) ContaFinanceira::where('ativa', true)->get()->sum(fn ($c) => $c->saldo());
+        $abertas = Parcela::with('titulo', 'movimentos.estornoDe')->whereHas('titulo', fn ($q) => $q->whereNull('cancelado_em'))->get()
+            ->filter(fn (Parcela $p) => $p->saldo() > 0);
+        $inicio = CarbonImmutable::now()->startOfWeek();
+        $out = [];
+        for ($i = 0; $i < $semanas; $i++) {
+            $de = $inicio->addWeeks($i);
+            $ate = $de->endOfWeek();
+            $daSemana = $abertas->filter(fn (Parcela $p) => $i === 0 ? $p->vencimento->lte($ate) : $p->vencimento->between($de, $ate));
+            $entradas = (int) $daSemana->filter(fn ($p) => $p->titulo->receber())->sum(fn ($p) => $p->saldo());
+            $saidas = (int) $daSemana->reject(fn ($p) => $p->titulo->receber())->sum(fn ($p) => $p->saldo());
+            $saldo += $entradas - $saidas;
+            $out[] = ['inicio' => $de, 'fim' => $ate, 'entradas' => $entradas, 'saidas' => $saidas, 'saldo' => $saldo];
+        }
+
+        return $out;
+    }
+
+    /** Despesas da competência por categoria (previsto e pago), da maior para a menor. */
+    public function despesasPorCategoria(CarbonImmutable $competencia): Collection
+    {
+        return Titulo::with('categoria', 'parcelas.movimentos.estornoDe')->where('tipo', 'pagar')->whereNull('cancelado_em')
+            ->whereDate('competencia', $competencia->startOfMonth())->get()
+            ->groupBy(fn (Titulo $t) => $t->categoria?->nome ?? 'Sem categoria')
+            ->map(fn ($ts, $nome) => ['nome' => $nome, 'valor' => (int) $ts->sum('valor_total_centavos'), 'pago' => (int) $ts->sum(fn ($t) => $t->pagoEmDinheiro()), 'qtd' => $ts->count()])
+            ->sortByDesc('valor')->values();
+    }
+
+    /** Maiores destinos das despesas da competência (fornecedores e prestadores). */
+    public function maioresFavorecidos(CarbonImmutable $competencia, int $limite = 8): Collection
+    {
+        return Titulo::where('tipo', 'pagar')->whereNull('cancelado_em')->whereDate('competencia', $competencia->startOfMonth())->get()
+            ->groupBy(fn (Titulo $t) => $t->contraparte ?: 'Não informado')
+            ->map(fn ($ts, $nome) => ['nome' => $nome, 'valor' => (int) $ts->sum('valor_total_centavos'), 'qtd' => $ts->count()])
+            ->sortByDesc('valor')->take($limite)->values();
+    }
+
+    /** Pendências acionáveis: extratos, conciliação e vencidos. */
+    public function acoesNecessarias(): array
+    {
+        $l = app(LembretesBancarios::class);
+        $acoes = [];
+        foreach (ContaFinanceira::where('ativa', true)->get() as $c) {
+            $s = $l->situacao($c);
+            if ($s['estado'] === 'desatualizado') {
+                $acoes[] = ['tipo' => 'bad', 'titulo' => "Extrato desatualizado — {$c->nome}",
+                    'texto' => 'Coberto '.($c->extrato_ate ? 'até '.$c->extrato_ate->format('d/m/Y') : 'por nenhum extrato').'; exigido até '.$s['exigido_ate']->format('d/m/Y').'.',
+                    'acao' => 'Importar extrato', 'url' => route('financeiro.conciliacao', $c).'#importar'];
+            }
+            if ($s['a_conciliar'] > 0) {
+                $acoes[] = ['tipo' => 'warn', 'titulo' => "Conciliação pendente — {$c->nome}", 'texto' => "{$s['a_conciliar']} lançamento(s) do extrato sem conferência.",
+                    'acao' => 'Conciliar', 'url' => route('financeiro.conciliacao', $c)];
+            }
+        }
+        $p = $this->painel(CarbonImmutable::now());
+        if ($p['vencido_receber'] > 0) {
+            $acoes[] = ['tipo' => 'warn', 'titulo' => 'Recebimentos vencidos', 'texto' => brl($p['vencido_receber']).' a receber com vencimento passado.',
+                'acao' => 'Ver', 'url' => route('financeiro.index', ['tipo' => 'receber', 'situacao' => 'vencido', 'periodo' => 'todos'])];
+        }
+        if ($p['vencido_pagar'] > 0) {
+            $acoes[] = ['tipo' => 'bad', 'titulo' => 'Pagamentos vencidos', 'texto' => brl($p['vencido_pagar']).' a pagar com vencimento passado.',
+                'acao' => 'Ver', 'url' => route('financeiro.index', ['tipo' => 'pagar', 'situacao' => 'vencido', 'periodo' => 'todos'])];
+        }
+
+        return $acoes;
+    }
+
     // ---------------- Painel ----------------
 
     /** Previsto x realizado da competência, vencidos e saldo em contas. */

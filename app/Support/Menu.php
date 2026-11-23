@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\Papel;
+use App\Models\Titulo;
 use App\Models\User;
 
 /**
@@ -13,13 +14,17 @@ use App\Models\User;
  */
 final class Menu
 {
-    /** @return array{inicio: ?array, grupos: list<array>} */
+    /** @return array{inicio: ?array, grupos: list<array>, config: ?array} */
     public static function para(Contexto $c, User $u): array
     {
         $P = Papel::class;
         $r = request();
         $rota = fn (string ...$nomes) => $r->routeIs(...$nomes);
         $tipo = $r->query('tipo');
+        // No detalhe de um lançamento, o tipo vem do próprio título (para destacar "Contas a pagar/receber").
+        if ($r->routeIs('financeiro.titulo') && ($t = $r->route('titulo')) instanceof Titulo) {
+            $tipo = $t->tipo;
+        }
         $grupos = [];
         $item = fn (string $rotulo, string $url, bool $ativo, ?int $contador = null) => compact('rotulo', 'url', 'ativo', 'contador');
 
@@ -70,7 +75,7 @@ final class Menu
 
         if ($c->tem($P::Admin, $P::Revisor)) {
             $grupos[] = ['chave' => 'administracao', 'rotulo' => 'Administração', 'icone' => 'administracao', 'itens' => array_values(array_filter([
-                $c->empresa() && $c->tem($P::Admin) ? $item('Configurações', route('configuracoes'), $rota('configuracoes*', 'organizacao.*')) : null,
+                $c->empresa() && $c->tem($P::Admin) ? $item('Empresa', route('organizacao.show'), $rota('organizacao.*')) : null,
                 $item('Equipe e acessos', route('usuarios.index'), $rota('usuarios.*')),
             ]))];
         }
@@ -82,10 +87,13 @@ final class Menu
             ]];
         }
 
+        $config = $c->empresa() && $c->tem($P::Admin, $P::Financeiro)
+            ? $item('Configurações', route('configuracoes'), $rota('configuracoes*')) : null;
+
         foreach ($grupos as &$g) {
             $g['ativo'] = collect($g['itens'])->contains('ativo', true);
         }
 
-        return ['inicio' => $inicio, 'grupos' => $grupos];
+        return ['inicio' => $inicio, 'grupos' => $grupos, 'config' => $config];
     }
 }

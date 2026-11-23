@@ -41,6 +41,8 @@
 }
 
 * { box-sizing: border-box; }
+/* O atributo hidden sempre vence o display definido no CSS (ex.: itens filtrados pela busca). */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14.5px/1.5 var(--sans); font-feature-settings: "tnum" 1; }
 a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
@@ -175,7 +177,8 @@ td.n { font-weight: 500; }
 label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
 input, select, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 7px 10px; width: 100%; }
 input:hover, select:hover, textarea:hover { border-color: var(--faint); }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* Foco em tinta (não vermelho): vermelho fica reservado para erro. */
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 12%, transparent); }
 input[disabled] { background: var(--bg); color: var(--muted); }
 input[type=file] { padding: 6px; font-size: 13px; }
 input[type=checkbox] { width: auto; accent-color: var(--accent); }
@@ -259,3 +262,36 @@ summary.link-sum:hover { color: var(--text); }
 .notif.lida { border-left-color: var(--line-strong); opacity: .75; }
 .notif-meta { font-size: 12.5px; color: var(--faint); }
 .acao-alerta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+/* Painel financeiro: progresso, ações, gráficos */
+.progresso { height: 6px; background: var(--line); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progresso span { display: block; height: 100%; background: var(--text); border-radius: 3px; }
+.acao { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: var(--radius); margin-bottom: 8px; }
+.acao-bad { border-left-color: var(--bad); }
+.grafico { margin: 0; }
+.grafico figcaption { margin-bottom: 12px; }
+.grafico svg { width: 100%; height: auto; display: block; overflow: visible; }
+.grafico .grade-linha { stroke: var(--line); stroke-width: 1; }
+.grafico .linha-zero { stroke: var(--bad); stroke-width: 1; stroke-dasharray: 4 3; }
+.grafico .eixo { fill: var(--faint); font-size: 11px; font-family: var(--sans); }
+.grafico .serie { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.grafico .ponto circle:not(.alvo) { fill: var(--text); stroke: var(--surface); stroke-width: 2; transition: r .1s; }
+.grafico .ponto.neg circle:not(.alvo) { fill: var(--bad); }
+.grafico .ponto .alvo { fill: transparent; cursor: help; }
+.grafico .ponto:hover circle:not(.alvo) { r: 6; }
+.grafico .rotulo-direto { fill: var(--text); font-size: 12px; font-weight: 600; font-family: var(--sans); }
+.barra-h { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 10px; align-items: center; padding: 5px 0; cursor: help; }
+.barra-rotulo { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-trilho { height: 12px; }
+.barra-valor { display: block; height: 100%; background: var(--text); border-radius: 0 4px 4px 0; opacity: .85; }
+.barra-h:hover .barra-valor { opacity: 1; }
+.barra-numero { font-size: 13px; font-weight: 500; white-space: nowrap; }
+.filtros-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.filtros-barra input[type=search] { flex: 1 1 260px; width: auto; }
+.filtros-barra select { width: auto; flex: 0 1 auto; }
+.filtros-barra .limpar { font-size: 13px; color: var(--muted); }
+.resumo-baixa { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.busca-config { max-width: 560px; margin-bottom: 18px; font-size: 15px; padding: 10px 12px; }
+.config-secoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.config-item { display: grid; gap: 2px; padding: 9px 10px; margin: 0 -10px; border-radius: 5px; color: var(--text); text-decoration: none; }
+.config-item:hover { background: var(--bg); }
+.config-item span { font-size: 13px; color: var(--muted); }

@@ -56,6 +56,34 @@ class Titulo extends Model
         return $this->valor_total_centavos - $this->saldo();
     }
 
+    /** Soma de um campo das baixas ativas (não estornadas). */
+    private function somaBaixas(string $campo): int
+    {
+        return (int) $this->parcelas->flatMap->movimentos
+            ->filter(fn (Movimento $m) => $m->tipo === 'baixa' && ! $m->estornado())->sum($campo);
+    }
+
+    /** Dinheiro que efetivamente entrou/saiu da conta. */
+    public function pagoEmDinheiro(): int
+    {
+        return $this->somaBaixas('valor_centavos');
+    }
+
+    public function descontos(): int
+    {
+        return $this->somaBaixas('desconto_centavos');
+    }
+
+    public function retencoes(): int
+    {
+        return $this->somaBaixas('retencao_centavos');
+    }
+
+    public function acrescimos(): int
+    {
+        return $this->somaBaixas('acrescimo_centavos');
+    }
+
     /** aberto, parcial, liquidado, cancelado */
     public function situacao(): string
     {

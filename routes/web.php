@@ -135,6 +135,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
+            Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');
+            Route::get('/configuracoes/financeiro/lembretes', [ConfiguracoesController::class, 'lembretes'])->name('configuracoes.lembretes');
             Route::get('/financeiro/novo', [FinanceiroController::class, 'create'])->name('financeiro.novo');
             Route::post('/financeiro', [FinanceiroController::class, 'store'])->name('financeiro.store');
             Route::post('/financeiro/parcelas/{parcela}/baixa', [FinanceiroController::class, 'baixar'])->middleware('throttle:60,1')->name('financeiro.baixar');
@@ -178,7 +180,6 @@ Route::middleware('auth')->group(function () {
 
         // Administração da empresa
         Route::middleware('papel:admin')->group(function () {
-            Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');
             Route::get('/empresa', [OrganizacaoController::class, 'show'])->name('organizacao.show');
             Route::put('/empresa', [OrganizacaoController::class, 'update'])->name('organizacao.update');
             Route::post('/empresa/escritorios', [OrganizacaoController::class, 'autorizarEscritorio'])->name('organizacao.autorizar');

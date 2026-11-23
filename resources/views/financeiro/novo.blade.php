@@ -1,8 +1,9 @@
 @extends('layouts.app')
 @section('titulo', $tipo === 'receber' ? 'Nova receita' : 'Nova despesa')
 @section('conteudo')
-<a class="voltar" href="{{ route('financeiro.index') }}">← Financeiro</a>
-<h1>{{ $tipo === 'receber' ? 'Nova receita' : 'Nova despesa' }}</h1>
+<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), ($tipo === 'receber' ? 'Contas a receber' : 'Contas a pagar') => route('financeiro.index', ['tipo' => $tipo]), 'Novo lançamento' => null]"
+  :titulo="$tipo === 'receber' ? 'Nova receita' : 'Nova despesa'" />
+<x-abas :itens="[['Despesa', route('financeiro.novo', ['tipo' => 'pagar']), $tipo === 'pagar'], ['Receita', route('financeiro.novo', ['tipo' => 'receber']), $tipo === 'receber']]" />
 <p class="sub">Faturas de clientes e pagamentos de prestadores entram sozinhos ao gerar a competência. Use aqui para o restante (aluguel, impostos, software, outras receitas…).</p>
 <form method="post" action="{{ route('financeiro.store') }}" class="painel" style="max-width:760px">
   @csrf <input type="hidden" name="tipo" value="{{ $tipo }}">

@@ -16,12 +16,13 @@ use Illuminate\View\View;
 /** Dados da empresa do contexto e autorizações concedidas a escritórios. */
 class OrganizacaoController extends Controller
 {
-    public function show(Contexto $ctx): View
+    public function show(Request $request, Contexto $ctx): View
     {
+        $aba = $request->query('aba') === 'escritorio' ? 'escritorio' : 'dados';
         $empresa = $ctx->empresa();
         $autorizacoes = $empresa->autorizacoesConcedidas()->with('escritorio', 'concedidaPor')->latest('inicio')->get();
 
-        return view('organizacao.show', compact('empresa', 'autorizacoes'));
+        return view('organizacao.show', compact('empresa', 'autorizacoes', 'aba'));
     }
 
     public function update(Request $request, Contexto $ctx): RedirectResponse

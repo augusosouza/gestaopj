@@ -79,9 +79,21 @@ Cada data tem o seu lugar:
 - **Contas** com saldo inicial e saldo calculado por data. Não guarda senha nem acesso ao banco.
 - **Extrato:** importação de OFX (padrão dos bancos) ou CSV (`data;descrição;valor`). Reimportar não duplica.
 - **Conciliação:** sugere baixas de mesmo valor, sentido e conta, com até 5 dias de diferença. Dá para conciliar, desfazer ou marcar "sem correspondência".
-- **Painel:** saldo em contas, outras despesas do mês, vencidos e extrato a conciliar.
+- **Painel financeiro** (`/financeiro/painel`), em três abas:
+  - **Resumo:** recebido × previsto e pago × previsto do mês (com barra de progresso), saldo em contas, vencidos e a lista **Ações necessárias** (extrato desatualizado, conciliação pendente, títulos vencidos), cada uma com link direto.
+  - **Fluxo de caixa:** entradas, saídas e saldo semana a semana (12 semanas), em gráfico e em tabela.
+  - **Despesas:** gastos do mês por categoria e maiores favorecidos.
+- **Detalhe do lançamento**, em abas (Resumo, Parcelas, Pagamentos, Histórico). O resumo separa o **pago em dinheiro** de **descontos, retenções e acréscimos**; o formulário de baixa mostra o saldo da parcela após o registro.
+- **Lembretes de extrato (FIN-ALERT-01)** por conta: frequência (semanal, quinzenal, mensal), dia, horário, responsável, antecedência e repetição. Enviar um arquivo **não** basta: vale o **período coberto** pelo extrato (DTSTART/DTEND do OFX, datas do CSV). Avisos separados para *extrato desatualizado* e *conciliação pendente*; dispensa com motivo e prazo (até 90 dias), registrada na auditoria. Avisos chegam em **Notificações** (`php artisan financeiro:lembretes`, agendado de hora em hora).
 - **Compatibilidade:** `php artisan financeiro:sincronizar` (também executado na migração) cria títulos para faturas e cobranças antigas e converte os pagamentos já registrados em baixas. É idempotente.
 - **Permissões:** a empresa opera (admin, financeiro); o escritório só consulta; o prestador não acessa.
+
+## Navegação e configurações
+
+- **Menu por grupos** (Operação, Financeiro, Fiscal, Contabilidade, Administração, Administração Augi), montado conforme o papel em `App\Support\Menu`. O grupo da página atual abre sozinho; os demais lembram a escolha no navegador.
+- **Padrão de tela:** trilha (breadcrumb) + título + ações (`<x-cabecalho>`) e abas (`<x-abas>`).
+- **Central de configurações** (`/configuracoes`, admin e financeiro) com busca: Minha conta, Empresa, Financeiro, Fiscal, Equipe e acessos. A identidade da plataforma e os backups ficam à parte, em **Administração Augi**.
+- **Notificações** internas com contador de não lidas; abrir uma notificação troca para a empresa certa, se você tiver acesso a ela.
 
 ## Componentes da Receita Federal
 
@@ -157,7 +169,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (101 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (115 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

@@ -1,12 +1,8 @@
 @extends('layouts.app')
 @section('titulo', 'Fechamento '.$competencia->format('m/Y'))
 @section('conteudo')
-<div class="barra">
-  <div>
-    <h1>Fechamento do mês</h1>
-    <p class="sub">Competência {{ $competencia->format('m/Y') }} · {{ ctx()->empresa()->razao_social }}</p>
-  </div>
-  <div class="acoes">
+<x-cabecalho :trilha="['Início' => null]" titulo="Fechamento do mês" :sub="'Competência '.$competencia->format('m/Y').' · '.ctx()->empresa()->razao_social">
+  <x-slot:acoes>
     @include('partials.competencia')
     <a class="botao sec" href="{{ route('fechamento.exportar', ['competencia' => $competencia->format('Y-m')]) }}">Exportar .zip</a>
     @if (ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
@@ -15,8 +11,8 @@
         <button title="Cria faturas e cobranças dos contratos ativos. Pode ser repetido sem duplicar.">Gerar competência</button>
       </form>
     @endif
-  </div>
-</div>
+  </x-slot:acoes>
+</x-cabecalho>
 
 @if ($r['faturas']->isEmpty() && $r['cobrancas']->isEmpty())
   <div class="aviso info">Nenhuma fatura ou cobrança neste mês. Use <strong>Gerar competência</strong> para abrir o mês a partir dos contratos ativos.</div>

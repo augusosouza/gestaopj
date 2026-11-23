@@ -1,79 +1,153 @@
 @extends('layouts.app')
 @section('titulo', $t->descricao)
 @section('conteudo')
-@php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-<a class="voltar" href="{{ route('financeiro.index', ['competencia' => $t->competencia->format('Y-m')]) }}">← Financeiro</a>
-<div class="barra">
-  <div>
-    <h1>{{ $t->descricao }}</h1>
-    <p class="sub">{{ $t->receber() ? 'A receber' : 'A pagar' }} · competência {{ $t->competencia->format('m/Y') }} · {{ $t->categoria?->nome ?? 'sem categoria' }}
-      @if ($t->contraparte) · {{ $t->contraparte }}@endif @include('financeiro._situacao')</p>
-  </div>
-  @if ($t->origem_type === (new \App\Models\Fatura)->getMorphClass())<a class="botao sec" href="{{ route('faturas.show', $t->origem_id) }}">Ver fatura</a>
-  @elseif ($t->origem_type === (new \App\Models\Cobranca)->getMorphClass())<a class="botao sec" href="{{ route('cobrancas.show', $t->origem_id) }}">Ver cobrança</a>@endif
-</div>
+@php
+  $opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
+  $verbo = $t->receber() ? 'Recebido' : 'Pago';
+  $lista = $t->receber() ? 'Contas a receber' : 'Contas a pagar';
+  $movs = $t->parcelas->flatMap->movimentos->sortBy('id');
+  $abaUrl = fn ($a) => route('financeiro.titulo', [$t, 'aba' => $a]);
+  $origem = $t->origem_type === (new \App\Models\Fatura)->getMorphClass() ? ['Ver fatura', route('faturas.show', $t->origem_id)]
+    : ($t->origem_type === (new \App\Models\Cobranca)->getMorphClass() ? ['Ver cobrança', route('cobrancas.show', $t->origem_id)] : null);
+@endphp
+<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $lista => route('financeiro.index', ['tipo' => $t->tipo, 'competencia' => $t->competencia->format('Y-m')]), $t->descricao => null]"
+  :titulo="$t->descricao" :sub="'Competência '.$t->competencia->translatedFormat('F \d\e Y').($t->contraparte ? ' · '.$t->contraparte : '').' · '.($t->categoria?->nome ?? 'sem categoria')">
+  <div style="margin-top:6px">@include('financeiro._situacao')</div>
+  <x-slot:acoes>
+    @if ($origem)<a class="botao sec" href="{{ $origem[1] }}">{{ $origem[0] }}</a>@endif
+    @if ($opera && ! $t->cancelado() && $t->saldo() > 0)<a class="botao" href="{{ $abaUrl('pagamentos') }}#registrar">Registrar {{ $t->receber() ? 'recebimento' : 'pagamento' }}</a>@endif
+  </x-slot:acoes>
+</x-cabecalho>
 @if ($t->cancelado())<div class="aviso info">Cancelado em {{ $t->cancelado_em->format('d/m/Y') }}: {{ $t->motivo_cancelamento }}</div>@endif
 
-<section class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-  <div class="card"><div class="rot">Valor total</div><div class="num">{{ brl($t->valor_total_centavos) }}</div><div class="det">{{ $t->parcelas->count() }} parcela(s)</div></div>
-  <div class="card"><div class="rot">{{ $t->receber() ? 'Recebido' : 'Pago' }} (abatido)</div><div class="num">{{ brl($t->liquidado()) }}</div><div class="det">inclui descontos e retenções</div></div>
-  <div class="card"><div class="rot">Saldo</div><div class="num">{{ brl($t->saldo()) }}</div><div class="det">{{ $t->vencido() ? 'há parcela vencida' : 'em dia' }}</div></div>
+<section class="cards" aria-label="Valores">
+  <div class="card"><div class="rot">Valor original</div><div class="num">{{ brl($t->valor_total_centavos) }}</div><div class="det">{{ $t->parcelas->count() }} parcela(s)</div></div>
+  <div class="card"><div class="rot">{{ $verbo }} em dinheiro</div><div class="num">{{ brl($t->pagoEmDinheiro()) }}</div><div class="det">saiu/entrou nas contas</div></div>
+  @php($ajustes = array_filter(['desconto' => $t->descontos(), 'retenção' => $t->retencoes(), 'acréscimo' => $t->acrescimos()]))
+  <div class="card"><div class="rot">Descontos, retenções e acréscimos</div><div class="num">{{ brl($t->descontos() + $t->retencoes() - $t->acrescimos()) }}</div>
+    <div class="det">{{ $ajustes ? collect($ajustes)->map(fn ($v, $k) => $k.' '.brl($v))->join(' · ') : 'nenhum' }}</div></div>
+  <div class="card"><div class="rot">Pendente</div><div class="num">{{ brl($t->cancelado() ? 0 : $t->saldo()) }}</div><div class="det">{{ $t->vencido() ? 'há parcela vencida' : 'em dia' }}</div></div>
 </section>
+<div style="margin-top:20px"></div>
+<x-abas :itens="[
+  ['Resumo', $abaUrl('resumo'), $aba === 'resumo'],
+  ['Parcelas', $abaUrl('parcelas'), $aba === 'parcelas', $t->parcelas->count()],
+  [$t->receber() ? 'Recebimentos' : 'Pagamentos', $abaUrl('pagamentos'), $aba === 'pagamentos', $movs->count()],
+  ['Histórico', $abaUrl('historico'), $aba === 'historico'],
+]" />
 
-@foreach ($t->parcelas as $p)
-  <h2>Parcela {{ $p->numero }}/{{ $t->parcelas->count() }} · vence {{ $p->vencimento->format('d/m/Y') }} · {{ brl($p->valor_centavos) }}
-    <span class="sub" style="font-weight:400">— saldo {{ brl($p->saldo()) }}</span> @if ($p->vencida())<span class="tag bad">Vencida</span>@endif</h2>
+@if ($aba === 'resumo')
+  <div class="duas">
+    <div class="painel"><dl class="dados">
+      <dt>Tipo</dt><dd>{{ $t->receber() ? 'A receber' : 'A pagar' }}</dd>
+      <dt>Descrição</dt><dd>{{ $t->descricao }}</dd>
+      <dt>{{ $t->receber() ? 'Pagador' : 'Favorecido' }}</dt><dd>{{ $t->contraparte ?? '—' }}</dd>
+      <dt>Categoria</dt><dd>{{ $t->categoria?->nome ?? '—' }}</dd>
+      <dt>Competência</dt><dd>{{ $t->competencia->format('m/Y') }}</dd>
+      <dt>Documento</dt><dd>{{ $t->documento ?? '—' }}</dd>
+      <dt>Origem</dt><dd>{{ $origem ? ($t->receber() ? 'Fatura de cliente' : 'Cobrança de prestador') : 'Lançamento manual' }}</dd>
+      <dt>Próximo vencimento</dt><dd>{{ $t->parcelas->first(fn ($p) => $p->saldo() > 0)?->vencimento->format('d/m/Y') ?? '—' }}</dd>
+    </dl></div>
+    <div class="painel">
+      <strong>Como ler os valores</strong>
+      <ul style="margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px;line-height:1.6">
+        <li><strong style="color:var(--text)">{{ $verbo }} em dinheiro:</strong> só o que passou pelas contas.</li>
+        <li><strong style="color:var(--text)">Descontos e retenções</strong> abatem o valor sem movimentar a conta (ex.: imposto retido na nota).</li>
+        <li><strong style="color:var(--text)">Acréscimos</strong> (juros, multa) aumentam o pagamento sem aumentar o abatimento.</li>
+        <li>Pendente = original − dinheiro − descontos − retenções + acréscimos.</li>
+      </ul>
+      @if ($opera && ! $t->cancelado() && ! $t->origem_type && $t->liquidado() === 0)
+        <form method="post" action="{{ route('financeiro.cancelar', $t) }}" style="display:flex;gap:8px;margin-top:16px">@csrf
+          <input name="motivo" required placeholder="Motivo do cancelamento" aria-label="Motivo do cancelamento"><button class="perigo">Cancelar lançamento</button></form>
+      @endif
+    </div>
+  </div>
+
+@elseif ($aba === 'parcelas')
   <div class="tabela"><table>
-    <thead><tr><th>Data</th><th>Tipo</th><th>Conta</th><th class="n">Valor</th><th class="n">Desc./Ret./Acrésc.</th><th>Por</th><th>Extrato</th><th></th></tr></thead>
+    <thead><tr><th>Parcela</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Abatido</th><th class="n">Saldo</th><th>Situação</th></tr></thead>
     <tbody>
-    @forelse ($p->movimentos as $m)
+    @foreach ($t->parcelas as $p)
+      <tr><td>{{ $p->numero }}/{{ $t->parcelas->count() }}</td><td>{{ $p->vencimento->format('d/m/Y') }}</td><td class="n">{{ brl($p->valor_centavos) }}</td>
+        <td class="n">{{ brl($p->abatido()) }}</td><td class="n">{{ brl($p->saldo()) }}</td>
+        <td>@if ($p->saldo() === 0)<span class="tag ok">Quitada</span>@elseif ($p->vencida())<span class="tag bad">Vencida</span>@elseif ($p->abatido() > 0)<span class="tag info">Parcial</span>@else<span class="tag warn">Em aberto</span>@endif</td></tr>
+    @endforeach
+    </tbody>
+  </table></div>
+
+@elseif ($aba === 'pagamentos')
+  <div class="tabela"><table>
+    <thead><tr><th>Data</th><th>Parcela</th><th>Movimento</th><th>Conta</th><th class="n">Dinheiro</th><th class="n">Desc./Ret./Acrés.</th><th>Extrato</th><th>Por</th><th></th></tr></thead>
+    <tbody>
+    @forelse ($movs as $m)
       <tr @if ($m->tipo === 'estorno' || $m->estornado()) style="color:var(--muted)" @endif>
-        <td>{{ $m->data->format('d/m/Y') }}</td>
+        <td>{{ $m->data->format('d/m/Y') }}</td><td>{{ $m->parcela->numero }}</td>
         <td>@if ($m->tipo === 'estorno')<span class="tag bad">Estorno</span><br><span style="font-size:12.5px">{{ $m->observacao }}</span>
             @else{{ $t->receber() ? 'Recebimento' : 'Pagamento' }} @if ($m->estornado())<span class="tag">estornado</span>@endif
               @if ($m->observacao)<br><span style="font-size:12.5px">{{ $m->observacao }}</span>@endif @endif</td>
         <td>{{ $m->conta->nome }}</td>
         <td class="n">{{ $m->tipo === 'estorno' ? '−' : '' }}{{ brl($m->valor_centavos) }}</td>
         <td class="n" style="font-weight:400">@if ($m->desconto_centavos || $m->retencao_centavos || $m->acrescimo_centavos){{ brl($m->desconto_centavos) }} / {{ brl($m->retencao_centavos) }} / {{ brl($m->acrescimo_centavos) }}@else — @endif</td>
-        <td>{{ $m->criadoPor?->name ?? 'Sistema' }}</td>
         <td>@if ($m->linhaExtrato)<span class="tag ok">Conciliado</span>@elseif ($m->tipo === 'baixa' && ! $m->estornado())<span class="tag warn">Pendente</span>@else — @endif</td>
+        <td>{{ $m->criadoPor?->name ?? 'Sistema' }}</td>
         <td>@if ($opera && $m->tipo === 'baixa' && ! $m->estornado() && ! $m->linhaExtrato)
           <details><summary class="link-sum">estornar</summary>
             <form method="post" action="{{ route('financeiro.estornar', $m) }}" style="display:flex;gap:6px;margin-top:6px">@csrf
-              <input name="motivo" required placeholder="Motivo do estorno" aria-label="Motivo do estorno"><button class="perigo">Estornar</button></form>
-          </details>@endif</td>
+              <input name="motivo" required placeholder="Motivo" aria-label="Motivo do estorno"><button class="perigo">Estornar</button></form>
+          </details>@elseif ($m->linhaExtrato && $m->tipo === 'baixa')<span class="sub" style="font-size:12px">desconcilie para estornar</span>@endif</td>
       </tr>
     @empty
-      <tr><td colspan="8" class="vazio">Nenhuma baixa nesta parcela.</td></tr>
+      <tr><td colspan="9" class="vazio">Nenhum {{ $t->receber() ? 'recebimento' : 'pagamento' }} registrado.</td></tr>
     @endforelse
     </tbody>
   </table></div>
 
-  @if ($opera && ! $t->cancelado() && $p->saldo() > 0)
-    <form method="post" action="{{ route('financeiro.baixar', $p) }}" class="painel" style="margin-top:10px">
-      @csrf <input type="hidden" name="chave" value="{{ $chave }}-{{ $p->id }}">
-      <strong>Registrar {{ $t->receber() ? 'recebimento' : 'pagamento' }}</strong>
-      <div class="grade" style="margin-top:8px">
-        <div><label for="conta{{ $p->id }}">Conta</label><select id="conta{{ $p->id }}" name="conta_id" required>
+  @if ($opera && ! $t->cancelado() && ($aberta = $t->parcelas->first(fn ($p) => $p->saldo() > 0)))
+    <form method="post" action="{{ route('financeiro.baixar', $aberta) }}" class="painel" id="registrar" style="margin-top:14px"
+      data-saldo="{{ $aberta->saldo() }}">
+      @csrf <input type="hidden" name="chave" value="{{ $chave }}-{{ $aberta->id }}">
+      <strong>Registrar {{ $t->receber() ? 'recebimento' : 'pagamento' }} · parcela {{ $aberta->numero }} (vence {{ $aberta->vencimento->format('d/m/Y') }}, saldo {{ brl($aberta->saldo()) }})</strong>
+      <div class="grade" style="margin-top:10px">
+        <div><label for="conta">Conta</label><select id="conta" name="conta_id" required>
           @forelse ($contas as $c)<option value="{{ $c->id }}">{{ $c->nome }}</option>@empty<option value="">Cadastre uma conta</option>@endforelse</select></div>
-        <div><label for="data{{ $p->id }}">Data</label><input id="data{{ $p->id }}" type="date" name="data" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}" required></div>
-        <div><label for="valor{{ $p->id }}">Valor {{ $t->receber() ? 'recebido' : 'pago' }}</label><input id="valor{{ $p->id }}" name="valor" inputmode="decimal" value="{{ valor_campo($p->saldo()) }}" required></div>
+        <div><label for="data">Data</label><input id="data" type="date" name="data" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}" required></div>
+        <div><label for="valor">Valor em dinheiro</label><input id="valor" name="valor" inputmode="decimal" value="{{ valor_campo($aberta->saldo()) }}" required data-calc></div>
+        <div><label for="desconto">Desconto</label><input id="desconto" name="desconto" inputmode="decimal" placeholder="0,00" data-calc></div>
+        <div><label for="retencao">Retenção (imposto retido)</label><input id="retencao" name="retencao" inputmode="decimal" placeholder="0,00" data-calc></div>
+        <div><label for="acrescimo">Acréscimo (juros/multa)</label><input id="acrescimo" name="acrescimo" inputmode="decimal" placeholder="0,00" data-calc></div>
       </div>
-      <details style="margin-top:8px"><summary class="link-sum">Desconto, retenção ou acréscimo</summary>
-        <div class="grade" style="margin-top:8px">
-          <div><label>Desconto</label><input name="desconto" inputmode="decimal" placeholder="0,00"></div>
-          <div><label>Retenção (impostos retidos)</label><input name="retencao" inputmode="decimal" placeholder="0,00"></div>
-          <div><label>Acréscimo (juros/multa)</label><input name="acrescimo" inputmode="decimal" placeholder="0,00"></div>
-        </div>
-      </details>
-      <div style="display:flex;gap:8px;margin-top:10px;align-items:end"><div style="flex:1"><label>Observação (opcional)</label><input name="observacao"></div><button>Registrar</button></div>
-      <p class="sub" style="margin:8px 0 0;font-size:13px">Pagamento parcial é permitido; a parcela continua em aberto pelo saldo. Não é possível baixar mais que o saldo.</p>
+      <div class="campo" style="margin-top:10px"><label for="obs">Observação (opcional)</label><input id="obs" name="observacao"></div>
+      <div class="resumo-baixa"><span>Saldo da parcela após o registro: <strong id="saldo-apos">{{ brl(0) }}</strong></span><button>Registrar</button></div>
     </form>
+    <script>
+      (function () {
+        var f = document.getElementById('registrar'); if (!f) return;
+        var saldo = parseInt(f.dataset.saldo, 10), out = document.getElementById('saldo-apos');
+        function c(v) { v = (v || '').replace(/[R$\s]/g, ''); if (v.indexOf(',') >= 0) v = v.replace(/\./g, '').replace(',', '.'); var n = Math.round(parseFloat(v) * 100); return isNaN(n) ? 0 : n; }
+        function atualizar() {
+          var g = function (n) { return c(f.querySelector('[name=' + n + ']').value); };
+          var r = saldo - (g('valor') + g('desconto') + g('retencao') - g('acrescimo'));
+          out.textContent = (r < 0 ? '−' : '') + 'R$ ' + (Math.abs(r) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+          out.style.color = r < 0 ? 'var(--bad)' : '';
+          out.title = r < 0 ? 'Maior que o saldo: o sistema não aceitará' : '';
+        }
+        f.querySelectorAll('[data-calc]').forEach(function (i) { i.addEventListener('input', atualizar); });
+        atualizar();
+      })();
+    </script>
   @endif
-@endforeach
 
-@if ($opera && ! $t->cancelado() && ! $t->origem_type && $t->liquidado() === 0)
-  <form method="post" action="{{ route('financeiro.cancelar', $t) }}" style="display:flex;gap:8px;margin-top:24px;max-width:600px">@csrf
-    <input name="motivo" required placeholder="Motivo do cancelamento" aria-label="Motivo do cancelamento"><button class="perigo">Cancelar lançamento</button></form>
+@else
+  <div class="tabela"><table>
+    <thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>Detalhe</th></tr></thead>
+    <tbody>
+    @forelse ($historico as $e)
+      <tr><td>{{ $e->created_at->format('d/m/Y H:i') }}</td><td>{{ $e->user?->name ?? 'Sistema' }}</td><td>{{ $e->rotulo() }}</td>
+        <td>{{ collect($e->dados ?? [])->map(fn ($v, $k) => in_array($k, ['valor'], true) ? brl((int) $v) : (is_scalar($v) ? $v : ''))->filter()->join(' · ') }}</td></tr>
+    @empty
+      <tr><td colspan="4" class="vazio">Sem eventos registrados.</td></tr>
+    @endforelse
+    </tbody>
+  </table></div>
 @endif
 @endsection

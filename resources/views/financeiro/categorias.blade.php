@@ -2,9 +2,8 @@
 @section('titulo', 'Categorias')
 @section('conteudo')
 @php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-<h1>Categorias</h1>
-<p class="sub">Organizam receitas e despesas para os relatórios. Desativar não altera lançamentos antigos.</p>
-@include('financeiro._abas')
+<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), 'Categorias' => null]" titulo="Categorias"
+  sub="Organizam receitas e despesas para os relatórios. Desativar não altera lançamentos antigos." />
 <div class="duas">
   <div class="tabela"><table>
     <thead><tr><th>Categoria</th><th>Tipo</th><th></th></tr></thead>

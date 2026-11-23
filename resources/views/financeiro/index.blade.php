@@ -1,52 +1,64 @@
 @extends('layouts.app')
-@section('titulo', 'Financeiro')
+@section('titulo', $tipo === 'receber' ? 'Contas a receber' : ($tipo === 'pagar' ? 'Contas a pagar' : 'Lançamentos'))
 @section('conteudo')
-@php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-<div class="barra">
-  <div><h1>Financeiro</h1><p class="sub">Previsto x realizado por competência. Vencimento e data de pagamento ficam em cada parcela.</p></div>
-  <div class="acoes">
-    @include('partials.competencia')
-    @if ($opera)
-      <a class="botao sec" href="{{ route('financeiro.novo', ['tipo' => 'receber']) }}">Nova receita</a>
-      <a class="botao" href="{{ route('financeiro.novo', ['tipo' => 'pagar']) }}">Nova despesa</a>
-    @endif
-  </div>
-</div>
-@include('financeiro._abas')
+@php
+  $opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
+  $titulo = $tipo === 'receber' ? 'Contas a receber' : ($tipo === 'pagar' ? 'Contas a pagar' : 'Lançamentos');
+  $q = fn (array $mudar) => request()->fullUrlWithQuery($mudar);
+  $total = $titulos->reject->cancelado()->sum('valor_total_centavos');
+  $saldo = $titulos->reject->cancelado()->sum(fn ($t) => $t->saldo());
+@endphp
+<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $titulo => null]" :titulo="$titulo"
+  :sub="($todos ? 'Todas as competências' : 'Competência '.$competencia->translatedFormat('F \d\e Y')).' · '.$titulos->count().' lançamento(s) · total '.brl($total).' · em aberto '.brl($saldo)">
+  <x-slot:acoes>
+    @unless ($todos)@include('partials.competencia')@endunless
+    @if ($opera)<a class="botao" href="{{ route('financeiro.novo', ['tipo' => $tipo === 'receber' ? 'receber' : 'pagar']) }}">+ Novo lançamento</a>@endif
+  </x-slot:acoes>
+</x-cabecalho>
+<x-abas :itens="[
+  ['Todos', $q(['tipo' => null]), $tipo === null],
+  ['Receitas', $q(['tipo' => 'receber']), $tipo === 'receber'],
+  ['Despesas', $q(['tipo' => 'pagar']), $tipo === 'pagar'],
+]" />
 
-<section class="cards" aria-label="Resumo financeiro">
-  <div class="card"><div class="rot">Receitas da competência</div><div class="num">{{ brl($p['receitas_realizadas']) }}</div><div class="det">recebido de {{ brl($p['receitas_previstas']) }} previsto</div></div>
-  <div class="card"><div class="rot">Despesas da competência</div><div class="num">{{ brl($p['despesas_realizadas']) }}</div><div class="det">pago de {{ brl($p['despesas_previstas']) }} previsto</div></div>
-  <div class="card"><div class="rot">Vencidos (todas as competências)</div><div class="num">{{ brl($p['vencido_receber'] + $p['vencido_pagar']) }}</div><div class="det">{{ brl($p['vencido_receber']) }} a receber · {{ brl($p['vencido_pagar']) }} a pagar</div></div>
-  <div class="card"><div class="rot">Saldo em contas</div><div class="num">{{ brl($p['saldo_contas']) }}</div><div class="det">{{ $p['nao_conciliadas'] }} linha(s) de extrato a conciliar</div></div>
-</section>
-
-<nav class="filtros" aria-label="Filtrar lançamentos">
-  @foreach (['' => 'Todos', 'receber' => 'A receber', 'pagar' => 'A pagar'] as $k => $r)
-    <a href="{{ request()->fullUrlWithQuery(['tipo' => $k ?: null]) }}" @class(['ativo' => ($tipo ?? '') === $k])>{{ $r }}</a>
-  @endforeach
-  <span style="width:12px"></span>
-  @foreach (['' => 'Qualquer situação', 'aberto' => 'Em aberto', 'parcial' => 'Parcial', 'vencido' => 'Vencidos', 'liquidado' => 'Liquidados', 'cancelado' => 'Cancelados'] as $k => $r)
-    <a href="{{ request()->fullUrlWithQuery(['situacao' => $k ?: null]) }}" @class(['ativo' => ($situacao ?? '') === $k])>{{ $r }}</a>
-  @endforeach
-</nav>
+<form method="get" class="filtros-barra" role="search">
+  @if ($tipo)<input type="hidden" name="tipo" value="{{ $tipo }}">@endif
+  <input type="hidden" name="competencia" value="{{ $competencia->format('Y-m') }}">
+  <input type="search" name="q" value="{{ $busca }}" placeholder="Buscar descrição, fornecedor, documento…" aria-label="Buscar">
+  <select name="situacao" aria-label="Situação">
+    <option value="">Qualquer situação</option>
+    @foreach (['aberto' => 'Em aberto', 'parcial' => 'Parcial', 'vencido' => 'Vencidos', 'liquidado' => 'Liquidados', 'cancelado' => 'Cancelados'] as $k => $r)
+      <option value="{{ $k }}" @selected($situacao === $k)>{{ $r }}</option>@endforeach
+  </select>
+  <select name="categoria" aria-label="Categoria">
+    <option value="">Todas as categorias</option>
+    @foreach ($categorias->when($tipo, fn ($c) => $c->where('tipo', $tipo === 'receber' ? 'receita' : 'despesa')) as $c)
+      <option value="{{ $c->id }}" @selected($categoriaId === $c->id)>{{ $c->nome }}</option>@endforeach
+  </select>
+  <select name="periodo" aria-label="Período">
+    <option value="">Só esta competência</option>
+    <option value="todos" @selected($todos)>Todas as competências</option>
+  </select>
+  <button class="sec">Filtrar</button>
+  @if ($busca || $situacao || $categoriaId || $todos)<a href="{{ route('financeiro.index', array_filter(['tipo' => $tipo, 'competencia' => $competencia->format('Y-m')])) }}" class="limpar">Limpar filtros</a>@endif
+</form>
 
 <div class="tabela"><table>
-  <thead><tr><th>Lançamento</th><th>Categoria</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Saldo</th><th>Situação</th><th></th></tr></thead>
+  <thead><tr><th>Lançamento</th><th>Categoria</th><th>Competência</th><th>Vencimento</th><th class="n">Valor</th><th class="n">Em aberto</th><th>Situação</th></tr></thead>
   <tbody>
   @forelse ($titulos as $t)
-    <tr>
-      <td><span class="tag rotulo">{{ $t->receber() ? 'Receber' : 'Pagar' }}</span> {{ $t->descricao }}
+    <tr class="linha-link">
+      <td><a href="{{ route('financeiro.titulo', $t) }}">{{ $t->descricao }}</a> @unless ($tipo)<span class="tag rotulo">{{ $t->receber() ? 'Receita' : 'Despesa' }}</span>@endunless
         @if ($t->contraparte)<br><span class="sub" style="font-size:12.5px">{{ $t->contraparte }}</span>@endif</td>
       <td>{{ $t->categoria?->nome ?? '—' }}</td>
-      <td>{{ $t->parcelas->first()?->vencimento->format('d/m/Y') }}@if ($t->parcelas->count() > 1)<span class="sub" style="font-size:12.5px"> · {{ $t->parcelas->count() }} parcelas</span>@endif</td>
+      <td>{{ $t->competencia->format('m/Y') }}</td>
+      <td>{{ $t->parcelas->first()?->vencimento->format('d/m/Y') }}@if ($t->parcelas->count() > 1)<span class="sub" style="font-size:12.5px"> · {{ $t->parcelas->count() }}x</span>@endif</td>
       <td class="n">{{ brl($t->valor_total_centavos) }}</td>
       <td class="n">{{ $t->cancelado() ? '—' : brl($t->saldo()) }}</td>
       <td>@include('financeiro._situacao')</td>
-      <td><a href="{{ route('financeiro.titulo', $t) }}">Abrir</a></td>
     </tr>
   @empty
-    <tr><td colspan="7" class="vazio">Nenhum lançamento nesta competência.</td></tr>
+    <tr><td colspan="7" class="vazio">Nenhum lançamento com esses filtros.</td></tr>
   @endforelse
   </tbody>
 </table></div>

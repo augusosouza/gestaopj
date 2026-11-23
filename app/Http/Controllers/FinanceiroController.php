@@ -37,11 +37,17 @@ class FinanceiroController extends Controller
         $competencia = Competencia::de($request->query('competencia'));
         $tipo = in_array($request->query('tipo'), ['receber', 'pagar'], true) ? $request->query('tipo') : null;
         $situacao = in_array($request->query('situacao'), ['aberto', 'parcial', 'liquidado', 'vencido', 'cancelado'], true) ? $request->query('situacao') : null;
+        $todos = $request->query('periodo') === 'todos';
+        $busca = trim((string) $request->query('q'));
+        $categoriaId = $request->integer('categoria') ?: null;
 
         $titulos = Titulo::with('parcelas.movimentos.estornoDe', 'categoria')
-            ->whereDate('competencia', $competencia)
+            ->when(! $todos, fn ($q) => $q->whereDate('competencia', $competencia))
             ->when($tipo, fn ($q) => $q->where('tipo', $tipo))
-            ->orderBy('tipo')->orderBy('id')->get()
+            ->when($categoriaId, fn ($q) => $q->where('categoria_id', $categoriaId))
+            ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w->where('descricao', 'like', "%{$busca}%")
+                ->orWhere('contraparte', 'like', "%{$busca}%")->orWhere('documento', 'like', "%{$busca}%")))
+            ->orderBy('competencia')->orderBy('id')->limit(500)->get()
             ->filter(fn (Titulo $t) => match ($situacao) {
                 null => true,
                 'vencido' => $t->vencido(),
@@ -50,13 +56,25 @@ class FinanceiroController extends Controller
 
         return view('financeiro.index', [
             'titulos' => $titulos, 'competencia' => $competencia, 'tipo' => $tipo, 'situacao' => $situacao,
-            'p' => $this->fin->painel($competencia),
+            'todos' => $todos, 'busca' => $busca, 'categoriaId' => $categoriaId,
+            'categorias' => CategoriaFinanceira::orderBy('tipo')->orderBy('nome')->get(),
         ]);
     }
 
+    /** Painel financeiro: Resumo, Fluxo de caixa e Despesas (FIN-UI-01). */
     public function painel(Request $request): View
     {
-        return $this->index($request); // substituído pelo painel completo (FIN-UI-01)
+        $this->fin->garantirPadroes(ctx()->organizacaoId());
+        $competencia = Competencia::de($request->query('competencia'));
+        $aba = in_array($request->query('aba'), ['resumo', 'fluxo', 'despesas'], true) ? $request->query('aba') : 'resumo';
+
+        return view('financeiro.painel', [
+            'aba' => $aba, 'competencia' => $competencia, 'p' => $this->fin->painel($competencia),
+            'acoes' => $aba === 'resumo' ? $this->fin->acoesNecessarias() : [],
+            'fluxo' => $aba === 'fluxo' ? $this->fin->fluxoCaixa(12) : [],
+            'categorias' => $aba === 'despesas' ? $this->fin->despesasPorCategoria($competencia) : collect(),
+            'favorecidos' => $aba === 'despesas' ? $this->fin->maioresFavorecidos($competencia) : collect(),
+        ]);
     }
 
     public function create(Request $request): View
@@ -93,13 +111,16 @@ class FinanceiroController extends Controller
         return redirect()->route('financeiro.titulo', $t)->with('ok', 'Lançamento criado.');
     }
 
-    public function show(Titulo $titulo): View
+    public function show(Request $request, Titulo $titulo): View
     {
+        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'historico'], true) ? $request->query('aba') : 'resumo';
         $titulo->load('parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
             'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
 
+        $historico = Evento::with('user')->where('alvo_type', $titulo->getMorphClass())->where('alvo_id', $titulo->id)->latest('id')->get();
+
         return view('financeiro.titulo', [
-            't' => $titulo,
+            't' => $titulo, 'aba' => $aba, 'historico' => $historico,
             'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(),
             'chave' => (string) Str::uuid(), // trava contra duplo envio do formulário de baixa
         ]);

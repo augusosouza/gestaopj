@@ -51,6 +51,10 @@
             @endforeach
           </details>
         @endforeach
+        @if ($menu['config'])
+          <a href="{{ $menu['config']['url'] }}" @class(['menu-raiz', 'ativo' => $menu['config']['ativo']])>
+            @include('partials.icone', ['nome' => 'administracao']) <span>Configurações</span></a>
+        @endif
       </nav>
       <script>
         // Lembra os grupos abertos (preferência só deste navegador). Falha em silêncio se o armazenamento estiver bloqueado.

@@ -1,9 +1,11 @@
 @extends('layouts.app')
 @section('titulo', 'Empresa')
 @section('conteudo')
-<h1>{{ $empresa->razao_social }}</h1>
-<p class="sub"><span class="mono">{{ doc($empresa->cnpj) }}</span> · emitente das notas aos clientes e tomadora das notas dos prestadores</p>
-<div class="duas">
+<x-cabecalho :trilha="['Configurações' => route('configuracoes'), 'Empresa' => null]" :titulo="$empresa->razao_social"
+  :sub="'CNPJ '.doc($empresa->cnpj).' · emitente das notas aos clientes e tomadora das notas dos prestadores'" />
+<x-abas :itens="[['Dados gerais', route('organizacao.show'), $aba === 'dados'], ['Escritório contábil', route('organizacao.show', ['aba' => 'escritorio']), $aba === 'escritorio']]" />
+<div style="max-width:720px">
+  @if ($aba === 'dados')
   <form method="post" action="{{ route('organizacao.update') }}" class="painel">
     @csrf @method('put')
     <strong>Dados cadastrais</strong>
@@ -15,7 +17,7 @@
     <p class="sub">O CNPJ identifica a empresa e não é editável aqui.</p>
     <button>Salvar</button>
   </form>
-
+  @else
   <div class="painel">
     <strong>Escritório contábil</strong>
     <p class="sub">O escritório autorizado vê contratos, notas, pagamentos e exporta o fechamento desta empresa. Revogar corta o acesso imediatamente.</p>
@@ -34,5 +36,6 @@
       <button>Autorizar</button>
     </form>
   </div>
+  @endif
 </div>
 @endsection
