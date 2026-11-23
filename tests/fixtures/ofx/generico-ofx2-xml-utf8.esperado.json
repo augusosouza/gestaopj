@@ -1,0 +1,22 @@
+{
+ "descricao": "OFX 2.11 (XML) com fechamento de tags, UTF-8, NAME + MEMO (formato usado por bancos digitais)",
+ "conferido": true,
+ "periodo": [
+  "2026-11-01",
+  "2026-11-30"
+ ],
+ "saldo_banco": 140010,
+ "saldo_em": "2026-11-30",
+ "linhas": [
+  [
+   "2026-11-03",
+   150000,
+   "CLIENTE B PIX RECEBIDO"
+  ],
+  [
+   "2026-11-28",
+   -9990,
+   "DÉBITO AUTOMÁTICO"
+  ]
+ ]
+}

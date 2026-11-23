@@ -17,9 +17,14 @@ class ExportacaoTest extends TestCase
 {
     use ComContexto, RefreshDatabase;
 
+    private string $pasta;
+
     protected function setUp(): void
     {
         parent::setUp();
+        // Pasta própria desta execução: testes em paralelo (ex.: Infection) não apagam o arquivo um do outro.
+        $this->pasta = sys_get_temp_dir().'/augi-exportacoes-'.getmypid().'-'.uniqid();
+        config(['gestao.pasta_exportacoes' => $this->pasta]);
         $this->travelTo(CarbonImmutable::parse('2026-11-20 10:00'));
         $this->seed(DatabaseSeeder::class);
         DB::table('titulos')->update(['cancelado_em' => now()]);
@@ -33,7 +38,8 @@ class ExportacaoTest extends TestCase
 
     protected function tearDown(): void
     {
-        array_map('unlink', glob(storage_path('app/private/exportacoes/*')) ?: []); // respostas de teste não são "enviadas"
+        array_map('unlink', glob($this->pasta.'/*') ?: []); // respostas de teste não são "enviadas"
+        @rmdir($this->pasta);
         parent::tearDown();
     }
 
@@ -108,14 +114,14 @@ class ExportacaoTest extends TestCase
         $this->assertFileDoesNotExist($arquivo);
 
         // Download interrompido: a limpeza agendada apaga o que tiver mais de 1 hora.
-        $velho = storage_path('app/private/exportacoes/velho.xlsx');
-        $novo = storage_path('app/private/exportacoes/novo.xlsx');
+        $velho = $this->pasta.'/velho.xlsx';
+        $novo = $this->pasta.'/novo.xlsx';
         file_put_contents($velho, 'x');
         file_put_contents($novo, 'x');
         touch($velho, time() - 7200);
         $this->artisan('exportacoes:limpar')->assertSuccessful();
         $this->assertFileDoesNotExist($velho);
         $this->assertFileExists($novo);
-        array_map('unlink', glob(storage_path('app/private/exportacoes/*')));
+
     }
 }

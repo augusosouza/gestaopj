@@ -1,0 +1,27 @@
+{
+ "descricao": "Itaú — OFX 1.02 (SGML), CP-1252, & sem escape, fuso [-3:BRT], vírgula decimal, CRLF (sintético no formato do banco)",
+ "conferido": true,
+ "periodo": [
+  "2026-11-01",
+  "2026-11-19"
+ ],
+ "saldo_banco": 1024100,
+ "saldo_em": "2026-11-19",
+ "linhas": [
+  [
+   "2026-11-05",
+   -125050,
+   "PIX ENVIADO FORNECEDOR A & CIA"
+  ],
+  [
+   "2026-11-10",
+   400000,
+   "TED RECEBIDA CLIENTE AÇÚCAR"
+  ],
+  [
+   "2026-11-19",
+   -850,
+   "TARIFA PACOTE SERVIÇOS"
+  ]
+ ]
+}

@@ -112,6 +112,16 @@ Cada data tem o seu lugar:
 
 **Ainda não feito** (próximas etapas): orçamentos e metas, centros de custo e rateio, subcategorias e etiquetas, aprovação por alçada, relatórios/DRE gerencial e exportação, filtros salvos e personalização do painel, prévia antes de importar extrato, conciliação de uma linha com várias baixas, pagamento parcial e parcelamento de fatura de cartão, devolução parcial de compra, anexos (comprovantes), lembretes de cobrança por e-mail/WhatsApp, portal do pagador, integração bancária (boletos/Pix) e IA generativa opcional.
 
+## Financeiro 2.1 — estabilização
+
+- **Gráficos** em componentes reutilizáveis (`<x-grafico.linha|barras|colunas>`, SVG no servidor, sem JavaScript), com as cores aprovadas por tipo de valor — receitas (esmeralda), despesas (coral), saldos (azul), pendências (âmbar), projeções (roxo, tracejado), comparativos (ciano) — validadas para daltonismo nos modos claro e escuro. Ver `docs/graficos.md`.
+- **Exportação XLSX/CSV** (Spatie Simple Excel) de lançamentos (com os filtros da tela), compras, inadimplência e Meu Caixa. CSV no padrão brasileiro. Arquivo temporário privado, apagado após o envio; exportação auditada.
+- **Anexos** (comprovantes, notas, boletos) em lançamentos e compras: disco privado por empresa, tipo conferido pelo conteúdo do arquivo, sha256, auditoria; bloqueados em mês fechado pelo contador. Decisão contra a Media Library em `docs/anexos-comparativo.md`.
+- **Saúde do sistema** (Administração Augi): Laravel Health (banco, cache, agendador, disco, backup recente) e Schedule Monitor (histórico de cada rotina). Falhas viram notificação do admin da plataforma. Após cada atualização: `php artisan schedule-monitor:sync`.
+- **Extratos OFX**: casos de teste no formato real dos bancos e `php artisan ofx:anonimizar` para incluir arquivos reais sem dados pessoais (`tests/fixtures/ofx/LEIA-ME.md`).
+- **Qualidade**: teste de mutação (Infection) no CI com controle contra medição falsa; 96% nos serviços de Compras e Meu Caixa (meta 80%). Ver `docs/qualidade.md`.
+- **PHP 8.3** mantido; o workflow de testes também roda em 8.4/8.5 para antecipar a futura atualização.
+
 ## Navegação e configurações
 
 - **Menu por grupos** (Operação, Financeiro — com seções Visão geral, Movimentações, Recebimentos, Pagamentos, Bancos e análises —, Fiscal, Inteligência, Contabilidade, Administração, Administração Augi), montado conforme o papel em `App\Support\Menu`. O grupo da página atual abre sozinho; os demais lembram a escolha no navegador.
@@ -193,7 +203,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (130 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
+Testes: `php artisan test` (182 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

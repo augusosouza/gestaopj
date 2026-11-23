@@ -1,0 +1,66 @@
+name: Qualidade (teste de mutação)
+
+# Mede se os testes detectam alterações nas regras financeiras críticas
+# (Compras e Meu Caixa). Meta aprovada: pelo menos 80% de detecção.
+# Roda em PHP 8.3, a versão de produção (cPanel).
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'ccr-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutacao:
+    runs-on: ubuntu-latest
+    name: Infection (PHP 8.3)
+    env:
+      # Obrigatório: o laravel/pao troca a saída do PHPUnit por JSON quando detecta
+      # um agente, e o Infection passaria a contar tudo como "detectado".
+      PAO_DISABLE: 1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, sodium, intl, fileinfo
+          coverage: pcov
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+
+      # Controle: mutações que não mudam nada (--noop) têm de dar 0%.
+      # Se der mais que isso, a medição está quebrada (ex.: saída do PHPUnit
+      # alterada) e o resultado real não seria confiável.
+      - name: Controle da medição (noop)
+        run: |
+          vendor/bin/infection --filter=app/Services/Compras.php,app/Services/PosicaoFinanceira.php --only-covering-test-cases \
+            --threads=max --no-progress --noop --min-covered-msi=0 --logger-summary-json=build/noop.json
+          php -r '$s = json_decode(file_get_contents("build/noop.json"), true)["stats"]; if ($s["killedCount"] > 0) { fwrite(STDERR, "Medição inválida: {$s["killedCount"]} mutações neutras contadas como detectadas.\n"); exit(1); }'
+
+      - name: Teste de mutação (mínimo 80%)
+        run: |
+          vendor/bin/infection --filter=app/Services/Compras.php,app/Services/PosicaoFinanceira.php \
+            --only-covering-test-cases --threads=max --no-progress --min-covered-msi=80
+
+      - name: Relatório
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: infection
+          path: build/infection/
+          if-no-files-found: ignore

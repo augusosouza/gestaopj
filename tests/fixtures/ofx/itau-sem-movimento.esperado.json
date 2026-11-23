@@ -1,0 +1,11 @@
+{
+ "descricao": "Período sem lançamentos: comprova a cobertura do extrato; saldo negativo",
+ "conferido": true,
+ "periodo": [
+  "2026-11-01",
+  "2026-11-15"
+ ],
+ "saldo_banco": -3520,
+ "saldo_em": "2026-11-15",
+ "linhas": []
+}

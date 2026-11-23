@@ -160,3 +160,20 @@ Nenhuma alteração em `titulos`, `parcelas`, `movimentos` ou nas tabelas do Fin
 2. **Paleta dos gráficos:** manter preto/vermelho/branco ou adotar a paleta colorida?
 3. **Anexos:** Media Library adaptada ou modelo próprio? (decidir pela prova de conceito)
 4. **Arquivos OFX reais** do Itaú para validar o importador.
+
+---
+
+## Situação após a aprovação (23/11/2026)
+
+| Item | Decisão aprovada | Situação |
+|---|---|---|
+| PHP | Manter 8.3 | Mantido. Workflow de testes já roda 8.4/8.5 para a futura atualização. |
+| Simple Excel | Adotar | **Feito** — exportações XLSX/CSV (2 pacotes, nenhum outro alterado). |
+| Laravel Health | Adotar (adaptado) | **Feito** — verificação de disco própria (sem `df`). |
+| Schedule Monitor | Adotar | **Feito** — 2 tabelas; `schedule-monitor:sync` no deploy. |
+| Infection | Adotar (dev/CI) | **Feito** — 96% no escopo; CI com controle de medição. |
+| Media Library | Prova comparativa | **Descartada** pela prova — anexos com armazenamento próprio (`docs/anexos-comparativo.md`). |
+| Chart.js | Descartar; padronizar | **Feito** — componentes SVG com paleta aprovada (`docs/graficos.md`). |
+| OFX | Manter parser próprio | **Mantido** — casos de teste por formato + `ofx:anonimizar` para arquivos reais. |
+| Pennant, Brick Money | Adiar | Adiados. |
+| Query Builder, Filament, OFX externo | Descartar | Descartados. |

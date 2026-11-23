@@ -35,7 +35,7 @@ final class Exportacao
             'inadimplencia' => $this->inadimplencia(),
             'caixa' => $this->caixa($request),
         };
-        $dir = storage_path('app/private/exportacoes');
+        $dir = self::pasta();
         is_dir($dir) || mkdir($dir, 0750, true);
         $caminho = $dir.'/'.Str::uuid().'.'.$formato;
         $w = $formato === 'csv' ? SimpleExcelWriter::create($caminho, 'csv', delimiter: ';', shouldAddBom: true) : SimpleExcelWriter::create($caminho, 'xlsx');
@@ -51,6 +51,12 @@ final class Exportacao
         Evento::registrar('financeiro.exportado', $org, ['relatorio' => self::RELATORIOS[$relatorio], 'formato' => $formato, 'linhas' => $n]);
 
         return [$caminho, Str::slug(self::RELATORIOS[$relatorio]).'-'.now()->format('Y-m-d').'.'.$formato];
+    }
+
+    /** Pasta privada dos temporários (configurável para isolar execuções paralelas de teste). */
+    public static function pasta(): string
+    {
+        return config('gestao.pasta_exportacoes') ?: storage_path('app/private/exportacoes');
     }
 
     /** Dinheiro vem como ['R', centavos]; no XLSX vira número, no CSV texto com vírgula. */

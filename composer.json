@@ -78,6 +78,10 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "mutacao": [
+            "@putenv PAO_DISABLE=1",
+            "@php -d pcov.enabled=1 vendor/bin/infection --filter=app/Services/Compras.php,app/Services/PosicaoFinanceira.php --only-covering-test-cases --threads=max --no-progress --min-covered-msi=80"
         ]
     },
     "extra": {

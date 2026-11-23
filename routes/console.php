@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Vinculo;
 use App\Services\Backup\Backups;
 use App\Services\Backup\ConfigBackup;
+use App\Services\Exportacao;
 use App\Services\Faturamento;
 use App\Services\Financeiro;
 use App\Services\LembretesBancarios;
@@ -131,7 +132,7 @@ Schedule::command('financeiro:lembretes')->hourly();
 Artisan::command('exportacoes:limpar', function () {
     // Download que falhou no meio (conexão caiu) deixa o temporário: apaga os com mais de 1 hora.
     $n = 0;
-    foreach (glob(storage_path('app/private/exportacoes/*')) ?: [] as $f) {
+    foreach (glob(Exportacao::pasta().'/*') ?: [] as $f) {
         if (is_file($f) && filemtime($f) < time() - 3600 && unlink($f)) {
             $n++;
         }
