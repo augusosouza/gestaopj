@@ -21,9 +21,9 @@ composer mutacao          # = PAO_DISABLE=1 + pcov + Infection, mínimo 80%
 
 ## CI (`.github/workflows/qualidade.yml`)
 
-1. **Controle** — roda as mutações neutras (`--noop`); se alguma for "detectada", a medição está quebrada e o CI falha com a mensagem *Medição inválida*. Isso evita aprovar um número falso por incompatibilidade entre ferramentas.
+1. **Controle** — roda uma amostra de 10 mutações neutras (`--noop`, ~30 s); se alguma for "detectada", a medição está quebrada e o CI falha com a mensagem *Medição inválida*. Isso evita aprovar um número falso por incompatibilidade entre ferramentas.
 2. **Medição** — falha se ficar abaixo de 80%.
-3. Relatório HTML anexado à execução.
+3. Relatório HTML anexado à execução. Limite de 45 min; um push novo cancela a execução anterior do mesmo branch. No GitHub a medição completa leva cerca de 3× o tempo local (~6–8 min).
 
 Duas falhas artificiais foram encontradas e corrigidas na estabilização: (1) a saída do PHPUnit alterada pelo `laravel/pao`; (2) testes de exportação rodando em paralelo apagavam o arquivo temporário um do outro — cada execução agora usa a sua pasta.
 

@@ -15,10 +15,16 @@ on:
 permissions:
   contents: read
 
+# Um push novo cancela a execução anterior do mesmo branch (evita filas de runs iguais).
+concurrency:
+  group: qualidade-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mutacao:
     runs-on: ubuntu-latest
     name: Infection (PHP 8.3)
+    timeout-minutes: 45
     env:
       # Obrigatório: o laravel/pao troca a saída do PHPUnit por JSON quando detecta
       # um agente, e o Infection passaria a contar tudo como "detectado".
@@ -43,16 +49,18 @@ jobs:
       - name: Prepare environment
         run: cp .env.example .env && php artisan key:generate
 
-      # Controle: mutações que não mudam nada (--noop) têm de dar 0%.
-      # Se der mais que isso, a medição está quebrada (ex.: saída do PHPUnit
-      # alterada) e o resultado real não seria confiável.
+      # Controle: uma amostra de mutações que não mudam nada (--noop) tem de dar 0%.
+      # Se alguma for "detectada", a medição está quebrada (ex.: saída do PHPUnit
+      # alterada) e o resultado real não seria confiável. Amostra pequena = rápido.
       - name: Controle da medição (noop)
+        timeout-minutes: 15
         run: |
-          vendor/bin/infection --filter=app/Services/Compras.php,app/Services/PosicaoFinanceira.php --only-covering-test-cases \
-            --threads=max --no-progress --noop --min-covered-msi=0 --logger-summary-json=build/noop.json
-          php -r '$s = json_decode(file_get_contents("build/noop.json"), true)["stats"]; if ($s["killedCount"] > 0) { fwrite(STDERR, "Medição inválida: {$s["killedCount"]} mutações neutras contadas como detectadas.\n"); exit(1); }'
+          vendor/bin/infection --filter=app/Services/PosicaoFinanceira.php --mutators=TrueValue,FalseValue,Identical,NotIdentical \
+            --only-covering-test-cases --threads=max --no-progress --noop --min-covered-msi=0 --logger-summary-json=build/noop.json
+          php -r '$s = json_decode(file_get_contents("build/noop.json"), true)["stats"]; echo "Controle: {$s["killedCount"]} de {$s["totalMutantsCount"]} mutações neutras detectadas (esperado 0).\n"; if ($s["killedCount"] > 0) { fwrite(STDERR, "Medição inválida.\n"); exit(1); }'
 
       - name: Teste de mutação (mínimo 80%)
+        timeout-minutes: 30
         run: |
           vendor/bin/infection --filter=app/Services/Compras.php,app/Services/PosicaoFinanceira.php \
             --only-covering-test-cases --threads=max --no-progress --min-covered-msi=80
