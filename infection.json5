@@ -1,0 +1,35 @@
+{
+    // Teste de mutação dos serviços financeiros críticos.
+    // Rodar com: PAO_DISABLE=1 php -d pcov.enabled=1 vendor/bin/infection
+    // PAO_DISABLE=1 é obrigatório: o laravel/pao troca a saída do PHPUnit por JSON
+    // dentro de agentes, e o Infection passaria a contar tudo como "detectado".
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": ["app/Services"],
+        "excludes": ["Backup", "Nfse", "Receita"]
+    },
+    "timeout": 30,
+    "logs": {
+        "text": "build/infection/infection.log",
+        "summary": "build/infection/summary.log",
+        "html": "build/infection/infection.html"
+    },
+    "mutators": {
+        "@default": true,
+        // Textos de mensagens para o usuário: mudar a frase não muda regra de negócio.
+        "Concat": false,
+        "ConcatOperandRemoval": false,
+        // Conversões de tipo sobre valores que já têm o tipo (somas de inteiros, entrada já validada):
+        // a mutação não muda o resultado (mutação equivalente).
+        "CastInt": false,
+        "CastString": false,
+        "CastFloat": false,
+        // organizacao_id é preenchido pelo escopo multiempresa (DaOrganizacao) quando omitido:
+        // removê-lo do array não muda o registro gravado.
+        "ArrayItemRemoval": {
+            "ignoreSourceCodeByRegex": [".*'organizacao_id' => \\$(orgId|cartao->organizacao_id).*"]
+        }
+    },
+    "testFramework": "phpunit",
+    "minCoveredMsi": 80
+}

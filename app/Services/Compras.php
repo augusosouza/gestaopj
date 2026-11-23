@@ -174,7 +174,7 @@ final class Compras
             }
             foreach ($abertas as $p) {
                 $this->fin->baixar($p, ['conta_id' => $contaId, 'data' => $data, 'valor' => $p->saldo(), 'via_fatura' => true,
-                    'chave' => $chave ? substr(hash('sha256', $chave.'|'.$p->id), 0, 64) : null,
+                    'chave' => $chave ? hash('sha256', $chave.'|'.$p->id) : null, // sha256 em hex = 64 caracteres, o tamanho da coluna
                     'observacao' => 'Pagamento da fatura '.$fatura->cartao->nome.' '.$fatura->rotulo()]);
             }
             if ($encargos > 0) {

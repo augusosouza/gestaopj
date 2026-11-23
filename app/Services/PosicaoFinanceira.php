@@ -22,7 +22,8 @@ final class PosicaoFinanceira
     public function abertas(): Collection
     {
         return Parcela::with(['titulo' => fn ($q) => $q->withCount('parcelas'), 'movimentos.estornoDe', 'fatura.cartao'])
-            ->whereHas('titulo', fn ($q) => $q->whereNull('cancelado_em'))->get()
+            ->whereHas('titulo', fn ($q) => $q->whereNull('cancelado_em'))
+            ->orderBy('vencimento')->orderBy('id')->get() // ordem explícita: não depende do índice usado pelo banco
             ->filter(fn (Parcela $p) => $p->saldo() > 0)->values();
     }
 
