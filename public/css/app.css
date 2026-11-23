@@ -361,3 +361,4 @@ table.itens td { padding: 3px 6px 3px 0; }
 .legenda i { width: 10px; height: 10px; border-radius: 2px; background: var(--cor); display: inline-block; }
 /* Indicador: um fio colorido identifica o tipo de valor; o número continua na cor do texto. */
 .card[class*="serie-"] { box-shadow: inset 0 3px 0 var(--cor); }
+.exportar { display: inline-flex; gap: 6px; }

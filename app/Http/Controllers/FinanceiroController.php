@@ -40,28 +40,43 @@ class FinanceiroController extends Controller
         $situacao = in_array($request->query('situacao'), ['aberto', 'parcial', 'liquidado', 'vencido', 'cancelado'], true) ? $request->query('situacao') : null;
         $todos = $request->query('periodo') === 'todos';
         $busca = trim((string) $request->query('q'));
-        $semCategoria = $request->query('categoria') === 'nenhuma';
-        $categoriaId = $semCategoria ? null : ($request->integer('categoria') ?: null);
-
-        $titulos = Titulo::with('parcelas.movimentos.estornoDe', 'categoria')
-            ->when(! $todos, fn ($q) => $q->whereDate('competencia', $competencia))
-            ->when($tipo, fn ($q) => $q->where('tipo', $tipo))
-            ->when($categoriaId, fn ($q) => $q->where('categoria_id', $categoriaId))
-            ->when($semCategoria, fn ($q) => $q->whereNull('categoria_id')->whereNull('cancelado_em'))
-            ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w->where('descricao', 'like', "%{$busca}%")
-                ->orWhere('contraparte', 'like', "%{$busca}%")->orWhere('documento', 'like', "%{$busca}%")))
-            ->orderBy('competencia')->orderBy('id')->limit(500)->get()
-            ->filter(fn (Titulo $t) => match ($situacao) {
-                null => true,
-                'vencido' => $t->vencido(),
-                default => $t->situacao() === $situacao,
-            })->values();
+        $categoriaId = $request->integer('categoria') ?: null;
+        $titulos = self::filtrar($request);
 
         return view('financeiro.index', [
             'titulos' => $titulos, 'competencia' => $competencia, 'tipo' => $tipo, 'situacao' => $situacao,
             'todos' => $todos, 'busca' => $busca, 'categoriaId' => $categoriaId,
             'categorias' => CategoriaFinanceira::orderBy('tipo')->orderBy('nome')->get(),
         ]);
+    }
+
+    /**
+     * Filtros da lista de lançamentos. Usado pela tela e pela exportação: o arquivo
+     * exportado tem exatamente as linhas que a pessoa está vendo.
+     */
+    public static function filtrar(Request $request, int $limite = 500)
+    {
+        $competencia = Competencia::de($request->query('competencia'));
+        $tipo = in_array($request->query('tipo'), ['receber', 'pagar'], true) ? $request->query('tipo') : null;
+        $situacao = in_array($request->query('situacao'), ['aberto', 'parcial', 'liquidado', 'vencido', 'cancelado'], true) ? $request->query('situacao') : null;
+        $todos = $request->query('periodo') === 'todos';
+        $busca = trim((string) $request->query('q'));
+        $semCategoria = $request->query('categoria') === 'nenhuma';
+        $categoriaId = $semCategoria ? null : ($request->integer('categoria') ?: null);
+
+        return Titulo::with('parcelas.movimentos.estornoDe', 'categoria')
+            ->when(! $todos, fn ($q) => $q->whereDate('competencia', $competencia))
+            ->when($tipo, fn ($q) => $q->where('tipo', $tipo))
+            ->when($categoriaId, fn ($q) => $q->where('categoria_id', $categoriaId))
+            ->when($semCategoria, fn ($q) => $q->whereNull('categoria_id')->whereNull('cancelado_em'))
+            ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w->where('descricao', 'like', "%{$busca}%")
+                ->orWhere('contraparte', 'like', "%{$busca}%")->orWhere('documento', 'like', "%{$busca}%")))
+            ->orderBy('competencia')->orderBy('id')->limit($limite)->get()
+            ->filter(fn (Titulo $t) => match ($situacao) {
+                null => true,
+                'vencido' => $t->vencido(),
+                default => $t->situacao() === $situacao,
+            })->values();
     }
 
     /** Painel financeiro: Resumo, Fluxo de caixa e Despesas (FIN-UI-01). */

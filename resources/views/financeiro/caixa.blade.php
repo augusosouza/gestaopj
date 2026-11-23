@@ -10,6 +10,7 @@
         <a href="{{ $q(['dias' => $h]) }}" @class(['ativo' => $dias === $h])>{{ $h }} dias</a>
       @endforeach
     </nav>
+    @include('partials.exportar', ['relatorio' => 'caixa'])
   </x-slot:acoes>
 </x-cabecalho>
 

@@ -13,6 +13,7 @@
   <x-slot:acoes>
     @unless ($todos)@include('partials.competencia')@endunless
     @if ($opera)<a class="botao" href="{{ route('financeiro.novo', ['tipo' => $tipo === 'receber' ? 'receber' : 'pagar']) }}">+ Novo lançamento</a>@endif
+    @include('partials.exportar', ['relatorio' => 'lancamentos'])
   </x-slot:acoes>
 </x-cabecalho>
 <x-abas :itens="[

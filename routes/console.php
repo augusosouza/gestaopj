@@ -126,3 +126,16 @@ Artisan::command('financeiro:lembretes', function (LembretesBancarios $l) {
 })->purpose('Verifica extratos desatualizados e conciliações pendentes e notifica os responsáveis.');
 
 Schedule::command('financeiro:lembretes')->hourly();
+
+Artisan::command('exportacoes:limpar', function () {
+    // Download que falhou no meio (conexão caiu) deixa o temporário: apaga os com mais de 1 hora.
+    $n = 0;
+    foreach (glob(storage_path('app/private/exportacoes/*')) ?: [] as $f) {
+        if (is_file($f) && filemtime($f) < time() - 3600 && unlink($f)) {
+            $n++;
+        }
+    }
+    $this->info("Exportações temporárias apagadas: {$n}");
+})->purpose('Apaga arquivos temporários de exportação com mais de 1 hora.');
+
+Schedule::command('exportacoes:limpar')->hourly();

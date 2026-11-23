@@ -62,6 +62,7 @@ class Evento extends Model
             'financeiro.fatura_cartao_paga' => 'Fatura do cartão paga',
             'financeiro.transferencia' => 'Transferência entre contas',
             'financeiro.transferencia_estornada' => 'Transferência estornada',
+            'financeiro.exportado' => 'Relatório exportado',
             'sugestao.dispensada' => 'Sugestão dispensada',
             'sugestao.adiada' => 'Sugestão adiada',
             'contabil.documento_baixado' => 'Documento baixado',

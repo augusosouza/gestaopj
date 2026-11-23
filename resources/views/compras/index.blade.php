@@ -5,7 +5,7 @@
 @php($url = fn ($a) => route('compras.index', array_filter(['aba' => $a, 'q' => $busca ?: null])))
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), 'Compras' => null]" titulo="Compras"
   sub="Aquisições de produtos e serviços, com parcelas, cartão, notas e garantia. Cada compra gera as parcelas a pagar — sem duplicar.">
-  <x-slot:acoes>@if ($opera)<a class="botao" href="{{ route('compras.create') }}">Nova compra</a>@endif</x-slot:acoes>
+  <x-slot:acoes>@include('partials.exportar', ['relatorio' => 'compras']) @if ($opera)<a class="botao" href="{{ route('compras.create') }}">Nova compra</a>@endif</x-slot:acoes>
 </x-cabecalho>
 <x-abas :itens="[
   ['Resumo', $url('resumo'), $aba === 'resumo'],

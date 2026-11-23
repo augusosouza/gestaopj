@@ -15,6 +15,7 @@ use App\Http\Controllers\ContabilController;
 use App\Http\Controllers\ContextoController;
 use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\EscritorioController;
+use App\Http\Controllers\ExportacaoController;
 use App\Http\Controllers\FaturaController;
 use App\Http\Controllers\FinanceiroController;
 use App\Http\Controllers\InteligenciaController;
@@ -150,6 +151,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/transferencias', [TransferenciaController::class, 'index'])->name('transferencias.index');
             Route::get('/inteligencia/assistente', [InteligenciaController::class, 'assistente'])->name('inteligencia.assistente');
             Route::get('/inteligencia/sugestoes', [InteligenciaController::class, 'sugestoes'])->name('inteligencia.sugestoes');
+            Route::get('/financeiro/exportar/{relatorio}', ExportacaoController::class)->middleware('throttle:20,1')->name('financeiro.exportar');
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
             Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');

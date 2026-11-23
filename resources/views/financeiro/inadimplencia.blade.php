@@ -2,7 +2,9 @@
 @section('titulo', 'Inadimplência')
 @section('conteudo')
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), 'Recebimentos' => route('financeiro.index', ['tipo' => 'receber']), 'Inadimplência' => null]"
-  titulo="Inadimplência" sub="Parcelas a receber vencidas e com saldo em aberto, por cliente e faixa de atraso." />
+  titulo="Inadimplência" sub="Parcelas a receber vencidas e com saldo em aberto, por cliente e faixa de atraso.">
+  <x-slot:acoes>@include('partials.exportar', ['relatorio' => 'inadimplencia'])</x-slot:acoes>
+</x-cabecalho>
 <x-abas :itens="[
   ['Em aberto', route('financeiro.index', ['tipo' => 'receber', 'situacao' => 'aberto', 'periodo' => 'todos']), false],
   ['Parciais', route('financeiro.index', ['tipo' => 'receber', 'situacao' => 'parcial', 'periodo' => 'todos']), false],
