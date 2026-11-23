@@ -53,6 +53,8 @@ class Evento extends Model
             'financeiro.conciliado' => 'Conciliado com o extrato',
             'financeiro.desconciliado' => 'Conciliação desfeita',
             'financeiro.extrato_importado' => 'Extrato importado',
+            'financeiro.lembrete_configurado' => 'Lembrete bancário configurado',
+            'financeiro.lembrete_dispensado' => 'Lembrete bancário dispensado',
             'contabil.documento_baixado' => 'Documento baixado',
             'contabil.enviada' => 'Empresa concluiu o envio',
             'contabil.solicitacao_criada' => 'Solicitação do contador',

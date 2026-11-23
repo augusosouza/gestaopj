@@ -11,7 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Ativa e revalida o contexto (vínculo + empresa) a cada requisição.
  *
- * Uso: 'contexto' (basta um vínculo válido) ou 'contexto:empresa' (exige empresa escolhida).
+ * Uso: 'contexto' (basta um vínculo válido), 'contexto:empresa' (exige empresa escolhida)
+ * ou 'contexto:opcional' (ativa se houver, nunca redireciona).
  */
 class ExigeContexto
 {
@@ -20,6 +21,19 @@ class ExigeContexto
     public function handle(Request $request, Closure $next, ?string $exige = null): Response
     {
         $valido = $this->ctx->ativar($request->user(), $request->session()->get('ctx'));
+
+        // 'opcional': usa o contexto se houver (para mostrar o menu), sem redirecionar nem exigir nada.
+        // Usado em páginas que precisam abrir mesmo sem contexto (segurança da conta, administração Augi).
+        if ($exige === 'opcional') {
+            if (! $valido) {
+                $this->ctx->desativar();
+            }
+            try {
+                return $next($request);
+            } finally {
+                $this->ctx->desativar();
+            }
+        }
 
         if (! $valido) {
             $tinha = $request->session()->has('ctx');

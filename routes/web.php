@@ -7,6 +7,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
+use App\Http\Controllers\ConfiguracoesController;
 use App\Http\Controllers\ContabilController;
 use App\Http\Controllers\ContextoController;
 use App\Http\Controllers\ContratoController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\EscritorioController;
 use App\Http\Controllers\FaturaController;
 use App\Http\Controllers\FinanceiroController;
 use App\Http\Controllers\NotaFiscalController;
+use App\Http\Controllers\NotificacaoController;
 use App\Http\Controllers\OrganizacaoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PerfilFiscalController;
@@ -40,15 +42,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/contexto', [ContextoController::class, 'escolher'])->name('contexto.escolher');
     Route::post('/contexto', [ContextoController::class, 'selecionar'])->name('contexto.selecionar');
 
-    // Segurança da conta (fora do contexto, para não bloquear quem precisa ativar o 2FA)
-    Route::get('/seguranca', [DoisFatoresController::class, 'seguranca'])->name('seguranca');
-    Route::post('/seguranca/2fa', [DoisFatoresController::class, 'iniciar'])->name('2fa.iniciar');
-    Route::post('/seguranca/2fa/confirmar', [DoisFatoresController::class, 'confirmar'])->name('2fa.confirmar');
-    Route::post('/seguranca/2fa/codigos', [DoisFatoresController::class, 'novosCodigos'])->name('2fa.codigos');
-    Route::delete('/seguranca/2fa', [DoisFatoresController::class, 'desativar'])->name('2fa.desativar');
+    // Notificações do usuário (todas as empresas em que atua)
+    Route::middleware('contexto:opcional')->group(function () {
+        Route::get('/notificacoes', [NotificacaoController::class, 'index'])->name('notificacoes.index');
+        Route::get('/notificacoes/{notificacao}', [NotificacaoController::class, 'abrir'])->whereNumber('notificacao')->name('notificacoes.abrir');
+        Route::post('/notificacoes/lidas', [NotificacaoController::class, 'marcarLidas'])->name('notificacoes.lidas');
+    });
+
+    // Segurança da conta: contexto opcional (mostra o menu, mas abre mesmo para quem precisa ativar o 2FA)
+    Route::middleware('contexto:opcional')->group(function () {
+        Route::get('/seguranca', [DoisFatoresController::class, 'seguranca'])->name('seguranca');
+        Route::post('/seguranca/2fa', [DoisFatoresController::class, 'iniciar'])->name('2fa.iniciar');
+        Route::post('/seguranca/2fa/confirmar', [DoisFatoresController::class, 'confirmar'])->name('2fa.confirmar');
+        Route::post('/seguranca/2fa/codigos', [DoisFatoresController::class, 'novosCodigos'])->name('2fa.codigos');
+        Route::delete('/seguranca/2fa', [DoisFatoresController::class, 'desativar'])->name('2fa.desativar');
+    });
 
     // Administração da plataforma (global, independe de empresa)
-    Route::middleware('plataforma')->group(function () {
+    Route::middleware(['contexto:opcional', 'plataforma'])->group(function () {
         Route::get('/plataforma/configuracoes', [PlataformaController::class, 'configuracoes'])->name('plataforma.configuracoes');
         Route::put('/plataforma/configuracoes', [PlataformaController::class, 'salvar'])->name('plataforma.salvar');
         Route::get('/plataforma/backups', [BackupController::class, 'index'])->name('plataforma.backups');
@@ -116,9 +127,11 @@ Route::middleware('auth')->group(function () {
         // Financeiro: empresa opera; escritório consulta.
         Route::middleware('papel:admin,financeiro,analista,revisor')->group(function () {
             Route::get('/financeiro', [FinanceiroController::class, 'index'])->name('financeiro.index');
+            Route::get('/financeiro/painel', [FinanceiroController::class, 'painel'])->name('financeiro.painel');
             Route::get('/financeiro/titulos/{titulo}', [FinanceiroController::class, 'show'])->name('financeiro.titulo');
             Route::get('/financeiro/contas', [FinanceiroController::class, 'contas'])->name('financeiro.contas');
             Route::get('/financeiro/contas/{conta}/conciliacao', [FinanceiroController::class, 'conciliacao'])->name('financeiro.conciliacao');
+            Route::get('/financeiro/contas/{conta}', [FinanceiroController::class, 'conta'])->name('financeiro.conta');
             Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
@@ -130,6 +143,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/contas', [FinanceiroController::class, 'salvarConta'])->name('financeiro.conta_salvar');
             Route::patch('/financeiro/contas/{conta}', [FinanceiroController::class, 'alternarConta'])->name('financeiro.conta_alternar');
             Route::post('/financeiro/contas/{conta}/extrato', [FinanceiroController::class, 'importar'])->name('financeiro.importar');
+            Route::put('/financeiro/contas/{conta}/lembrete', [FinanceiroController::class, 'salvarLembrete'])->name('financeiro.conta_lembrete');
+            Route::post('/financeiro/contas/{conta}/lembrete/dispensa', [FinanceiroController::class, 'dispensarLembrete'])->name('financeiro.conta_dispensar');
             Route::post('/financeiro/extrato/{linha}/conciliar', [FinanceiroController::class, 'conciliar'])->name('financeiro.conciliar');
             Route::post('/financeiro/extrato/{linha}/desconciliar', [FinanceiroController::class, 'desconciliar'])->name('financeiro.desconciliar');
             Route::post('/financeiro/extrato/{linha}/ignorar', [FinanceiroController::class, 'ignorar'])->name('financeiro.ignorar');
@@ -163,6 +178,7 @@ Route::middleware('auth')->group(function () {
 
         // Administração da empresa
         Route::middleware('papel:admin')->group(function () {
+            Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');
             Route::get('/empresa', [OrganizacaoController::class, 'show'])->name('organizacao.show');
             Route::put('/empresa', [OrganizacaoController::class, 'update'])->name('organizacao.update');
             Route::post('/empresa/escritorios', [OrganizacaoController::class, 'autorizarEscritorio'])->name('organizacao.autorizar');

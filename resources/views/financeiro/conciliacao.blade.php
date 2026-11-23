@@ -2,11 +2,12 @@
 @section('titulo', 'Conciliação · '.$conta->nome)
 @section('conteudo')
 @php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-<a class="voltar" href="{{ route('financeiro.contas') }}">← Contas</a>
+<x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), 'Contas e bancos' => route('financeiro.contas'), $conta->nome => route('financeiro.conta', $conta), 'Conciliação' => null]"
+  titulo="Conciliação" :sub="'Saldo no sistema hoje: '.brl($saldo).'. Extrato coberto até '.($conta->extrato_ate?->format('d/m/Y') ?? '—').'.'" />
 <div class="barra">
-  <div><h1>Conciliação · {{ $conta->nome }}</h1><p class="sub">Saldo no sistema hoje: <strong>{{ brl($saldo) }}</strong>. Compare com o saldo do extrato do banco.</p></div>
+  <div></div>
   @if ($opera)
-  <form method="post" action="{{ route('financeiro.importar', $conta) }}" enctype="multipart/form-data" class="acoes">
+  <form method="post" action="{{ route('financeiro.importar', $conta) }}" enctype="multipart/form-data" class="acoes" id="importar">
     @csrf
     <div><label for="arquivo">Extrato (OFX ou CSV: data;descrição;valor)</label><input id="arquivo" type="file" name="arquivo" required accept=".ofx,.qfx,.csv,.txt"></div>
     <button>Importar</button>

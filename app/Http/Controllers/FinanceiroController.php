@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Papel;
 use App\Models\CategoriaFinanceira;
 use App\Models\ContaFinanceira;
+use App\Models\Evento;
 use App\Models\ExtratoLinha;
 use App\Models\Movimento;
 use App\Models\Parcela;
 use App\Models\Titulo;
+use App\Models\User;
+use App\Models\Vinculo;
 use App\Services\Financeiro;
 use App\Services\ImportadorExtrato;
+use App\Services\LembretesBancarios;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -46,6 +52,11 @@ class FinanceiroController extends Controller
             'titulos' => $titulos, 'competencia' => $competencia, 'tipo' => $tipo, 'situacao' => $situacao,
             'p' => $this->fin->painel($competencia),
         ]);
+    }
+
+    public function painel(Request $request): View
+    {
+        return $this->index($request); // substituído pelo painel completo (FIN-UI-01)
     }
 
     public function create(Request $request): View
@@ -136,8 +147,11 @@ class FinanceiroController extends Controller
 
     public function contas(): View
     {
+        $l = app(LembretesBancarios::class);
+        $contas = ContaFinanceira::orderByDesc('ativa')->orderBy('nome')->get();
+
         return view('financeiro.contas', [
-            'contas' => ContaFinanceira::orderByDesc('ativa')->orderBy('nome')->get(),
+            'contas' => $contas, 'situacoes' => $contas->mapWithKeys(fn ($c) => [$c->id => $l->situacao($c)]),
             'pendentes' => ExtratoLinha::whereNull('movimento_id')->where('ignorada', false)->selectRaw('conta_id, count(*) n')->groupBy('conta_id')->pluck('n', 'conta_id'),
         ]);
     }
@@ -169,6 +183,52 @@ class FinanceiroController extends Controller
         return back()->with('ok', $conta->ativa ? 'Conta reativada.' : 'Conta desativada. O histórico continua disponível.');
     }
 
+    // ---------------- Conta: detalhe, lembrete e dispensa ----------------
+
+    public function conta(Request $request, ContaFinanceira $conta, LembretesBancarios $l): View
+    {
+        $aba = in_array($request->query('aba'), ['resumo', 'lembrete', 'importacoes'], true) ? $request->query('aba') : 'resumo';
+
+        return view('financeiro.conta', [
+            'conta' => $conta->load('responsavel'), 'aba' => $aba, 's' => $l->situacao($conta), 'saldo' => $conta->saldo(),
+            'importacoes' => $conta->importacoes()->with('enviadoPor')->limit(50)->get(),
+            'responsaveis' => User::whereIn('id', Vinculo::vigentes()->where('organizacao_id', ctx()->organizacaoId())
+                ->whereIn('papel', [Papel::Admin, Papel::Financeiro])->pluck('user_id'))->orderBy('name')->get(),
+        ]);
+    }
+
+    public function salvarLembrete(Request $request, ContaFinanceira $conta): RedirectResponse
+    {
+        $d = $request->validate([
+            'lembrete_ativo' => ['nullable', 'boolean'],
+            'lembrete_frequencia' => ['required', Rule::in(array_keys(ContaFinanceira::FREQUENCIAS))],
+            'lembrete_dia' => ['required', 'integer', $request->input('lembrete_frequencia') === 'mensal' ? 'between:1,28' : 'between:1,7'],
+            'lembrete_hora' => ['required', 'date_format:H:i'],
+            'lembrete_antecedencia' => ['required', 'integer', 'between:0,10'],
+            'lembrete_repetir_dias' => ['required', 'integer', 'between:1,14'],
+            'lembrete_responsavel_id' => ['nullable', Rule::exists('vinculos', 'user_id')->where('organizacao_id', ctx()->organizacaoId())],
+        ], ['lembrete_dia.between' => 'Para frequência mensal use um dia de 1 a 28; para semanal/quinzenal, o dia da semana.']);
+        $d['lembrete_ativo'] = $request->boolean('lembrete_ativo');
+        $conta->update($d);
+        Evento::registrar('financeiro.lembrete_configurado', $conta, ['ativo' => $d['lembrete_ativo'] ? 'sim' : 'não', 'regra' => $conta->regraLembrete()]);
+
+        return back()->with('ok', 'Lembrete salvo: '.($d['lembrete_ativo'] ? $conta->regraLembrete().'.' : 'desativado.'));
+    }
+
+    public function dispensarLembrete(Request $request, ContaFinanceira $conta, LembretesBancarios $l): RedirectResponse
+    {
+        if ($request->boolean('adiar')) {
+            $l->dispensar($conta, CarbonImmutable::now()->addDays(3), 'Adiado por 3 dias');
+
+            return back()->with('ok', 'Lembrete adiado por 3 dias.');
+        }
+        $d = $request->validate(['ate' => ['required', 'date', 'after_or_equal:today', 'before:+90 days'], 'motivo' => ['required', 'string', 'max:500']],
+            ['ate.before' => 'A dispensa pode durar no máximo 90 dias.']);
+        $l->dispensar($conta, CarbonImmutable::parse($d['ate']), $d['motivo']);
+
+        return back()->with('ok', 'Lembrete dispensado até '.CarbonImmutable::parse($d['ate'])->format('d/m/Y').'. Registrado na auditoria.');
+    }
+
     // ---------------- Conciliação ----------------
 
     public function conciliacao(Request $request, ContaFinanceira $conta): View
@@ -192,8 +252,9 @@ class FinanceiroController extends Controller
             ['arquivo.extensions' => 'Envie o extrato em OFX ou CSV.']);
         $arq = $request->file('arquivo');
         $r = $importador->importar($conta, $arq->get(), $arq->getClientOriginalName());
+        $periodo = $r['fim'] ? ' Período coberto: '.CarbonImmutable::parse($r['inicio'])->format('d/m/Y').' a '.CarbonImmutable::parse($r['fim'])->format('d/m/Y').'.' : '';
 
-        return back()->with('ok', "Extrato importado: {$r['novas']} lançamento(s) novo(s)".($r['repetidas'] ? ", {$r['repetidas']} já existiam e foram ignorados" : '').'.');
+        return back()->with('ok', "Extrato importado: {$r['novas']} lançamento(s) novo(s)".($r['repetidas'] ? ", {$r['repetidas']} já existiam e foram ignorados" : '').'.'.$periodo);
     }
 
     public function conciliar(Request $request, ExtratoLinha $linha): RedirectResponse

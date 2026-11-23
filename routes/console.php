@@ -10,6 +10,7 @@ use App\Services\Backup\Backups;
 use App\Services\Backup\ConfigBackup;
 use App\Services\Faturamento;
 use App\Services\Financeiro;
+use App\Services\LembretesBancarios;
 use App\Support\Competencia;
 use App\Support\Documento;
 use Illuminate\Support\Facades\Artisan;
@@ -119,3 +120,9 @@ Artisan::command('backup:restaurar {pacote? : nome do pacote (padrão: o mais re
 
 Schedule::command('backup:agenda')->everyMinute()->withoutOverlapping(360);
 Schedule::command('backup:verificar')->weeklyOn(0, '04:17');
+
+Artisan::command('financeiro:lembretes', function (LembretesBancarios $l) {
+    $this->info('Notificações criadas: '.$l->notificar());
+})->purpose('Verifica extratos desatualizados e conciliações pendentes e notifica os responsáveis.');
+
+Schedule::command('financeiro:lembretes')->hourly();

@@ -19,6 +19,7 @@
       <label for="menu" class="menu-btn">Menu</label>
     </div>
     <input type="checkbox" id="menu" class="menu-toggle">
+    <label for="menu" class="menu-fundo" aria-hidden="true"></label>
     <div class="lateral-corpo">
       <div class="contexto">
         @if ($c->empresa())
@@ -30,70 +31,44 @@
         <div class="meta"><span>{{ $c->papel()->rotulo() }}</span><a href="{{ route('contexto.escolher') }}">Trocar</a></div>
       </div>
 
-      <nav aria-label="Principal">
-        @if ($c->empresa())
-          <div class="nav-grupo">
-            <span>Mês</span>
-            <a href="{{ route('painel') }}" @class(['ativo' => request()->routeIs('painel')])>{{ $c->ehPrestador() ? 'Minhas cobranças' : 'Fechamento' }}</a>
-            @if ($c->ehInterno())
-              <a href="{{ route('faturas.index') }}" @class(['ativo' => request()->routeIs('faturas.*')])>A receber</a>
-              <a href="{{ route('cobrancas.index') }}" @class(['ativo' => request()->routeIs('cobrancas.*')])>A pagar</a>
-              <a href="{{ route('notas.index') }}" @class(['ativo' => request()->routeIs('notas.*')])>Notas fiscais</a>
-            @endif
-          </div>
-          @if ($c->ehInterno())
-            <div class="nav-grupo">
-              <span>Financeiro</span>
-              <a href="{{ route('financeiro.index') }}" @class(['ativo' => request()->routeIs('financeiro.index', 'financeiro.titulo', 'financeiro.novo')])>Lançamentos</a>
-              <a href="{{ route('financeiro.contas') }}" @class(['ativo' => request()->routeIs('financeiro.contas', 'financeiro.conciliacao', 'financeiro.categorias')])>Contas e conciliação</a>
-            </div>
-            <div class="nav-grupo">
-              <span>Cadastros</span>
-              <a href="{{ route('contratos.index') }}" @class(['ativo' => request()->routeIs('contratos.*')])>Contratos</a>
-              @if ($c->tem($A::Admin))
-                <a href="{{ route('clientes.index') }}" @class(['ativo' => request()->routeIs('clientes.*')])>Clientes</a>
-                <a href="{{ route('prestadores.index') }}" @class(['ativo' => request()->routeIs('prestadores.*')])>Prestadores</a>
-              @endif
-              <a href="{{ route('perfis.index') }}" @class(['ativo' => request()->routeIs('perfis.*')])>Perfis fiscais</a>
-            </div>
-            <div class="nav-grupo">
-              <span>Contábil</span>
-              <a href="{{ route('contabil.index') }}" @class(['ativo' => request()->routeIs('contabil.*')])>{{ $c->ehEscritorio() ? 'Fechamento contábil' : 'Envios ao contador' }}</a>
-            </div>
-          @endif
+      @php($menu = \App\Support\Menu::para($c, auth()->user()))
+      <nav aria-label="Principal" class="menu">
+        @if ($menu['inicio'])
+          <a href="{{ $menu['inicio']['url'] }}" @class(['menu-raiz', 'ativo' => $menu['inicio']['ativo']]) @if ($menu['inicio']['ativo']) aria-current="page" @endif>
+            @include('partials.icone', ['nome' => 'inicio']) <span>{{ $menu['inicio']['rotulo'] }}</span></a>
         @endif
-
-        @if ($c->ehEscritorio())
-          <div class="nav-grupo">
-            <span>Escritório</span>
-            <a href="{{ route('carteira') }}" @class(['ativo' => request()->routeIs('carteira')])>Carteira</a>
-            @if ($c->tem($A::Revisor))
-              <a href="{{ route('escritorio.atribuicoes') }}" @class(['ativo' => request()->routeIs('escritorio.*')])>Atribuições</a>
-            @endif
-          </div>
+        @if (\Illuminate\Support\Facades\Route::has('notificacoes.index'))
+          @php($naoLidas = \App\Models\Notificacao::naoLidasDe(auth()->user()))
+          <a href="{{ route('notificacoes.index') }}" @class(['menu-raiz', 'ativo' => request()->routeIs('notificacoes.*')])>
+            @include('partials.icone', ['nome' => 'sino']) <span>Notificações</span>
+            @if ($naoLidas)<span class="contador" aria-label="{{ $naoLidas }} não lidas">{{ $naoLidas }}</span>@endif</a>
         @endif
-
-        @if (auth()->user()->admin_plataforma)
-          <div class="nav-grupo">
-            <span>Plataforma</span>
-            <a href="{{ route('plataforma.configuracoes') }}" @class(['ativo' => request()->routeIs('plataforma.configuracoes', 'plataforma.salvar')])>Configurações</a>
-            <a href="{{ route('plataforma.backups') }}" @class(['ativo' => request()->routeIs('plataforma.backups*')])>Backups</a>
-          </div>
-        @endif
-
-        @if ($c->tem($A::Admin, $A::Revisor))
-          <div class="nav-grupo">
-            <span>Administração</span>
-            @if ($c->tem($A::Admin))
-              <a href="{{ route('organizacao.show') }}" @class(['ativo' => request()->routeIs('organizacao.*')])>Empresa</a>
-            @endif
-            <a href="{{ route('usuarios.index') }}" @class(['ativo' => request()->routeIs('usuarios.*')])>Acessos</a>
-          </div>
-        @endif
+        @foreach ($menu['grupos'] as $g)
+          <details class="menu-grupo" data-grupo="{{ $g['chave'] }}" @if ($g['ativo']) open data-fixo @endif>
+            <summary>@include('partials.icone', ['nome' => $g['icone']]) <span>{{ $g['rotulo'] }}</span></summary>
+            @foreach ($g['itens'] as $i)
+              <a href="{{ $i['url'] }}" @class(['ativo' => $i['ativo']]) @if ($i['ativo']) aria-current="page" @endif>{{ $i['rotulo'] }}</a>
+            @endforeach
+          </details>
+        @endforeach
       </nav>
+      <script>
+        // Lembra os grupos abertos (preferência só deste navegador). Falha em silêncio se o armazenamento estiver bloqueado.
+        (function () {
+          var k = 'augi.menu.abertos', abertos = [];
+          try { abertos = JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) {}
+          document.querySelectorAll('.menu-grupo').forEach(function (d) {
+            if (abertos.indexOf(d.dataset.grupo) >= 0) d.open = true;
+            d.addEventListener('toggle', function () {
+              var lista = Array.prototype.map.call(document.querySelectorAll('.menu-grupo[open]'), function (x) { return x.dataset.grupo; });
+              try { localStorage.setItem(k, JSON.stringify(lista)); } catch (e) {}
+            });
+          });
+        })();
+      </script>
 
       <div class="usuario">
-        <a href="{{ route('seguranca') }}" title="Segurança da conta">{{ auth()->user()->name }}</a>
+        <a href="{{ route('seguranca') }}" title="Minha conta e segurança">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form>
       </div>
     </div>

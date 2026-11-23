@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
+use App\Models\ExtratoImportacao;
 use App\Models\ExtratoLinha;
 use App\Support\Dinheiro;
 use Carbon\CarbonImmutable;
@@ -16,13 +17,25 @@ use Illuminate\Validation\ValidationException;
  */
 final class ImportadorExtrato
 {
-    /** @return array{novas: int, repetidas: int} */
+    /** @return array{novas: int, repetidas: int, inicio: ?string, fim: ?string} */
     public function importar(ContaFinanceira $conta, string $conteudo, string $nomeArquivo): array
     {
         $conteudo = mb_check_encoding($conteudo, 'UTF-8') ? $conteudo : mb_convert_encoding($conteudo, 'UTF-8', 'ISO-8859-1');
-        $linhas = stripos($conteudo, '<STMTTRN>') !== false ? $this->ofx($conteudo) : $this->csv($conteudo);
+        $ofx = stripos($conteudo, '<STMTTRN>') !== false || stripos($conteudo, '<BANKTRANLIST>') !== false;
+        $linhas = $ofx ? $this->ofx($conteudo) : $this->csv($conteudo);
+        // Período coberto: no OFX, DTSTART/DTEND do extrato (cobre até dias sem movimento);
+        // no CSV, da primeira à última data com lançamento.
+        $datas = array_column($linhas, 'data');
+        $inicio = ($ofx ? $this->dataOfx($conteudo, 'DTSTART') : null) ?? ($datas ? min($datas) : null);
+        $fim = ($ofx ? $this->dataOfx($conteudo, 'DTEND') : null) ?? ($datas ? max($datas) : null);
+        if ($ofx && $linhas === [] && $fim) {
+            // Extrato OFX sem movimento no período é válido: comprova a cobertura.
+            $this->registrar($conta, $nomeArquivo, $inicio, $fim, 0, 0);
+
+            return ['novas' => 0, 'repetidas' => 0, 'inicio' => $inicio, 'fim' => $fim];
+        }
         if ($linhas === []) {
-            throw ValidationException::withMessages(['arquivo' => 'Nenhum lançamento encontrado. Use OFX ou CSV com colunas data;descrição;valor.']);
+            throw ValidationException::withMessages(['arquivo' => 'Nenhum lançamento nem período encontrado. Use OFX ou CSV com colunas data;descrição;valor.']);
         }
 
         $novas = $repetidas = 0;
@@ -40,9 +53,25 @@ final class ImportadorExtrato
             );
             $linha->wasRecentlyCreated ? $novas++ : $repetidas++;
         }
-        Evento::registrar('financeiro.extrato_importado', $conta, ['arquivo' => $nomeArquivo, 'novas' => $novas, 'repetidas' => $repetidas]);
+        $this->registrar($conta, $nomeArquivo, $inicio, $fim, $novas, $repetidas);
 
-        return compact('novas', 'repetidas');
+        return compact('novas', 'repetidas', 'inicio', 'fim');
+    }
+
+    private function registrar(ContaFinanceira $conta, string $arquivo, ?string $inicio, ?string $fim, int $novas, int $repetidas): void
+    {
+        ExtratoImportacao::create([
+            'organizacao_id' => $conta->organizacao_id, 'conta_id' => $conta->id, 'arquivo' => mb_substr($arquivo, 0, 255),
+            'periodo_inicio' => $inicio, 'periodo_fim' => $fim, 'linhas_novas' => $novas, 'linhas_repetidas' => $repetidas, 'enviado_por' => auth()->id(),
+        ]);
+        app(LembretesBancarios::class)->registrarCobertura($conta, $fim);
+        Evento::registrar('financeiro.extrato_importado', $conta, ['arquivo' => $arquivo, 'novas' => $novas, 'repetidas' => $repetidas,
+            'periodo' => ($inicio ? CarbonImmutable::parse($inicio)->format('d/m/Y') : '?').' a '.($fim ? CarbonImmutable::parse($fim)->format('d/m/Y') : '?')]);
+    }
+
+    private function dataOfx(string $s, string $tag): ?string
+    {
+        return preg_match('/<'.$tag.'>\s*(\d{4})(\d{2})(\d{2})/i', $s, $m) ? "{$m[1]}-{$m[2]}-{$m[3]}" : null;
     }
 
     /** OFX 1.x (SGML, tags sem fechamento) e 2.x (XML). */
