@@ -6,6 +6,7 @@ use App\Models\Organizacao;
 use App\Models\User;
 use App\Models\Vinculo;
 use App\Services\Faturamento;
+use App\Services\Financeiro;
 use App\Support\Competencia;
 use App\Support\Documento;
 use Illuminate\Support\Facades\Artisan;
@@ -47,3 +48,8 @@ Artisan::command('gestao:admin-plataforma {email} {--remover}', function () {
     $user->forceFill(['admin_plataforma' => ! $this->option('remover')])->save();
     $this->info($this->option('remover') ? "{$user->email} deixou de ser administrador da plataforma." : "{$user->email} agora é administrador da plataforma (precisará ativar o 2FA).");
 })->purpose('Concede ou remove o perfil de administrador da plataforma.');
+
+Artisan::command('financeiro:sincronizar', function (Financeiro $f) {
+    $n = $f->sincronizarLegado();
+    $this->info("Títulos criados: {$n['titulos']} · baixas migradas: {$n['baixas']}. Pode rodar de novo sem duplicar.");
+})->purpose('Cria títulos para faturas/cobranças sem título e migra recebimentos/pagamentos antigos (idempotente).');

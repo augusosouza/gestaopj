@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Prestador;
 use App\Services\Fechamento;
+use App\Services\Financeiro;
 use App\Support\Competencia;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -25,6 +26,7 @@ class PainelController extends Controller
         return view('painel.interno', [
             'competencia' => $competencia,
             'r' => $fechamento->resumo($competencia),
+            'fin' => app(Financeiro::class)->painel($competencia),
         ]);
     }
 }

@@ -106,13 +106,19 @@
       <h2 style="margin-top:0">Registrar pagamento</h2>
       <p class="sub">Aprovada por {{ $cobranca->aprovadaPor?->name }} em {{ $cobranca->aprovada_em?->format('d/m/Y H:i') }}.
         @if ($cobranca->prestador->chave_pix) PIX: <span class="mono">{{ $cobranca->prestador->chave_pix }}</span>@endif</p>
+      @php($ret = $cobranca->notaFiscal && $cobranca->notaFiscal->valor_liquido_centavos !== null ? max(0, $cobranca->notaFiscal->valor_servicos_centavos - $cobranca->notaFiscal->valor_liquido_centavos) : 0)
+      @php($jaPago = $titulo?->liquidado() ?? 0)
+      @if ($jaPago > 0)<p class="sub">Já abatido: {{ brl($jaPago) }} · saldo {{ brl($titulo->saldo()) }} · <a href="{{ route('financeiro.titulo', $titulo) }}">ver baixas</a></p>@endif
       <form method="post" action="{{ route('cobrancas.pagar', $cobranca) }}" class="grade">
-        @csrf
-        <div><label for="valor">Valor pago</label><input id="valor" name="valor" value="{{ old('valor', valor_campo($cobranca->notaFiscal?->valor_liquido_centavos ?? $cobranca->valor_centavos)) }}" inputmode="decimal" required></div>
+        @csrf <input type="hidden" name="chave" value="{{ $chave }}">
+        <div><label for="conta_id">Conta</label><select id="conta_id" name="conta_id">
+          @forelse ($contas as $c)<option value="{{ $c->id }}">{{ $c->nome }}</option>@empty<option value="">Conta principal (será criada)</option>@endforelse</select></div>
+        <div><label for="valor">Valor pago</label><input id="valor" name="valor" value="{{ old('valor', valor_campo($jaPago > 0 ? $titulo->saldo() : $cobranca->valor_centavos - $ret)) }}" inputmode="decimal" required></div>
+        <div><label for="retencao">Retenções</label><input id="retencao" name="retencao" value="{{ old('retencao', $jaPago > 0 ? '0,00' : valor_campo($ret)) }}" inputmode="decimal"></div>
         <div><label for="data">Data</label><input id="data" type="date" name="data" value="{{ old('data', now()->toDateString()) }}" max="{{ now()->toDateString() }}" required></div>
         <div style="align-self:end"><button>Registrar</button></div>
       </form>
-      <p class="sub">O valor sugerido é o líquido da nota (após retenções), quando houver XML.</p>
+      <p class="sub">Sugestão: líquido da nota; a retenção (valor do serviço − líquido) abate a cobrança sem sair da conta. Pagamento parcial mantém o saldo em aberto.</p>
     @endif
   </div>
 </div>

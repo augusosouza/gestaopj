@@ -56,6 +56,33 @@ A competência comparada é a **declarada na nota** (`dCompet`), não a data de 
 
 Notas com chave já registrada na empresa são recusadas no envio (duplicidade).
 
+## Financeiro (FIN-01)
+
+Cada data tem o seu lugar:
+
+| Data | Onde fica |
+|---|---|
+| **Competência** (mês a que pertence) | Título |
+| **Vencimento** (quando deve ser pago) | Parcela |
+| **Liquidação** (quando foi pago, e em qual conta) | Movimento |
+
+- **Títulos** a receber e a pagar, com categoria, contraparte e N parcelas mensais (os centavos da divisão vão para a última). Faturas e cobranças viram títulos **automaticamente e sem duplicar**.
+- **Baixas** com valor, desconto, retenção e acréscimo. **Pagamento parcial** mantém o saldo em aberto. A fatura só fica "Recebida" e a cobrança "Paga" quando o saldo zera.
+- **Estorno** é um movimento novo que anula a baixa. A baixa original **nunca é alterada nem apagada** (o sistema recusa). O saldo de datas passadas não muda depois de um estorno.
+- **Travas:**
+  - não baixa mais que o saldo;
+  - não aceita data futura;
+  - duplo envio do formulário não duplica;
+  - não movimenta mês **fechado pelo contador**;
+  - não estorna movimento conciliado (é preciso desfazer a conciliação antes);
+  - não cancela título com baixas ativas.
+- **Contas** com saldo inicial e saldo calculado por data. Não guarda senha nem acesso ao banco.
+- **Extrato:** importação de OFX (padrão dos bancos) ou CSV (`data;descrição;valor`). Reimportar não duplica.
+- **Conciliação:** sugere baixas de mesmo valor, sentido e conta, com até 5 dias de diferença. Dá para conciliar, desfazer ou marcar "sem correspondência".
+- **Painel:** saldo em contas, outras despesas do mês, vencidos e extrato a conciliar.
+- **Compatibilidade:** `php artisan financeiro:sincronizar` (também executado na migração) cria títulos para faturas e cobranças antigas e converte os pagamentos já registrados em baixas. É idempotente.
+- **Permissões:** a empresa opera (admin, financeiro); o escritório só consulta; o prestador não acessa.
+
 ## Componentes da Receita Federal
 
 Componentes de código aberto publicados pela Receita no GitHub, que rodam **sem certificado digital** e como serviços internos (sem porta exposta, sem enviar dados para fora). Cada um é compilado do código-fonte num **commit fixo**: atualizar é uma decisão explícita.
@@ -130,7 +157,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (78 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
+Testes: `php artisan test` (91 testes: mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

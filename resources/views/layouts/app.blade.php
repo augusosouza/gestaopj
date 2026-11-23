@@ -43,6 +43,11 @@
           </div>
           @if ($c->ehInterno())
             <div class="nav-grupo">
+              <span>Financeiro</span>
+              <a href="{{ route('financeiro.index') }}" @class(['ativo' => request()->routeIs('financeiro.index', 'financeiro.titulo', 'financeiro.novo')])>Lançamentos</a>
+              <a href="{{ route('financeiro.contas') }}" @class(['ativo' => request()->routeIs('financeiro.contas', 'financeiro.conciliacao', 'financeiro.categorias')])>Contas e conciliação</a>
+            </div>
+            <div class="nav-grupo">
               <span>Cadastros</span>
               <a href="{{ route('contratos.index') }}" @class(['ativo' => request()->routeIs('contratos.*')])>Contratos</a>
               @if ($c->tem($A::Admin))

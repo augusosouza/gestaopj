@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Enums\StatusCobranca;
 use App\Models\Cobranca;
+use App\Models\ContaFinanceira;
 use App\Models\Evento;
 use App\Services\Faturamento;
+use App\Services\Financeiro;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -31,10 +34,12 @@ class CobrancaController extends Controller
     {
         $this->autorizar($request, $cobranca);
         $cobranca->load('prestador', 'contrato.cliente', 'contrato.empresa', 'notaFiscal', 'aprovadaPor');
+        $titulo = ctx()->ehPrestador() ? null : app(Financeiro::class)->tituloDeCobranca($cobranca)->load('parcelas.movimentos.estornoDe');
         $eventos = Evento::with('user')->where('alvo_type', $cobranca->getMorphClass())
             ->where('alvo_id', $cobranca->id)->latest('id')->get();
 
-        return view('cobrancas.show', compact('cobranca', 'eventos'));
+        return view('cobrancas.show', ['cobranca' => $cobranca, 'eventos' => $eventos, 'titulo' => $titulo,
+            'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(), 'chave' => (string) Str::uuid()]);
     }
 
     public function enviarNota(Request $request, Cobranca $cobranca, Faturamento $faturamento): RedirectResponse
@@ -80,13 +85,18 @@ class CobrancaController extends Controller
         $dados = $request->validate([
             'valor' => ['required', 'string'],
             'data' => ['required', 'date', 'before_or_equal:today'],
+            'retencao' => ['nullable', 'string'],
+            'conta_id' => ['nullable', 'integer'],
+            'chave' => ['nullable', 'string', 'max:64'],
         ]);
         try {
             $valor = Dinheiro::paraCentavos($dados['valor']);
+            $retencao = isset($dados['retencao']) && trim($dados['retencao']) !== '' ? Dinheiro::paraCentavos($dados['retencao']) : null;
         } catch (\InvalidArgumentException) {
             throw ValidationException::withMessages(['valor' => 'Valor inválido.']);
         }
-        $faturamento->registrarPagamento($cobranca, $valor, $dados['data']);
+        $faturamento->registrarPagamento($cobranca, $valor, $dados['data'],
+            isset($dados['conta_id']) ? (int) $dados['conta_id'] : null, $retencao, $dados['chave'] ?? null);
 
         return back()->with('ok', 'Pagamento registrado.');
     }

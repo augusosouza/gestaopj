@@ -11,6 +11,7 @@ use App\Http\Controllers\ContextoController;
 use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\EscritorioController;
 use App\Http\Controllers\FaturaController;
+use App\Http\Controllers\FinanceiroController;
 use App\Http\Controllers\NotaFiscalController;
 use App\Http\Controllers\OrganizacaoController;
 use App\Http\Controllers\PainelController;
@@ -105,6 +106,30 @@ Route::middleware('auth')->group(function () {
         // Perfil fiscal: empresa registra, contador confirma.
         Route::post('/perfis-fiscais', [PerfilFiscalController::class, 'store'])->middleware('papel:admin,analista,revisor')->name('perfis.store');
         Route::post('/perfis-fiscais/{perfil}/confirmar', [PerfilFiscalController::class, 'confirmar'])->middleware('papel:analista,revisor')->name('perfis.confirmar');
+
+        // Financeiro: empresa opera; escritório consulta.
+        Route::middleware('papel:admin,financeiro,analista,revisor')->group(function () {
+            Route::get('/financeiro', [FinanceiroController::class, 'index'])->name('financeiro.index');
+            Route::get('/financeiro/titulos/{titulo}', [FinanceiroController::class, 'show'])->name('financeiro.titulo');
+            Route::get('/financeiro/contas', [FinanceiroController::class, 'contas'])->name('financeiro.contas');
+            Route::get('/financeiro/contas/{conta}/conciliacao', [FinanceiroController::class, 'conciliacao'])->name('financeiro.conciliacao');
+            Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
+        });
+        Route::middleware('papel:admin,financeiro')->group(function () {
+            Route::get('/financeiro/novo', [FinanceiroController::class, 'create'])->name('financeiro.novo');
+            Route::post('/financeiro', [FinanceiroController::class, 'store'])->name('financeiro.store');
+            Route::post('/financeiro/parcelas/{parcela}/baixa', [FinanceiroController::class, 'baixar'])->middleware('throttle:60,1')->name('financeiro.baixar');
+            Route::post('/financeiro/movimentos/{movimento}/estorno', [FinanceiroController::class, 'estornar'])->name('financeiro.estornar');
+            Route::post('/financeiro/titulos/{titulo}/cancelar', [FinanceiroController::class, 'cancelar'])->name('financeiro.cancelar');
+            Route::post('/financeiro/contas', [FinanceiroController::class, 'salvarConta'])->name('financeiro.conta_salvar');
+            Route::patch('/financeiro/contas/{conta}', [FinanceiroController::class, 'alternarConta'])->name('financeiro.conta_alternar');
+            Route::post('/financeiro/contas/{conta}/extrato', [FinanceiroController::class, 'importar'])->name('financeiro.importar');
+            Route::post('/financeiro/extrato/{linha}/conciliar', [FinanceiroController::class, 'conciliar'])->name('financeiro.conciliar');
+            Route::post('/financeiro/extrato/{linha}/desconciliar', [FinanceiroController::class, 'desconciliar'])->name('financeiro.desconciliar');
+            Route::post('/financeiro/extrato/{linha}/ignorar', [FinanceiroController::class, 'ignorar'])->name('financeiro.ignorar');
+            Route::post('/financeiro/categorias', [FinanceiroController::class, 'salvarCategoria'])->name('financeiro.categoria_salvar');
+            Route::patch('/financeiro/categorias/{categoria}', [FinanceiroController::class, 'alternarCategoria'])->name('financeiro.categoria_alternar');
+        });
 
         // Área do contador: empresa envia, escritório confere e fecha.
         Route::middleware('papel:admin,financeiro,analista,revisor')->group(function () {

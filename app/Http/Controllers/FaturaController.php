@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContaFinanceira;
 use App\Models\Fatura;
 use App\Services\Faturamento;
+use App\Services\Financeiro;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -26,8 +29,10 @@ class FaturaController extends Controller
     public function show(Fatura $fatura): View
     {
         $fatura->load('contrato.cliente', 'contrato.empresa', 'notaFiscal');
+        $titulo = app(Financeiro::class)->tituloDeFatura($fatura)->load('parcelas.movimentos.estornoDe');
 
-        return view('faturas.show', compact('fatura'));
+        return view('faturas.show', ['fatura' => $fatura, 'titulo' => $titulo,
+            'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(), 'chave' => (string) Str::uuid()]);
     }
 
     public function vincularNota(Request $request, Fatura $fatura, Faturamento $faturamento): RedirectResponse
@@ -43,8 +48,11 @@ class FaturaController extends Controller
         $dados = $request->validate([
             'valor' => ['required', 'string'],
             'data' => ['required', 'date', 'before_or_equal:today'],
+            'conta_id' => ['nullable', 'integer'],
+            'chave' => ['nullable', 'string', 'max:64'],
         ]);
-        $faturamento->registrarRecebimento($fatura, $this->centavos($dados['valor']), $dados['data']);
+        $faturamento->registrarRecebimento($fatura, $this->centavos($dados['valor']), $dados['data'],
+            isset($dados['conta_id']) ? (int) $dados['conta_id'] : null, $dados['chave'] ?? null);
 
         return back()->with('ok', 'Recebimento registrado.');
     }

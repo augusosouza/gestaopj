@@ -29,6 +29,7 @@ final class Faturamento
     public function __construct(
         private RegistroNotas $notas,
         private ConferenciaNota $conferencia,
+        private Financeiro $financeiro,
     ) {}
 
     /**
@@ -48,7 +49,7 @@ final class Faturamento
                 // de como o banco armazena a coluna (DATE no MariaDB, texto no SQLite).
                 $existe = Fatura::where('contrato_id', $contrato->id)->whereDate('competencia', $competencia)->exists();
                 if (! $existe) {
-                    Fatura::create([
+                    $fatura = Fatura::create([
                         'organizacao_id' => $contrato->organizacao_id,
                         'contrato_id' => $contrato->id,
                         'competencia' => $competencia,
@@ -56,6 +57,7 @@ final class Faturamento
                         'vencimento' => $this->vencimento($competencia, $contrato->dia_vencimento),
                         'status' => StatusFatura::Aberta,
                     ]);
+                    $this->financeiro->tituloDeFatura($fatura);
                     $criadas['faturas']++;
                 }
 
@@ -63,7 +65,7 @@ final class Faturamento
                     if (Cobranca::where('alocacao_id', $aloc->id)->whereDate('competencia', $competencia)->exists()) {
                         continue;
                     }
-                    Cobranca::create([
+                    $cob = Cobranca::create([
                         'organizacao_id' => $contrato->organizacao_id,
                         'alocacao_id' => $aloc->id,
                         'competencia' => $competencia,
@@ -72,6 +74,7 @@ final class Faturamento
                         'valor_centavos' => $aloc->valor_mensal_centavos,
                         'status' => StatusCobranca::AguardandoNota,
                     ]);
+                    $this->financeiro->tituloDeCobranca($cob);
                     $criadas['cobrancas']++;
                 }
             }
@@ -127,15 +130,19 @@ final class Faturamento
         });
     }
 
-    public function registrarRecebimento(Fatura $fatura, int $valorCentavos, string $data): void
+    /**
+     * Recebimento do cliente: vira baixa no título da fatura. Pode ser parcial;
+     * a fatura só fica "Recebida" quando o saldo zera.
+     */
+    public function registrarRecebimento(Fatura $fatura, int $valorCentavos, string $data, ?int $contaId = null, ?string $chave = null): void
     {
-        if ($fatura->status !== StatusFatura::Emitida) {
-            throw ValidationException::withMessages(['valor' => 'Só é possível registrar recebimento de fatura com nota emitida.']);
+        if (! in_array($fatura->status, [StatusFatura::Emitida], true)) {
+            throw ValidationException::withMessages(['valor' => 'Só é possível registrar recebimento de fatura com nota emitida e saldo em aberto.']);
         }
-        $fatura->update([
-            'status' => StatusFatura::Recebida,
-            'valor_recebido_centavos' => $valorCentavos,
-            'recebida_em' => $data,
+        $titulo = $this->financeiro->tituloDeFatura($fatura);
+        $this->financeiro->baixar($titulo->parcelas()->first(), [
+            'conta_id' => $contaId ?? $this->financeiro->contaPrincipal($fatura->organizacao_id)->id,
+            'data' => $data, 'valor' => $valorCentavos, 'chave' => $chave,
         ]);
         Evento::registrar('fatura.recebida', $fatura, ['valor' => $valorCentavos, 'data' => $data]);
     }
@@ -254,15 +261,27 @@ final class Faturamento
         Evento::registrar('cobranca.rejeitada', $cobranca, ['motivo' => $motivo]);
     }
 
-    public function registrarPagamento(Cobranca $cobranca, int $valorCentavos, string $data): void
+    /**
+     * Pagamento ao prestador: vira baixa no título da cobrança. A retenção (diferença entre
+     * valor da nota e líquido) abate a parcela sem sair da conta. Pode ser parcial.
+     */
+    public function registrarPagamento(Cobranca $cobranca, int $valorCentavos, string $data, ?int $contaId = null, ?int $retencao = null, ?string $chave = null): void
     {
         if ($cobranca->status !== StatusCobranca::Aprovada) {
-            throw ValidationException::withMessages(['valor' => 'Só cobranças aprovadas podem ser pagas.']);
+            throw ValidationException::withMessages(['valor' => 'Só cobranças aprovadas (com saldo em aberto) podem ser pagas.']);
         }
-        $cobranca->update([
-            'status' => StatusCobranca::Paga,
-            'valor_pago_centavos' => $valorCentavos,
-            'paga_em' => $data,
+        if ($retencao === null) {
+            $nota = $cobranca->notaFiscal;
+            $retencao = ($nota && $nota->valor_liquido_centavos !== null && $nota->valor_servicos_centavos !== null)
+                ? max(0, $nota->valor_servicos_centavos - $nota->valor_liquido_centavos) : 0;
+        }
+        $titulo = $this->financeiro->tituloDeCobranca($cobranca);
+        $parcela = $titulo->parcelas()->first();
+        // Retenção só entra na primeira baixa (depois disso já foi abatida).
+        $jaRetido = $parcela->movimentos()->where('tipo', 'baixa')->whereDoesntHave('estorno')->sum('retencao_centavos');
+        $this->financeiro->baixar($parcela, [
+            'conta_id' => $contaId ?? $this->financeiro->contaPrincipal($cobranca->organizacao_id)->id,
+            'data' => $data, 'valor' => $valorCentavos, 'retencao' => $jaRetido > 0 ? 0 : $retencao, 'chave' => $chave,
         ]);
         Evento::registrar('cobranca.paga', $cobranca, ['valor' => $valorCentavos, 'data' => $data]);
     }

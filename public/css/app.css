@@ -222,3 +222,5 @@ button[disabled] { opacity: .45; cursor: not-allowed; }
 .filtros a { text-decoration: none; color: var(--muted); padding: 5px 11px; border: 1px solid var(--line-strong); border-radius: 99px; font-size: 13px; background: var(--surface); }
 .filtros a:hover { color: var(--text); border-color: var(--faint); }
 .filtros a.ativo { background: var(--text); color: var(--bg); border-color: var(--text); }
+summary.link-sum { cursor: pointer; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+summary.link-sum:hover { color: var(--text); }

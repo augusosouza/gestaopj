@@ -39,9 +39,12 @@
 
     @if ($pode && $fatura->status === \App\Enums\StatusFatura::Emitida)
       <h2>Registrar recebimento</h2>
+      @if ($titulo->liquidado() > 0)<p class="sub">Já recebido: {{ brl($titulo->liquidado()) }} · saldo {{ brl($titulo->saldo()) }} · <a href="{{ route('financeiro.titulo', $titulo) }}">ver baixas</a></p>@endif
       <form method="post" action="{{ route('faturas.receber', $fatura) }}" class="grade">
-        @csrf
-        <div><label for="valor">Valor recebido</label><input id="valor" name="valor" value="{{ old('valor', valor_campo($fatura->valor_centavos)) }}" inputmode="decimal" required></div>
+        @csrf <input type="hidden" name="chave" value="{{ $chave }}">
+        <div><label for="conta_id">Conta</label><select id="conta_id" name="conta_id">
+          @forelse ($contas as $c)<option value="{{ $c->id }}">{{ $c->nome }}</option>@empty<option value="">Conta principal (será criada)</option>@endforelse</select></div>
+        <div><label for="valor">Valor recebido</label><input id="valor" name="valor" value="{{ old('valor', valor_campo($titulo->saldo())) }}" inputmode="decimal" required></div>
         <div><label for="data">Data</label><input id="data" type="date" name="data" value="{{ old('data', now()->toDateString()) }}" max="{{ now()->toDateString() }}" required></div>
         <div style="align-self:end"><button>Registrar</button></div>
       </form>

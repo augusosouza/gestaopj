@@ -34,6 +34,13 @@
     <div class="det">emitir, receber ou conferir</div></div>
 </section>
 
+<section class="cards faixa-fin" aria-label="Financeiro" style="margin-top:12px">
+  <div class="card"><div class="rot">Saldo em contas</div><div class="num">{{ brl($fin['saldo_contas']) }}</div><div class="det"><a href="{{ route('financeiro.contas') }}">ver contas</a></div></div>
+  <div class="card"><div class="rot">Outras despesas do mês</div><div class="num">{{ brl($fin['despesas_previstas'] - $r['custo_total']) }}</div><div class="det">além dos prestadores · <a href="{{ route('financeiro.index', ['competencia' => $competencia->format('Y-m'), 'tipo' => 'pagar']) }}">ver</a></div></div>
+  <div class="card"><div class="rot">Vencidos</div><div class="num">{{ brl($fin['vencido_receber'] + $fin['vencido_pagar']) }}</div><div class="det">{{ brl($fin['vencido_receber']) }} a receber · {{ brl($fin['vencido_pagar']) }} a pagar</div></div>
+  <div class="card"><div class="rot">Extrato a conciliar</div><div class="num">{{ $fin['nao_conciliadas'] }}</div><div class="det">linha(s) importada(s)</div></div>
+</section>
+
 <h2>Pendências</h2>
 <div class="tabela">
   <table>
