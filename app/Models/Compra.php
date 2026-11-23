@@ -6,6 +6,7 @@ use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /** Aquisição de produtos ou serviços. O dinheiro fica no título que ela origina. */
@@ -58,5 +59,10 @@ class Compra extends Model
     public function noCartao(): bool
     {
         return $this->modalidade === 'cartao';
+    }
+
+    public function anexos(): MorphMany
+    {
+        return $this->morphMany(Anexo::class, 'anexavel')->latest('id');
     }
 }

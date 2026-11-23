@@ -27,6 +27,7 @@
   ['Itens', $url('itens'), $aba === 'itens', $c->itens->count() ?: null],
   ['Parcelas', $url('parcelas'), $aba === 'parcelas', $t->parcelas->count()],
   ['Pagamentos', $url('pagamentos'), $aba === 'pagamentos', $movs->count()],
+  ['Documentos', $url('documentos'), $aba === 'documentos', ($c->anexos->count() + $t->anexos->count()) ?: null],
   ['Histórico', $url('historico'), $aba === 'historico'],
 ]" />
 
@@ -92,6 +93,8 @@
     @endforelse
     </tbody>
   </table></div>
+@elseif ($aba === 'documentos')
+  @include('partials.anexos', ['anexos' => $c->anexos, 'tipo' => 'compra', 'alvoId' => $c->id, 'extras' => $t->anexos, 'rotuloExtras' => 'do lançamento'])
 @else
   @include('partials.historico', ['eventos' => $historico])
 @endif

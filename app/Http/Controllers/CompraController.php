@@ -107,8 +107,8 @@ class CompraController extends Controller
 
     public function show(Request $request, Compra $compra): View
     {
-        $aba = in_array($request->query('aba'), ['informacoes', 'itens', 'parcelas', 'pagamentos', 'historico'], true) ? $request->query('aba') : 'informacoes';
-        $compra->load('itens', 'categoria', 'cartao', 'conta', 'titulo.parcelas.movimentos.estornoDe', 'titulo.parcelas.movimentos.estorno',
+        $aba = in_array($request->query('aba'), ['informacoes', 'itens', 'parcelas', 'pagamentos', 'documentos', 'historico'], true) ? $request->query('aba') : 'informacoes';
+        $compra->load('anexos.enviadoPor', 'titulo.anexos.enviadoPor', 'itens', 'categoria', 'cartao', 'conta', 'titulo.parcelas.movimentos.estornoDe', 'titulo.parcelas.movimentos.estorno',
             'titulo.parcelas.movimentos.conta', 'titulo.parcelas.fatura');
         $t = $compra->titulo;
         $historico = Evento::with('user')->where(fn ($q) => $q->where('alvo_type', $compra->getMorphClass())->where('alvo_id', $compra->id))

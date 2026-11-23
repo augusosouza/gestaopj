@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnexoController;
 use App\Http\Controllers\Auth\DoisFatoresController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SenhaController;
@@ -154,6 +155,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/transferencias', [TransferenciaController::class, 'index'])->name('transferencias.index');
             Route::get('/inteligencia/assistente', [InteligenciaController::class, 'assistente'])->name('inteligencia.assistente');
             Route::get('/inteligencia/sugestoes', [InteligenciaController::class, 'sugestoes'])->name('inteligencia.sugestoes');
+            Route::get('/financeiro/anexos/{anexo}', [AnexoController::class, 'baixar'])->name('anexos.baixar');
             Route::get('/financeiro/exportar/{relatorio}', ExportacaoController::class)->middleware('throttle:20,1')->name('financeiro.exportar');
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
@@ -184,6 +186,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/cartoes/faturas/{faturaCartao}/pagar', [CartaoController::class, 'pagar'])->middleware('throttle:30,1')->name('cartoes.pagar');
             Route::post('/financeiro/transferencias', [TransferenciaController::class, 'store'])->name('transferencias.store');
             Route::post('/financeiro/transferencias/{transferencia}/estorno', [TransferenciaController::class, 'estornar'])->name('transferencias.estornar');
+            Route::post('/financeiro/anexos/{tipo}/{id}', [AnexoController::class, 'store'])->whereIn('tipo', ['titulo', 'compra'])->whereNumber('id')->middleware('throttle:30,1')->name('anexos.store');
+            Route::delete('/financeiro/anexos/{anexo}', [AnexoController::class, 'remover'])->name('anexos.remover');
             Route::post('/inteligencia/sugestoes/dispensar', [InteligenciaController::class, 'dispensar'])->name('inteligencia.dispensar');
         });
 

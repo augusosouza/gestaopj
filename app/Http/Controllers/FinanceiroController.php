@@ -131,8 +131,8 @@ class FinanceiroController extends Controller
 
     public function show(Request $request, Titulo $titulo): View
     {
-        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'historico'], true) ? $request->query('aba') : 'resumo';
-        $titulo->load('origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
+        $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'historico'], true) ? $request->query('aba') : 'resumo';
+        $titulo->load('anexos.enviadoPor', 'origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
             'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
 
         $historico = Evento::with('user')->where('alvo_type', $titulo->getMorphClass())->where('alvo_id', $titulo->id)->latest('id')->get();

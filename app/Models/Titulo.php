@@ -6,6 +6,7 @@ use App\Models\Concerns\DaOrganizacao;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /** Obrigação a receber ou a pagar. Competência fica aqui; vencimento nas parcelas; liquidação nos movimentos. */
@@ -101,5 +102,10 @@ class Titulo extends Model
     public function vencido(): bool
     {
         return ! $this->cancelado() && $this->parcelas->contains(fn (Parcela $p) => $p->vencida());
+    }
+
+    public function anexos(): MorphMany
+    {
+        return $this->morphMany(Anexo::class, 'anexavel')->latest('id');
     }
 }

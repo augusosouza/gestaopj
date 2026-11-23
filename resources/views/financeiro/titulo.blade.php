@@ -40,6 +40,7 @@
   ['Resumo', $abaUrl('resumo'), $aba === 'resumo'],
   ['Parcelas', $abaUrl('parcelas'), $aba === 'parcelas', $t->parcelas->count()],
   [$t->receber() ? 'Recebimentos' : 'Pagamentos', $abaUrl('pagamentos'), $aba === 'pagamentos', $movs->count()],
+  ['Documentos', $abaUrl('documentos'), $aba === 'documentos', ($t->anexos->count() + ($t->origem instanceof \App\Models\Compra ? $t->origem->anexos->count() : 0)) ?: null],
   ['Histórico', $abaUrl('historico'), $aba === 'historico'],
 ]" />
 
@@ -149,6 +150,9 @@
       })();
     </script>
   @endif
+
+@elseif ($aba === 'documentos')
+  @include('partials.anexos', ['anexos' => $t->anexos, 'tipo' => 'titulo', 'alvoId' => $t->id, 'extras' => $t->origem instanceof \App\Models\Compra ? $t->origem->anexos : collect()])
 
 @else
   <div class="tabela"><table>
