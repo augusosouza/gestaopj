@@ -53,6 +53,33 @@ final class Exportacao
         return [$caminho, Str::slug(self::RELATORIOS[$relatorio]).'-'.now()->format('Y-m-d').'.'.$formato];
     }
 
+    /**
+     * Exporta um relatório da central (mesmas colunas e linhas da tela). Dinheiro vai como número no XLSX.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function gerarRelatorio(array $r, string $slug, string $formato): array
+    {
+        $formato = $formato === 'csv' ? 'csv' : 'xlsx';
+        $dir = self::pasta();
+        is_dir($dir) || mkdir($dir, 0750, true);
+        $caminho = $dir.'/'.Str::uuid().'.'.$formato;
+        $w = $formato === 'csv' ? SimpleExcelWriter::create($caminho, 'csv', delimiter: ';', shouldAddBom: true) : SimpleExcelWriter::create($caminho, 'xlsx');
+        $w->addHeader(array_column($r['colunas'], 0));
+        $conv = fn (array $l) => array_map(fn ($v, $c) => $c[1] === 'dinheiro' && is_int($v) ? $this->celula(['R', $v], $formato) : $v, $l, $r['colunas']);
+        foreach ($r['linhas'] as $l) {
+            $w->addRow($conv(array_map(fn ($v) => is_string($v) ? trim($v) : $v, $l)));
+        }
+        if ($r['total']) {
+            $w->addRow($conv($r['total']));
+        }
+        $w->close();
+        $org = ctx()->empresa() ?? Organizacao::findOrFail(ctx()->organizacaoId());
+        Evento::registrar('financeiro.exportado', $org, ['relatorio' => $r['titulo'], 'formato' => $formato, 'linhas' => count($r['linhas'])]);
+
+        return [$caminho, $slug.'-'.now()->format('Y-m-d').'.'.$formato];
+    }
+
     /** Pasta privada dos temporários (configurável para isolar execuções paralelas de teste). */
     public static function pasta(): string
     {

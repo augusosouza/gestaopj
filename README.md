@@ -129,6 +129,13 @@ Cada data tem o seu lugar:
 - **Alterar vencimento** (renegociação) com motivo e auditoria; lembretes e eventos são recalculados.
 - **Google Agenda** opcional: OAuth por usuário e por empresa, agenda separada ou existente, um evento por parcela (ou por fatura), até 5 lembretes, atualização do mesmo evento, título discreto por padrão. Ver `docs/google-agenda.md`.
 
+## Augi 3.0 — recebimentos, planejamento e relatórios
+
+- **Contas a receber** (`/financeiro/recebimentos`): a mesma central do Contas a Pagar, com abas Visão geral, Em aberto, Atrasados, Recebidos, Cobranças, Renegociações e Calendário. **Histórico de cobrança** (contato, canal, mensagem, resposta), **promessas de pagamento** (cumprida/não cumprida calculada pelas baixas reais — promessa nunca é recebimento), **renegociação** de vencimentos auditada e **régua de cobrança** interna (3, 7 e 15 dias após o vencimento).
+- **Planejamento** (`/financeiro/planejamento`): subcategorias (até 3 níveis), centros de custo, **rateio** com soma exata (`Dinheiro::ratear`, maior resto), **orçamentos** mensais por categoria ou centro (orçado, comprometido, realizado, disponível; alerta em 90%), comparativo mês a mês.
+- **Relatórios** (`/financeiro/relatorios`): DRE gerencial (competência ou caixa; linha da DRE configurável por categoria), fluxo de caixa realizado, previsto × realizado, receitas e despesas por categoria, fornecedores, clientes, contratos (margem), centros de custo e cartões. Exportação Excel/CSV.
+- Situação de cada item do plano mestre: `docs/augi-3.0-situacao.md`.
+
 ## Navegação e configurações
 
 - **Menu por grupos** (Operação, Financeiro — com seções Visão geral, Movimentações, Recebimentos, Pagamentos, Bancos e análises —, Fiscal, Inteligência, Contabilidade, Administração, Administração Augi), montado conforme o papel em `App\Support\Menu`. O grupo da página atual abre sozinho; os demais lembram a escolha no navegador.
@@ -210,7 +217,7 @@ Acessos de demonstração (senha `piloto-2026`, **troque em produção**). O see
 | `revisor@augi.local` | Revisora do escritório (carteira: A e B) |
 | `contabilidade@augi.local` | Analista do escritório (atribuído só à A) |
 
-Testes: `php artisan test` (196 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
+Testes: `php artisan test` (212 testes, incluindo os critérios de aceite do Financeiro 2.0 — mês fechado de ponta a ponta e o critério de aceite da entrega 1, com acesso cruzado entre empresas, revogações e recuperação de senha; lembretes bancários; e navegação por papel, que abre todos os links do menu de Financeiro, Administrador, Contador e Revisor).
 
 ## Produção (VPS + Docker Compose + MariaDB)
 

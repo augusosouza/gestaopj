@@ -60,6 +60,7 @@ final class Menu
                 $item('Cartões', route('cartoes.index'), $rota('cartoes.*')),
                 $secao('Planejamento e análises'),
                 $item('Planejamento', route('planejamento.index'), $rota('planejamento.*')),
+                $item('Relatórios', route('relatorios.index'), $rota('relatorios.*')),
                 $item('Contas e bancos', route('financeiro.contas'), $rota('financeiro.contas', 'financeiro.conciliacao', 'financeiro.conta*')),
                 $item('Categorias', route('financeiro.categorias'), $rota('financeiro.categorias')),
             ]];

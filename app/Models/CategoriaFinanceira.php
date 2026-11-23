@@ -12,7 +12,26 @@ class CategoriaFinanceira extends Model
 
     protected $table = 'categorias_financeiras';
 
-    protected $fillable = ['organizacao_id', 'tipo', 'pai_id', 'nome', 'chave', 'ativa'];
+    protected $fillable = ['organizacao_id', 'tipo', 'pai_id', 'grupo_dre', 'nome', 'chave', 'ativa'];
+
+    /** Linhas da DRE gerencial (relatório de gestão — não é a DRE contábil oficial). */
+    public const GRUPOS_DRE = [
+        'receita_bruta' => ['Receita bruta', 'receita'], 'deducoes' => ['Deduções e impostos sobre a receita', 'despesa'],
+        'custos' => ['Custos dos serviços', 'despesa'], 'despesas_operacionais' => ['Despesas operacionais', 'despesa'],
+        'receitas_financeiras' => ['Receitas financeiras', 'receita'], 'despesas_financeiras' => ['Despesas financeiras', 'despesa'],
+        'outras_receitas' => ['Outras receitas', 'receita'], 'outras_despesas' => ['Outras despesas', 'despesa'],
+        'impostos_lucro' => ['IRPJ e CSLL', 'despesa'],
+    ];
+
+    /** Linha da DRE das categorias padrão (as demais herdam ou usam o padrão do tipo). */
+    public const DRE_PADRAO = ['Prestadores de serviço' => 'custos', 'Tarifas bancárias' => 'despesas_financeiras', 'Juros e encargos financeiros' => 'despesas_financeiras',
+        'Rendimentos financeiros' => 'receitas_financeiras', 'Impostos e taxas' => 'deducoes', 'Outras receitas' => 'outras_receitas'];
+
+    /** Grupo efetivo: o próprio, o da mãe, ou o padrão do tipo. */
+    public function grupoDre(): string
+    {
+        return $this->grupo_dre ?? $this->pai?->grupoDre() ?? ($this->tipo === 'receita' ? 'receita_bruta' : 'despesas_operacionais');
+    }
 
     public function pai(): BelongsTo
     {

@@ -391,6 +391,17 @@ class FinanceiroController extends Controller
         return back()->with('ok', 'Categoria criada.');
     }
 
+    /** Em que linha da DRE gerencial a categoria entra (vazio = herda da mãe / padrão do tipo). */
+    public function grupoDreCategoria(Request $request, CategoriaFinanceira $categoria): RedirectResponse
+    {
+        $validos = collect(CategoriaFinanceira::GRUPOS_DRE)->filter(fn ($g) => ($g[1] === 'receita') === ($categoria->tipo === 'receita'))->keys()->all();
+        $d = $request->validate(['grupo_dre' => ['nullable', Rule::in($validos)]], ['grupo_dre.in' => 'Linha da DRE incompatível com o tipo da categoria.']);
+        $categoria->update(['grupo_dre' => $d['grupo_dre'] ?? null]);
+        Evento::registrar('financeiro.categoria_dre', $categoria, ['linha' => CategoriaFinanceira::GRUPOS_DRE[$categoria->grupoDre()][0]]);
+
+        return back()->with('ok', "“{$categoria->nome}” entra na DRE em: ".CategoriaFinanceira::GRUPOS_DRE[$categoria->grupoDre()][0].'.');
+    }
+
     public function alternarCategoria(CategoriaFinanceira $categoria): RedirectResponse
     {
         $categoria->update(['ativa' => ! $categoria->ativa]);

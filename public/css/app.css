@@ -381,3 +381,12 @@ table.itens td { padding: 3px 6px 3px 0; }
 .opcao-radio input { width: auto; margin-top: 4px; }
 .cards.cards-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1200px) { .cards.cards-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cards.cards-6 .card:nth-child(4) { border-left: 0; } }
+
+/* ---------- Relatórios e DRE ---------- */
+.relatorios-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.relatorio-card { display: grid; text-decoration: none; transition: border-color .15s; }
+.relatorio-card:hover { border-color: var(--text); }
+table.dre .dre-grupo td { font-weight: 600; }
+table.dre .dre-detalhe td { color: var(--muted); font-size: 13px; }
+table.dre .dre-resultado td { font-weight: 600; border-top: 1px solid var(--line-strong); background: var(--bg); }
+table.dre .dre-final td { font-weight: 700; border-top: 2px solid var(--text); }

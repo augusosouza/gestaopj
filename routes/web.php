@@ -32,6 +32,7 @@ use App\Http\Controllers\PerfilFiscalController;
 use App\Http\Controllers\PlanejamentoController;
 use App\Http\Controllers\PlataformaController;
 use App\Http\Controllers\PrestadorController;
+use App\Http\Controllers\RelatorioController;
 use App\Http\Controllers\SaudeController;
 use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
@@ -150,6 +151,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/categorias', [FinanceiroController::class, 'categorias'])->name('financeiro.categorias');
             // Financeiro 2.0
             Route::get('/financeiro/planejamento', [PlanejamentoController::class, 'index'])->name('planejamento.index');
+            Route::get('/financeiro/relatorios', [RelatorioController::class, 'index'])->name('relatorios.index');
+            Route::get('/financeiro/relatorios/{slug}', [RelatorioController::class, 'show'])->name('relatorios.show');
+            Route::get('/financeiro/relatorios/{slug}/exportar', [RelatorioController::class, 'exportar'])->middleware('throttle:20,1')->name('relatorios.exportar');
             Route::get('/financeiro/contas-a-pagar', [ContasPagarController::class, 'index'])->name('contas_pagar.index');
             Route::get('/financeiro/recebimentos', [ContasPagarController::class, 'index'])->defaults('tipo', 'receber')->name('contas_receber.index');
             Route::get('/financeiro/meu-caixa', [CaixaController::class, 'caixa'])->name('financeiro.caixa');
@@ -184,6 +188,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/extrato/{linha}/ignorar', [FinanceiroController::class, 'ignorar'])->name('financeiro.ignorar');
             Route::post('/financeiro/categorias', [FinanceiroController::class, 'salvarCategoria'])->name('financeiro.categoria_salvar');
             Route::patch('/financeiro/categorias/{categoria}', [FinanceiroController::class, 'alternarCategoria'])->name('financeiro.categoria_alternar');
+            Route::put('/financeiro/categorias/{categoria}/dre', [FinanceiroController::class, 'grupoDreCategoria'])->name('financeiro.categoria_dre');
             Route::post('/financeiro/extrato/{linha}/conciliar-transferencia', [FinanceiroController::class, 'conciliarTransferencia'])->name('financeiro.conciliar_transferencia');
             // Financeiro 2.0
             Route::get('/financeiro/compras/nova', [CompraController::class, 'create'])->name('compras.create');

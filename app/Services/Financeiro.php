@@ -39,7 +39,8 @@ final class Financeiro
             return;
         }
         foreach (CategoriaFinanceira::PADRAO as [$tipo, $nome, $chave]) {
-            CategoriaFinanceira::create(['organizacao_id' => $orgId, 'tipo' => $tipo, 'nome' => $nome, 'chave' => $chave]);
+            CategoriaFinanceira::create(['organizacao_id' => $orgId, 'tipo' => $tipo, 'nome' => $nome, 'chave' => $chave,
+                'grupo_dre' => CategoriaFinanceira::DRE_PADRAO[$nome] ?? null]);
         }
     }
 
@@ -56,7 +57,7 @@ final class Financeiro
             return null;
         }
         $c = $q()->where('tipo', $padrao[0])->where('nome', $padrao[1])->first();
-        $c ? $c->update(['chave' => $chave]) : $c = CategoriaFinanceira::create(['organizacao_id' => $orgId, 'tipo' => $padrao[0], 'nome' => $padrao[1], 'chave' => $chave]);
+        $c ? $c->update(['chave' => $chave]) : $c = CategoriaFinanceira::create(['organizacao_id' => $orgId, 'tipo' => $padrao[0], 'nome' => $padrao[1], 'chave' => $chave, 'grupo_dre' => CategoriaFinanceira::DRE_PADRAO[$padrao[1]] ?? null]);
 
         return $c;
     }

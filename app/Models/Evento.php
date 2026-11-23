@@ -67,6 +67,7 @@ class Evento extends Model
             'financeiro.vencimento_alterado' => 'Vencimento alterado',
             'cobranca.contato' => 'Contato de cobrança',
             'financeiro.rateio' => 'Rateio por centro de custo',
+            'financeiro.categoria_dre' => 'Linha da DRE da categoria',
             'financeiro.orcamento' => 'Orçamento definido',
             'financeiro.centro_custo' => 'Centro de custo criado',
             'cobranca.promessa' => 'Promessa de pagamento registrada',
