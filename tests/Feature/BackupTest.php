@@ -115,6 +115,30 @@ class BackupTest extends TestCase
         $this->assertFalse(Cliente::where('razao_social', 'Cliente Novo Depois da Base')->exists());
     }
 
+    public function test_incremental_sem_pacote_base_preserva_banco_e_arquivos(): void
+    {
+        $servico = app(Backups::class);
+        $this->arquivo('teste/base.xml', '<base/>');
+        $base = $servico->executar('manual');
+        $this->travel(1)->minutes();
+        $inc = $servico->executar('manual');
+        $this->assertSame('concluido', $inc->status);
+        $usuario = User::firstOrFail();
+        $usuario->update(['name' => 'Nome posterior ao backup']);
+        $this->arquivo('teste/base.xml', '<atual/>');
+        File::delete($this->storage.'/app/backup-destino-local/augi-backups/'.$base->nome);
+
+        try {
+            $servico->restaurar($inc->nome);
+            $this->fail('A restauração deveria exigir o pacote base.');
+        } catch (\Exception $erro) {
+            $this->assertNotEmpty($erro->getMessage());
+        }
+
+        $this->assertSame('Nome posterior ao backup', $usuario->fresh()->name);
+        $this->assertSame('<atual/>', $this->ler('teste/base.xml'));
+    }
+
     public function test_extrair_para_conferencia_nao_altera_o_sistema(): void
     {
         $this->arquivo('x/y.txt', 'conteudo');

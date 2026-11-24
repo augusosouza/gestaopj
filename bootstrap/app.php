@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AdminPlataforma;
+use App\Http\Middleware\CabecalhosSeguranca;
 use App\Http\Middleware\ExigeContexto;
 use App\Http\Middleware\ExigePapel;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(CabecalhosSeguranca::class);
         $middleware->alias([
             'papel' => ExigePapel::class,
             'contexto' => ExigeContexto::class,

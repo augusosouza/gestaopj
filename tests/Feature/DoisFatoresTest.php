@@ -111,6 +111,9 @@ class DoisFatoresTest extends TestCase
     {
         $admin = User::where('email', 'admin@augi.local')->sole();
         $this->ativar($admin);
+        $this->actingAs($admin)->delete(route('2fa.desativar'), ['senha' => 'piloto-2026'])->assertForbidden();
+        $this->assertTrue($admin->fresh()->temDoisFatores());
+        config(['gestao.exigir_2fa' => false]);
         $this->actingAs($admin)->delete(route('2fa.desativar'), ['senha' => 'errada'])->assertSessionHasErrors('senha');
         $this->assertTrue($admin->fresh()->temDoisFatores());
         $this->actingAs($admin)->delete(route('2fa.desativar'), ['senha' => 'piloto-2026'])->assertSessionHasNoErrors();

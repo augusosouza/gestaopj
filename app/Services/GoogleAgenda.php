@@ -9,8 +9,10 @@ use App\Models\Notificacao;
 use App\Models\Parcela;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -64,32 +66,95 @@ final class GoogleAgenda
             'redirect_uri' => $this->redirect(), 'grant_type' => 'authorization_code',
         ]);
         if (! $r->successful() || ! $r->json('access_token')) {
-            throw new RuntimeException('O Google recusou a autorização. Tente conectar de novo.');
+            throw new FalhaGoogle('O Google recusou a autorização. Tente conectar de novo.');
         }
         $escopos = (string) $r->json('scope');
         foreach (self::ESCOPOS[$modo] as $e) {
             if (str_starts_with($e, 'https://') && ! str_contains($escopos, $e)) {
-                throw new RuntimeException('A permissão de agenda não foi concedida. Marque a opção de agenda na tela do Google.');
+                throw new FalhaGoogle('A permissão de agenda não foi concedida. Marque a opção de agenda na tela do Google.');
             }
         }
-        $email = Http::withToken($r->json('access_token'))->timeout(15)->get('https://openidconnect.googleapis.com/v1/userinfo')->json('email');
+        $identidade = Http::withToken($r->json('access_token'))->timeout(15)->get('https://openidconnect.googleapis.com/v1/userinfo');
+        $email = $identidade->json('email');
+        $subject = $identidade->json('sub');
 
-        $c = GoogleConexao::withoutGlobalScope('organizacao')->updateOrCreate(['organizacao_id' => $orgId, 'user_id' => $user->id], [
-            'email_google' => $email, 'access_token' => $r->json('access_token'), 'refresh_token' => $r->json('refresh_token'),
-            'token_expira_em' => now()->addSeconds((int) $r->json('expires_in', 3600) - 60), 'escopos' => $escopos, 'modo' => $modo,
-            'status' => 'ativa', 'ultimo_erro' => null, 'pausada_ate' => null,
-            'sincronizar' => ['pagar' => true, 'receber' => false, 'cartao' => true],
-        ]);
-        if ($modo === 'dedicada') {
-            $cal = $this->req($c, 'post', '/calendars', ['summary' => self::NOME_AGENDA, 'timeZone' => config('app.timezone'),
-                'description' => 'Vencimentos sincronizados pelo Augi Gestão. Alterações feitas aqui não mudam o financeiro.']);
-            $c->update(['calendar_id' => $cal->json('id'), 'calendar_nome' => self::NOME_AGENDA]);
-        } else {
-            $c->update(['calendar_id' => 'primary', 'calendar_nome' => 'Agenda principal']);
+        if (! $identidade->successful() || ! is_string($email) || $email === '' || ! is_string($subject) || $subject === ''
+            || $identidade->json('email_verified') !== true) {
+            throw new FalhaGoogle('Não foi possível confirmar a conta Google autorizada.');
         }
-        Evento::registrar('google.conectado', $user, ['empresa' => $orgId, 'conta' => $email, 'modo' => $modo]);
 
-        return $c;
+        return DB::transaction(function () use ($r, $email, $subject, $escopos, $modo, $user, $orgId) {
+            User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $c = GoogleConexao::withoutGlobalScope('organizacao')
+                ->where(['organizacao_id' => $orgId, 'user_id' => $user->id])->lockForUpdate()->first();
+            if ($c) {
+                $mesmaConta = $c->google_subject !== null
+                    ? $c->google_subject === $subject
+                    : strcasecmp($c->email_google ?? '', $email) === 0;
+                if (! $mesmaConta || $c->modo !== $modo) {
+                    throw new FalhaGoogle('Para mudar de conta ou modo, desconecte a conta anterior com a limpeza de eventos antes de conectar novamente.');
+                }
+            }
+
+            $c ??= new GoogleConexao(['organizacao_id' => $orgId, 'user_id' => $user->id, 'modo' => $modo,
+                'sincronizar' => ['pagar' => true, 'receber' => false, 'cartao' => true]]);
+            $c->fill([
+                'email_google' => $email, 'google_subject' => $subject, 'access_token' => $r->json('access_token'),
+                'refresh_token' => $r->json('refresh_token') ?: $c->refresh_token,
+                'token_expira_em' => now()->addSeconds((int) $r->json('expires_in', 3600) - 60), 'escopos' => $escopos,
+                'status' => 'ativa', 'ultimo_erro' => null, 'pausada_ate' => null,
+            ])->save();
+
+            if (! $c->calendar_id && $modo === 'dedicada') {
+                $cal = $this->req($c, 'post', '/calendars', ['summary' => self::NOME_AGENDA, 'timeZone' => config('app.timezone'),
+                    'description' => 'Vencimentos sincronizados pelo Augi Gestão. Alterações feitas aqui não mudam o financeiro.']);
+                $c->update(['calendar_id' => $cal->json('id'), 'calendar_nome' => self::NOME_AGENDA]);
+            } elseif (! $c->calendar_id) {
+                $c->update(['calendar_id' => 'primary', 'calendar_nome' => 'Agenda principal']);
+            }
+
+            Evento::registrar('google.conectado', $user, ['empresa' => $orgId, 'conta' => $email, 'modo' => $modo]);
+
+            return $c;
+        });
+    }
+
+    public function salvarPreferencias(GoogleConexao $c, ?string $agendaId, array $preferencias): bool
+    {
+        return DB::transaction(function () use ($c, $agendaId, $preferencias) {
+            $c = $this->bloquear($c);
+            if ($agendaId && $c->modo === 'existente' && $agendaId !== $c->calendar_id) {
+                if ($c->status !== 'ativa' || $c->pausada_ate?->isFuture()) {
+                    return false;
+                }
+                try {
+                    $agenda = $this->agendas($c)->firstWhere('id', $agendaId);
+                    abort_unless($agenda, 422, 'Agenda não encontrada.');
+                    $this->limparEventos($c);
+                    $c->eventos()->withoutGlobalScope('organizacao')->delete();
+                } catch (FalhaGoogle) {
+                    return false;
+                }
+                $preferencias += ['calendar_id' => $agenda['id'], 'calendar_nome' => $agenda['nome'], 'ultimo_erro' => null];
+                Evento::registrar('google.agenda_alterada', $c);
+            }
+
+            $c->update($preferencias);
+
+            return true;
+        });
+    }
+
+    private function bloquear(GoogleConexao $c): GoogleConexao
+    {
+        return GoogleConexao::withoutGlobalScope('organizacao')->whereKey($c->id)->lockForUpdate()->firstOrFail();
+    }
+
+    private function limparEventos(GoogleConexao $c): void
+    {
+        foreach ($c->eventos()->withoutGlobalScope('organizacao')->lazyById() as $ev) {
+            $this->req($c, 'delete', $this->urlEvento($c, $ev->event_id), null, [404, 410]);
+        }
     }
 
     /** Agendas em que o usuário pode criar eventos (modo "existente"). */
@@ -106,6 +171,11 @@ final class GoogleAgenda
      * @return array{criados: int, atualizados: int, removidos: int, erros: int}
      */
     public function sincronizar(GoogleConexao $c, ?int $tituloId = null): array
+    {
+        return DB::transaction(fn () => $this->sincronizarBloqueada($this->bloquear($c), $tituloId));
+    }
+
+    private function sincronizarBloqueada(GoogleConexao $c, ?int $tituloId): array
     {
         $st = ['criados' => 0, 'atualizados' => 0, 'removidos' => 0, 'erros' => 0];
         if ($c->status !== 'ativa' || ! $c->calendar_id || ($c->pausada_ate && $c->pausada_ate->isFuture())) {
@@ -184,31 +254,34 @@ final class GoogleAgenda
         return $st;
     }
 
-    /** Desconecta: opcionalmente apaga o que a integração criou, revoga o acesso e esquece os tokens. */
-    public function desconectar(GoogleConexao $c, bool $limpar): void
+    /** Remove os eventos solicitados antes de descartar a autorização. */
+    public function desconectar(GoogleConexao $c, bool $limpar): bool
     {
-        if ($limpar && $c->status === 'ativa') {
-            try {
-                if ($c->modo === 'dedicada' && $c->calendar_id) {
-                    $this->req($c, 'delete', '/calendars/'.rawurlencode($c->calendar_id), null, [404, 410]);
-                } else {
-                    foreach ($c->eventos()->withoutGlobalScope('organizacao')->get() as $ev) {
-                        $this->req($c, 'delete', $this->urlEvento($c, $ev->event_id), null, [404, 410]);
+        return DB::transaction(function () use ($c, $limpar) {
+            $c = $this->bloquear($c);
+            if ($limpar) {
+                try {
+                    if ($c->modo === 'dedicada' && $c->calendar_id) {
+                        $this->req($c, 'delete', '/calendars/'.rawurlencode($c->calendar_id), null, [404, 410]);
+                    } else {
+                        $this->limparEventos($c);
                     }
+                } catch (FalhaGoogle) {
+                    return false;
+                }
+            }
+            try {
+                if ($t = $c->refresh_token ?: $c->access_token) {
+                    Http::asForm()->timeout(10)->post('https://oauth2.googleapis.com/revoke', ['token' => $t]);
                 }
             } catch (\Throwable $e) {
-                report($e); // desconectar nunca falha por causa do Google
+                report($e);
             }
-        }
-        try {
-            if ($t = $c->refresh_token ?: $c->access_token) {
-                Http::asForm()->timeout(10)->post('https://oauth2.googleapis.com/revoke', ['token' => $t]);
-            }
-        } catch (\Throwable $e) {
-            report($e);
-        }
-        Evento::registrar('google.desconectado', $c->user, ['empresa' => $c->organizacao_id, 'conta' => $c->email_google, 'eventos_apagados' => $limpar ? 'sim' : 'não']);
-        $c->delete();
+            Evento::registrar('google.desconectado', $c->user, ['empresa' => $c->organizacao_id, 'conta' => $c->email_google, 'eventos_apagados' => $limpar ? 'sim' : 'não']);
+            $c->delete();
+
+            return true;
+        });
     }
 
     /** Link "Adicionar ao Google Agenda" sem integração (o usuário salva o evento manualmente). */
@@ -277,10 +350,15 @@ final class GoogleAgenda
 
             return $corpo === null ? $h->{$metodo}(self::API.$caminho) : $h->{$metodo}(self::API.$caminho, $corpo);
         };
-        $r = $tentar();
-        if ($r->status() === 401) { // token expirado antes da hora: renova uma vez
-            $c->update(['token_expira_em' => now()->subMinute()]);
+        try {
             $r = $tentar();
+            if ($r->status() === 401) { // token expirado antes da hora: renova uma vez
+                $c->update(['token_expira_em' => now()->subMinute()]);
+                $r = $tentar();
+            }
+        } catch (ConnectionException) {
+            $c->update(['ultimo_erro' => 'Não foi possível alcançar o Google Agenda.']);
+            throw new FalhaGoogle('Falha de conexão com o Google Agenda.');
         }
         if ($r->successful() || in_array($r->status(), $aceitos, true)) {
             return $r;

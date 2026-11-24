@@ -110,17 +110,17 @@ Artisan::command('backup:restaurar {pacote? : nome do pacote (padrão: o mais re
     if (! $extrair && ! $this->option('confirmar')) {
         return $this->error('A restauração SUBSTITUI todo o banco e os arquivos. Rode com --confirmar (ou use --extrair=pasta para só conferir).');
     }
-    if (! $extrair) {
-        $this->call('down');
+    $manutencao = ! $extrair && ! app()->isDownForMaintenance();
+    if ($manutencao && $this->call('down') !== 0) {
+        return 1;
     }
-    try {
-        $r = $b->restaurar($this->argument('pacote'), $extrair);
-        $this->info("Restaurado de {$r['pacote']}: {$r['arquivos']} arquivo(s) de {$r['pacotes_usados']} pacote(s)".($extrair ? " em {$extrair}" : '').'.');
-    } finally {
-        if (! $extrair) {
-            $this->call('up');
-        }
+    $r = $b->restaurar($this->argument('pacote'), $extrair);
+    $this->info("Restaurado de {$r['pacote']}: {$r['arquivos']} arquivo(s) de {$r['pacotes_usados']} pacote(s)".($extrair ? " em {$extrair}" : '').'.');
+    if ($manutencao) {
+        return $this->call('up');
     }
+
+    return 0;
 })->purpose('Restaura banco e arquivos a partir do destino de backup.');
 
 Schedule::command('backup:agenda')->everyMinute()->withoutOverlapping(360);

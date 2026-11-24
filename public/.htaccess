@@ -1,3 +1,7 @@
+<FilesMatch "(?i)(^\.(?!well-known$)|^composer\.(json|lock)$|\.(bak|old|orig|sql|sqlite|log|pem|key|augibk|zip|tgz)$)">
+    Require all denied
+</FilesMatch>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

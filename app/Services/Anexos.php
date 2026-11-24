@@ -9,6 +9,7 @@ use App\Models\Titulo;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -52,16 +53,27 @@ final class Anexos
 
         $conteudo = $arquivo->get();
         $caminho = sprintf('anexos/%d/%s.%s', $alvo->organizacao_id, Str::uuid(), $ext);
-        Storage::disk('local')->put($caminho, $conteudo);
-        $a = Anexo::create([
-            'organizacao_id' => $alvo->organizacao_id, 'anexavel_type' => $alvo->getMorphClass(), 'anexavel_id' => $alvo->getKey(),
-            'descricao' => $descricao ? Str::limit($descricao, 120, '') : null,
-            'nome_original' => Str::limit(basename($arquivo->getClientOriginalName()), 180, ''),
-            'caminho' => $caminho, 'mime' => $mime, 'tamanho' => strlen($conteudo), 'sha256' => hash('sha256', $conteudo), 'enviado_por' => auth()->id(),
-        ]);
-        Evento::registrar('financeiro.anexo_enviado', $alvo, ['arquivo' => $a->nome_original, 'sha256' => substr($a->sha256, 0, 12)]);
+        $disco = Storage::disk('local');
+        if (! $disco->put($caminho, $conteudo)) {
+            throw ValidationException::withMessages(['arquivo' => 'Não foi possível guardar o arquivo. Tente de novo.']);
+        }
 
-        return $a;
+        try {
+            return DB::transaction(function () use ($alvo, $arquivo, $descricao, $caminho, $mime, $conteudo) {
+                $a = Anexo::create([
+                    'organizacao_id' => $alvo->organizacao_id, 'anexavel_type' => $alvo->getMorphClass(), 'anexavel_id' => $alvo->getKey(),
+                    'descricao' => $descricao ? Str::limit($descricao, 120, '') : null,
+                    'nome_original' => Str::limit(basename($arquivo->getClientOriginalName()), 180, ''),
+                    'caminho' => $caminho, 'mime' => $mime, 'tamanho' => strlen($conteudo), 'sha256' => hash('sha256', $conteudo), 'enviado_por' => auth()->id(),
+                ]);
+                Evento::registrar('financeiro.anexo_enviado', $alvo, ['arquivo' => $a->nome_original, 'sha256' => substr($a->sha256, 0, 12)]);
+
+                return $a;
+            });
+        } catch (\Throwable $erro) {
+            $disco->delete($caminho);
+            throw $erro;
+        }
     }
 
     public function remover(Anexo $a): void

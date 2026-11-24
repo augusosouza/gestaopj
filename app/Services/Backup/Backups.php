@@ -69,7 +69,7 @@ final class Backups
         ]);
 
         try {
-            $stats = $this->banco->exportar("{$tmp}/banco");
+            $stats = DB::transaction(fn () => $this->banco->exportar("{$tmp}/banco"));
             [$manifesto, $enviar, $removidos] = $this->manifesto($registro, $base ? null : $anterior);
 
             $zipPath = "{$tmp}/pacote.zip";
@@ -151,10 +151,14 @@ final class Backups
                 $tam = $f->getSize();
                 $mtime = $f->getMTime();
                 $velho = $antes[$rel] ?? null;
-                if ($velho && $velho['t'] === $tam && $velho['m'] === $mtime) {
+                $hash = hash_file('sha256', $f->getPathname());
+                if ($hash === false) {
+                    throw new RuntimeException('Não foi possível ler um arquivo para o backup.');
+                }
+                if ($velho && $velho['h'] === $hash) {
                     $atual[$rel] = $velho; // inalterado: aponta para o pacote que já o contém
                 } else {
-                    $atual[$rel] = ['t' => $tam, 'm' => $mtime, 'h' => hash_file('sha256', $f->getPathname()), 'p' => $b->nome];
+                    $atual[$rel] = ['t' => $tam, 'm' => $mtime, 'h' => $hash, 'p' => $b->nome];
                     $enviar[] = $rel;
                 }
             }
@@ -235,35 +239,65 @@ final class Backups
             $alvo = $this->baixarAbrir($nome, $tmp.'/alvo');
             $m = json_decode($alvo->getFromName('manifesto.json'), true, flags: JSON_THROW_ON_ERROR);
             $destinoArquivos = $extrairEm ? $extrairEm.'/arquivos' : $this->raizArquivos();
-            File::ensureDirectoryExists($destinoArquivos, 0750);
-
-            // Banco: sempre do pacote escolhido (cada pacote tem o banco completo).
-            $alvo->extractTo($tmp.'/x', array_values(array_filter(
-                array_map(fn ($i) => $alvo->getNameIndex($i), range(0, $alvo->numFiles - 1)), fn ($n) => str_starts_with($n, 'banco/'))));
-            $alvo->close();
-            $banco = $extrairEm ? ['extraido' => true] : $this->banco->importar($tmp.'/x/banco');
-            if ($extrairEm) {
-                File::copyDirectory($tmp.'/x/banco', $extrairEm.'/banco');
+            if (($m['formato'] ?? null) !== self::FORMATO || ! is_array($m['arquivos'] ?? null)) {
+                throw new RuntimeException('Manifesto de backup inválido.');
             }
+            $bancoPreparado = $tmp.'/banco';
+            $arquivosPreparados = $tmp.'/arquivos';
+            File::ensureDirectoryExists($bancoPreparado, 0750);
+            File::ensureDirectoryExists($arquivosPreparados, 0750);
+            try {
+                for ($i = 0; $i < $alvo->numFiles; $i++) {
+                    $entrada = $alvo->getNameIndex($i);
+                    if (str_starts_with($entrada, 'banco/') && ! str_ends_with($entrada, '/')) {
+                        $rel = substr($entrada, strlen('banco/'));
+                        $this->validarCaminho($rel);
+                        $this->prepararArquivo($alvo, $entrada, $bancoPreparado.'/'.$rel);
+                    }
+                }
+            } finally {
+                $alvo->close();
+            }
+            $this->banco->validar($bancoPreparado, ! $extrairEm);
 
             // Arquivos: cada um vem do pacote que o contém (base ou incremental).
             $porPacote = [];
             foreach ($m['arquivos'] as $rel => $info) {
+                $this->validarCaminho((string) $rel);
                 $porPacote[$info['p']][$rel] = $info['h'];
             }
             $restaurados = 0;
             foreach ($porPacote as $pacote => $arquivos) {
                 $zip = $pacote === $nome ? $this->baixarAbrir($nome, $tmp.'/alvo2') : $this->baixarAbrir($pacote, $tmp.'/'.md5($pacote));
-                foreach ($arquivos as $rel => $hash) {
-                    $conteudo = $zip->getFromName('arquivos/'.$rel);
-                    if ($conteudo === false || hash('sha256', $conteudo) !== $hash) {
-                        throw new RuntimeException("Arquivo ausente ou corrompido no pacote {$pacote}: {$rel}");
+                try {
+                    foreach ($arquivos as $rel => $hash) {
+                        $destino = $arquivosPreparados.'/'.$rel;
+                        $this->prepararArquivo($zip, 'arquivos/'.$rel, $destino);
+                        if (hash_file('sha256', $destino) !== $hash) {
+                            throw new RuntimeException("Arquivo corrompido no pacote {$pacote}: {$rel}");
+                        }
+                        $restaurados++;
                     }
-                    File::ensureDirectoryExists(dirname($destinoArquivos.'/'.$rel), 0750);
-                    file_put_contents($destinoArquivos.'/'.$rel, $conteudo);
-                    $restaurados++;
+                } finally {
+                    $zip->close();
                 }
-                $zip->close();
+            }
+
+            if ($extrairEm) {
+                File::ensureDirectoryExists($extrairEm, 0750);
+                if (! File::copyDirectory($bancoPreparado, $extrairEm.'/banco')) {
+                    throw new RuntimeException('Não foi possível copiar a extração do banco.');
+                }
+                $banco = ['extraido' => true];
+            } else {
+                $banco = $this->banco->importar($bancoPreparado);
+                if (config('session.driver') === 'database') {
+                    DB::connection(config('session.connection'))->table(config('session.table'))->delete();
+                }
+            }
+            File::ensureDirectoryExists($destinoArquivos, 0750);
+            if (! File::copyDirectory($arquivosPreparados, $destinoArquivos)) {
+                throw new RuntimeException('Não foi possível copiar todos os arquivos restaurados.');
             }
             // Remove arquivos que não existiam naquele momento (só na restauração real).
             if (! $extrairEm) {
@@ -281,15 +315,63 @@ final class Backups
         }
     }
 
+    private function validarCaminho(string $caminho): void
+    {
+        if ($caminho === '' || str_contains($caminho, '\\') || str_contains($caminho, "\0")
+            || preg_match('~(^|/)(?:\.\.?|)(/|$)~', $caminho)) {
+            throw new RuntimeException('Caminho inválido no pacote de backup.');
+        }
+    }
+
+    private function prepararArquivo(ZipArchive $zip, string $entrada, string $destino): void
+    {
+        $origem = $zip->getStream($entrada);
+        if ($origem === false) {
+            throw new RuntimeException('Arquivo ausente no pacote de backup.');
+        }
+        try {
+            File::ensureDirectoryExists(dirname($destino), 0750);
+            $saida = fopen($destino, 'xb');
+            if ($saida === false) {
+                throw new RuntimeException('Não foi possível preparar o arquivo de restauração.');
+            }
+            try {
+                $copiados = stream_copy_to_stream($origem, $saida);
+                if ($copiados !== $zip->statName($entrada)['size'] || ! fflush($saida)) {
+                    throw new RuntimeException('Arquivo de restauração incompleto.');
+                }
+            } finally {
+                fclose($saida);
+            }
+        } finally {
+            fclose($origem);
+        }
+    }
+
     private function baixarAbrir(string $nome, string $dir, ?string $hashEsperado = null): ZipArchive
     {
+        if (! preg_match('/^augi-[0-9]{8}-[0-9]{6}-(base|inc)\.augibk$/D', $nome)) {
+            throw new RuntimeException('Nome de pacote inválido.');
+        }
         File::ensureDirectoryExists($dir, 0750);
         $cifrado = "{$dir}/{$nome}";
         $in = $this->config->disco()->readStream($this->config->caminho($nome));
-        $out = fopen($cifrado, 'wb');
-        stream_copy_to_stream($in, $out);
-        fclose($out);
-        if (is_resource($in)) {
+        if (! is_resource($in)) {
+            throw new RuntimeException("Não foi possível ler o pacote {$nome} no destino.");
+        }
+        try {
+            $out = fopen($cifrado, 'wb');
+            if ($out === false) {
+                throw new RuntimeException('Não foi possível escrever o pacote temporário.');
+            }
+            try {
+                if (stream_copy_to_stream($in, $out) === false || ! fflush($out)) {
+                    throw new RuntimeException("A cópia do pacote {$nome} falhou.");
+                }
+            } finally {
+                fclose($out);
+            }
+        } finally {
             fclose($in);
         }
         if ($hashEsperado && hash_file('sha256', $cifrado) !== $hashEsperado) {

@@ -3,6 +3,7 @@
 namespace App\Services\Backup;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use RuntimeException;
 
 /**
@@ -48,13 +49,40 @@ final class DumpBanco
         return ['tabelas' => count($esquema['tabelas']), 'linhas' => $linhas];
     }
 
+    private function esquema(string $dir, bool $validarDriver = true): array
+    {
+        $esquema = json_decode(File::get($dir.'/esquema.json'), true, flags: JSON_THROW_ON_ERROR);
+        if (! is_string($esquema['driver'] ?? null) || ! is_array($esquema['tabelas'] ?? null)
+            || ! $esquema['tabelas'] || ! is_array($esquema['indices'] ?? null)) {
+            throw new RuntimeException('Esquema do backup inválido.');
+        }
+        if ($validarDriver && $esquema['driver'] !== $this->driver() && ! ($this->ehMysql($esquema['driver']) && $this->ehMysql($this->driver()))) {
+            throw new RuntimeException("Backup é de {$esquema['driver']}, mas o banco atual é {$this->driver()}.");
+        }
+
+        return $esquema;
+    }
+
+    public function validar(string $dir, bool $validarDriver): void
+    {
+        $esquema = $this->esquema($dir, $validarDriver);
+        foreach ($esquema['tabelas'] as $t => $ddl) {
+            if (! preg_match('/^[a-zA-Z0-9_]+$/D', (string) $t) || ! is_string($ddl) || ! is_file("{$dir}/dados/{$t}.jsonl")) {
+                throw new RuntimeException('Tabela inválida ou sem dados no backup.');
+            }
+            $arquivo = new \SplFileObject("{$dir}/dados/{$t}.jsonl");
+            foreach ($arquivo as $linha) {
+                if ($linha !== '' && ! is_array(json_decode($linha, true, flags: JSON_THROW_ON_ERROR))) {
+                    throw new RuntimeException('Linha de dados inválida no backup.');
+                }
+            }
+        }
+    }
+
     /** Substitui TODO o banco atual pelo conteúdo do backup. */
     public function importar(string $dir): array
     {
-        $esquema = json_decode((string) file_get_contents("{$dir}/esquema.json"), true, flags: JSON_THROW_ON_ERROR);
-        if ($esquema['driver'] !== $this->driver() && ! ($this->ehMysql($esquema['driver']) && $this->ehMysql($this->driver()))) {
-            throw new RuntimeException("Backup é de {$esquema['driver']}, mas o banco atual é {$this->driver()}.");
-        }
+        $esquema = $this->esquema($dir);
         $this->fk(false);
         try {
             foreach ($this->tabelas() as $t) {

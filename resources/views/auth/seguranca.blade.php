@@ -24,13 +24,15 @@
         <label for="senha1">Gerar novos códigos de recuperação</label>
         <div style="display:flex;gap:8px"><input id="senha1" type="password" name="senha" placeholder="Sua senha" required autocomplete="current-password"><button class="sec">Gerar</button></div>
       </form>
+      @unless ($user->exigeDoisFatores())
       <form method="post" action="{{ route('2fa.desativar') }}">
         @csrf @method('delete')
         <label for="senha2">Desativar a verificação</label>
         <div style="display:flex;gap:8px"><input id="senha2" type="password" name="senha" placeholder="Sua senha" required autocomplete="current-password"><button class="perigo">Desativar</button></div>
       </form>
+      @endunless
     </div>
-    <p class="sub" style="margin-top:10px;font-size:13px">Administradores e revisores não conseguem operar com a verificação desativada.</p>
+    @if ($user->exigeDoisFatores())<p class="sub">A verificação em duas etapas é obrigatória para seu perfil.</p>@endif
 
   @elseif ($segredo)
     <p class="sub">1. Abra seu aplicativo autenticador (Google Authenticator, Microsoft Authenticator, 1Password…) e leia o QR code.</p>

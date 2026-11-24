@@ -280,6 +280,12 @@ Não precisa de Docker, Node nem acesso root. Roteiro completo, na ordem:
 
 **Atualizar uma instalação existente:** baixe o código novo (Git *Update from Remote* ou upload), depois `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, `php artisan schedule-monitor:sync` e `php artisan optimize`. As migrations só acrescentam; faça um backup antes.
 
+### Proteções HTTP em produção
+
+Mantenha o domínio apontado para `public/`. O Laravel envia CSP em modo de observação, desabilita o cache de respostas dinâmicas e mantém CORS sem rotas autorizadas por padrão. Arquivos estáticos seguem a configuração do servidor. A CSP ainda permite a execução dos scripts inline existentes enquanto registra violações no console do navegador.
+
+Redirecione HTTP para HTTPS no servidor ou proxy. Em produção, o cookie de sessão é Secure por padrão. Habilite `GESTAO_HSTS=true` no Laravel só depois de homologar HTTPS e o reconhecimento do protocolo pela aplicação. Se o proxy já envia HSTS, deixe essa opção desativada no Laravel.
+
 ## Backup (Plataforma → Backups)
 
 **Completo:** banco de dados e todos os arquivos privados de todas as empresas (XMLs, PDFs, documentos, fechamentos e extratos). Feito em **PHP puro**, então funciona igual em cPanel e em container.
@@ -309,6 +315,8 @@ Não precisa de Docker, Node nem acesso root. Roteiro completo, na ordem:
 1. Instale o sistema novamente.
 2. Coloque as linhas `BACKUP_*` da folha de recuperação no `.env`.
 3. Rode `migrate`, `backup:listar` e `backup:restaurar --confirmar`.
+
+Antes de restaurar, preserve uma cópia independente do banco e dos arquivos atuais e confira o pacote com `backup:restaurar --extrair=/pasta-privada`. A restauração prepara o banco e verifica toda a cadeia de arquivos antes de começar a substituir dados. Se a restauração falhar depois de ativar a manutenção, ela permanece ativa. Confirme a integridade do banco e dos arquivos antes de executar `php artisan up`.
 
 **Validado de ponta a ponta** em MariaDB 10.11 com destino S3: base, incremental, exclusão de uma tabela inteira, restauração e conferência das 67 relações entre tabelas.
 

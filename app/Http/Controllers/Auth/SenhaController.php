@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Evento;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as RegraSenha;
@@ -41,8 +43,13 @@ class SenhaController extends Controller
             'password' => ['required', 'confirmed', RegraSenha::min(10)],
         ]);
 
-        $status = Password::reset($request->only('email', 'password', 'password_confirmation', 'token'), function ($user, $senha) {
+        $status = Password::reset($request->only('email', 'password', 'password_confirmation', 'token'), function ($user, $senha) use ($request) {
             $user->forceFill(['password' => $senha, 'remember_token' => Str::random(60)])->save();
+            if (config('session.driver') === 'database') {
+                DB::connection(config('session.connection'))->table(config('session.table'))->where('user_id', $user->id)->delete();
+            }
+            Evento::create(['user_id' => $user->id, 'ip' => $request->ip(), 'acao' => 'senha.redefinida',
+                'alvo_type' => $user->getMorphClass(), 'alvo_id' => $user->id]);
             event(new PasswordReset($user));
         });
 

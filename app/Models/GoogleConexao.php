@@ -14,7 +14,7 @@ class GoogleConexao extends Model
 
     protected $table = 'google_conexoes';
 
-    protected $fillable = ['organizacao_id', 'user_id', 'email_google', 'access_token', 'refresh_token', 'token_expira_em', 'escopos', 'modo',
+    protected $fillable = ['organizacao_id', 'user_id', 'email_google', 'google_subject', 'access_token', 'refresh_token', 'token_expira_em', 'escopos', 'modo',
         'calendar_id', 'calendar_nome', 'sincronizar', 'titulos_discretos', 'ao_quitar', 'status', 'ultimo_erro', 'sincronizado_em', 'pausada_ate'];
 
     protected $hidden = ['access_token', 'refresh_token'];

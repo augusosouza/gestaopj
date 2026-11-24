@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\GoogleConexao;
 use App\Models\GoogleEvento;
+use App\Services\FalhaGoogle;
 use App\Services\GoogleAgenda;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,10 +56,12 @@ class GoogleAgendaController extends Controller
         try {
             $c = $g->concluir((string) $request->query('code'), $s['modo'], auth()->user(), $s['org']);
             $g->sincronizar($c);
+        } catch (FalhaGoogle $e) {
+            return redirect()->route('integracoes.google')->with('erro', $e->getMessage());
         } catch (\Throwable $e) {
             report($e);
 
-            return redirect()->route('integracoes.google')->with('erro', $e instanceof \RuntimeException ? $e->getMessage() : 'Não foi possível concluir a conexão com o Google.');
+            return redirect()->route('integracoes.google')->with('erro', 'Não foi possível concluir a conexão com o Google.');
         }
 
         return redirect()->route('integracoes.google')->with('ok', 'Google Agenda conectado'.($c->modo === 'dedicada' ? ' na agenda "'.GoogleAgenda::NOME_AGENDA.'".' : '.'));
@@ -68,15 +71,12 @@ class GoogleAgendaController extends Controller
     {
         $c = GoogleConexao::where('user_id', auth()->id())->firstOrFail();
         $d = $request->validate(['calendar_id' => ['nullable', 'string', 'max:255'], 'ao_quitar' => ['required', 'in:remover,marcar']]);
-        if (filled($d['calendar_id'] ?? null) && $c->modo === 'existente' && $d['calendar_id'] !== $c->calendar_id) {
-            $agenda = $g->agendas($c)->firstWhere('id', $d['calendar_id']);
-            abort_unless($agenda, 422, 'Agenda não encontrada.');
-            // Trocou de agenda: os eventos antigos ficam onde estão; os novos vão para a escolhida.
-            $c->eventos()->delete();
-            $c->update(['calendar_id' => $agenda['id'], 'calendar_nome' => $agenda['nome']]);
+        if (! $g->salvarPreferencias($c, $d['calendar_id'] ?? null, [
+            'ao_quitar' => $d['ao_quitar'], 'titulos_discretos' => $request->boolean('titulos_discretos'),
+            'sincronizar' => ['pagar' => $request->boolean('pagar'), 'receber' => $request->boolean('receber'), 'cartao' => $request->boolean('cartao')],
+        ])) {
+            return back()->with('erro', 'Não foi possível limpar a agenda anterior. A troca não foi concluída. Confira a conexão e tente novamente.');
         }
-        $c->update(['ao_quitar' => $d['ao_quitar'], 'titulos_discretos' => $request->boolean('titulos_discretos'),
-            'sincronizar' => ['pagar' => $request->boolean('pagar'), 'receber' => $request->boolean('receber'), 'cartao' => $request->boolean('cartao')]]);
         $this->tentar(fn () => $g->sincronizar($c->fresh()));
 
         return back()->with('ok', 'Preferências do Google Agenda salvas.');
@@ -94,7 +94,9 @@ class GoogleAgendaController extends Controller
     public function desconectar(Request $request, GoogleAgenda $g): RedirectResponse
     {
         $c = GoogleConexao::where('user_id', auth()->id())->firstOrFail();
-        $g->desconectar($c, $request->boolean('limpar'));
+        if (! $g->desconectar($c, $request->boolean('limpar'))) {
+            return back()->with('erro', 'Não foi possível limpar os eventos. Confira a conexão antes de tentar desconectar novamente.');
+        }
 
         return redirect()->route('integracoes.google')->with('ok', 'Google Agenda desconectado. Os lembretes internos do Augi continuam ativos.');
     }

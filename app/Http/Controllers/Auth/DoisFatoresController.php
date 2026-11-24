@@ -116,6 +116,7 @@ class DoisFatoresController extends Controller
 
     public function desativar(Request $request): RedirectResponse
     {
+        abort_if($request->user()->exigeDoisFatores(), 403, 'A verificação em duas etapas é obrigatória para seu perfil.');
         $this->exigirSenha($request);
         $request->user()->forceFill([
             'two_factor_secret' => null, 'two_factor_recovery_codes' => null,

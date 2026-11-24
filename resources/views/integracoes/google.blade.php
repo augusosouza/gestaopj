@@ -34,7 +34,7 @@
   </div>
 @else
   @if ($c->status !== 'ativa')
-    <div class="aviso bad"><strong>Conexão interrompida:</strong> {{ $c->ultimo_erro }} Os lembretes internos continuam. Desconecte e conecte de novo.</div>
+    <div class="aviso bad"><strong>Conexão interrompida:</strong> {{ $c->ultimo_erro }} Os lembretes internos continuam. Autorize a mesma conta novamente para recuperar o acesso aos eventos.</div>
   @elseif ($c->ultimo_erro)
     <div class="aviso info"><strong>Último problema:</strong> {{ $c->ultimo_erro }}</div>
   @endif
@@ -65,6 +65,12 @@
     </form>
     <div class="painel">
       <strong>Ações</strong>
+      @if ($c->status !== 'ativa')
+        <form method="post" action="{{ route('integracoes.google.conectar') }}" style="margin:10px 0">@csrf
+          <input type="hidden" name="modo" value="{{ $c->modo }}">
+          <button class="sec">Reconectar a mesma conta Google</button>
+        </form>
+      @endif
       <form method="post" action="{{ route('integracoes.google.sincronizar') }}" style="margin:10px 0">@csrf<button class="sec">Sincronizar agora</button></form>
       <p class="sub" style="font-size:13px">Quando avisar é definido em <a href="{{ route('configuracoes.vencimentos') }}">Lembretes de vencimento</a> (ou na aba Lembretes de cada lançamento).</p>
       <form method="post" action="{{ route('integracoes.google.desconectar') }}" onsubmit="return confirm('Desconectar o Google Agenda?')" style="margin-top:14px">@csrf @method('delete')

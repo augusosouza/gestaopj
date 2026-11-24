@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Papel;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -31,6 +32,12 @@ class User extends Authenticatable
             'two_factor_recovery_codes' => 'encrypted:array',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function exigeDoisFatores(): bool
+    {
+        return config('gestao.exigir_2fa') && ($this->admin_plataforma
+            || $this->vinculos()->vigentes()->whereIn('papel', [Papel::Admin->value, Papel::Revisor->value])->exists());
     }
 
     public function temDoisFatores(): bool

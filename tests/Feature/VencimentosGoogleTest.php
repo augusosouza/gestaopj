@@ -174,6 +174,29 @@ class VencimentosGoogleTest extends TestCase
         $this->assertTrue(Evento::where('acao', 'google.sincronizado')->exists(), 'sincronização auditada');
     }
 
+    public function test_troca_de_agenda_preserva_vinculo_quando_google_falha_e_aceita_retomada(): void
+    {
+        Http::fake([
+            'www.googleapis.com/calendar/v3/users/me/calendarList*' => Http::response(['items' => [['id' => 'nova', 'summary' => 'Nova']]]),
+            'www.googleapis.com/calendar/v3/calendars/cal-augi/events' => Http::response(['id' => 'antigo']),
+            'www.googleapis.com/calendar/v3/calendars/cal-augi/events/antigo' => Http::sequence()->pushStatus(500)->pushStatus(410),
+            'www.googleapis.com/calendar/v3/calendars/nova/events' => Http::response(['id' => 'novo']),
+        ]);
+        $c = $this->conexao(['modo' => 'existente']);
+        app(GoogleAgenda::class)->sincronizar($c);
+        $dados = ['calendar_id' => 'nova', 'ao_quitar' => 'remover', 'pagar' => 1];
+
+        $this->como('financeiro@augi.local')->put(route('integracoes.google.salvar'), $dados)->assertSessionHas('erro');
+        $this->assertSame('cal-augi', $c->fresh()->calendar_id);
+        $this->assertNotNull($c->fresh()->ultimo_erro);
+        $this->assertSame('antigo', GoogleEvento::sole()->event_id);
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), '/calendars/nova/'));
+
+        $this->como('financeiro@augi.local')->put(route('integracoes.google.salvar'), $dados)->assertSessionHas('ok');
+        $this->assertSame('nova', $c->fresh()->calendar_id);
+        $this->assertSame('novo', GoogleEvento::sole()->event_id);
+    }
+
     public function test_quitada_remove_ou_marca_o_evento(): void
     {
         Http::fake(['*/events' => Http::response(['id' => 'ev-1']), '*/events/ev-1' => Http::response([], 204)]);
@@ -243,7 +266,7 @@ class VencimentosGoogleTest extends TestCase
         Http::fake([
             'oauth2.googleapis.com/token' => Http::response(['access_token' => 'novo-acesso', 'refresh_token' => 'novo-refresh', 'expires_in' => 3600,
                 'scope' => 'openid https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/userinfo.email']),
-            'openidconnect.googleapis.com/*' => Http::response(['email' => 'financeiro@exemplo.test']),
+            'openidconnect.googleapis.com/*' => Http::response(['email' => 'financeiro@exemplo.test', 'email_verified' => true, 'sub' => 'google-conta-1']),
             'www.googleapis.com/calendar/v3/calendars' => Http::response(['id' => 'cal-novo']),
             '*' => Http::response(['id' => 'ev']),
         ]);
@@ -251,10 +274,36 @@ class VencimentosGoogleTest extends TestCase
             ->get(route('integracoes.google.retorno', ['state' => 'ok123', 'code' => 'codigo']))->assertSessionHas('ok');
         $c = GoogleConexao::withoutGlobalScope('organizacao')->sole();
         $this->assertSame(['cal-novo', 'financeiro@exemplo.test', 'ativa'], [$c->calendar_id, $c->email_google, $c->status]);
+        $this->assertSame('google-conta-1', $c->google_subject);
         $bruto = DB::table('google_conexoes')->value('refresh_token');
         $this->assertNotSame('novo-refresh', $bruto, 'token guardado criptografado');
         $this->assertSame('novo-refresh', $c->refresh_token);
         Http::assertSent(fn (HttpRequest $r) => $r->url() === 'https://www.googleapis.com/calendar/v3/calendars' && $r->data()['summary'] === GoogleAgenda::NOME_AGENDA);
+    }
+
+    public function test_reconexao_da_mesma_conta_preserva_agenda_e_outra_identidade_e_recusada(): void
+    {
+        $c = $this->conexao(['google_subject' => 'conta-original']);
+        Http::fake([
+            'oauth2.googleapis.com/token' => Http::response(['access_token' => 'novo', 'scope' => 'https://www.googleapis.com/auth/calendar.app.created']),
+            'openidconnect.googleapis.com/*' => Http::sequence()
+                ->push(['email' => 'novo@exemplo.test', 'email_verified' => true, 'sub' => 'conta-original'])
+                ->push(['email' => 'novo@exemplo.test', 'email_verified' => true, 'sub' => 'outra-conta']),
+        ]);
+        $g = app(GoogleAgenda::class);
+        $atual = $g->concluir('codigo', 'dedicada', $this->fin, $this->empresa()->id);
+        $this->assertSame($c->id, $atual->id);
+        $this->assertSame('cal-augi', $atual->calendar_id);
+        $this->assertSame('tok-refresh', $atual->refresh_token);
+
+        try {
+            $g->concluir('codigo', 'dedicada', $this->fin, $this->empresa()->id);
+            $this->fail('Uma identidade diferente não pode assumir a conexão.');
+        } catch (\RuntimeException $erro) {
+            $this->assertStringContainsString('desconecte a conta anterior', $erro->getMessage());
+        }
+        $this->assertSame('conta-original', $c->fresh()->google_subject);
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), 'calendar/v3'));
     }
 
     public function test_conexao_de_uma_empresa_nao_ve_outra_e_desconectar_limpa(): void

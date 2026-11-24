@@ -26,7 +26,7 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $chave = Str::lower($dados['email']).'|'.$request->ip();
+        $chave = 'login:'.hash('sha256', Str::lower($dados['email']).'|'.$request->ip());
         if (RateLimiter::tooManyAttempts($chave, 5)) {
             throw ValidationException::withMessages(['email' => 'Muitas tentativas. Aguarde '.RateLimiter::availableIn($chave).' segundos.']);
         }
@@ -35,6 +35,10 @@ class LoginController extends Controller
         $user = $provider->retrieveByCredentials(['email' => $dados['email']]);
         if (! $user || ! $provider->validateCredentials($user, ['password' => $dados['password']])) {
             RateLimiter::hit($chave);
+            if ($user) {
+                Evento::create(['user_id' => $user->id, 'ip' => $request->ip(), 'acao' => 'login.falha',
+                    'alvo_type' => $user->getMorphClass(), 'alvo_id' => $user->id]);
+            }
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
         RateLimiter::clear($chave);
@@ -54,7 +58,7 @@ class LoginController extends Controller
     /** Abre a sessão e registra o login. */
     public static function concluir(Request $request, $user, bool $lembrar, string $metodo): RedirectResponse
     {
-        Auth::login($user, $lembrar);
+        Auth::login($user, $lembrar && ! $user->exigeDoisFatores());
         $request->session()->regenerate();
         Evento::create([
             'user_id' => $user->id, 'ip' => $request->ip(), 'acao' => 'login',
