@@ -26,7 +26,7 @@ Options -Indexes
     RewriteRule ^ - [E=AUGI_PUBLICACAO_HTACCESS:1]
     RewriteRule ^instalar\.php$ public/instalar.php [END]
     RewriteRule ^index\.php$ public/index.php [END]
-    RewriteRule ^((?:css/[A-Za-z0-9_-]+\.css|js/[A-Za-z0-9_-]+\.js|fonts/[A-Za-z0-9_.-]+\.woff2|favicon\.ico|robots\.txt))$ public/$1 [END]
+    RewriteRule ^((?:css/[A-Za-z0-9_-]+\.css|js/[A-Za-z0-9_-]+\.js|fonts/[A-Za-z0-9_.-]+\.woff2|favicon\.ico|robots\.txt|manifest\.webmanifest|service-worker\.js|pwa/(?:offline\.html|marca\.svg|(?:icone-(?:192|512|maskable)|apple-touch)\.png)))$ public/$1 [END]
 
     # Qualquer arquivo ou diretório físico restante pertence à parte privada.
     RewriteCond %{REQUEST_FILENAME} -f [OR]

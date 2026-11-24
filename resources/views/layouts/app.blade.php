@@ -2,7 +2,12 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#20232b">
+  <link rel="manifest" href="{{ url('manifest.webmanifest') }}">
+  <link rel="icon" href="{{ url('favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ url('pwa/apple-touch.png') }}">
+  <script src="{{ url('js/pwa.js') }}?v={{ filemtime(public_path('js/pwa.js')) }}" defer></script>
   <title>@yield('titulo', 'Painel') · {{ config('app.name') }}</title>
   <link rel="preload" href="{{ asset('fonts/ibm-plex-sans-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
@@ -74,6 +79,7 @@
     @include('partials.mensagens')
     @include('conhecimento.contextual')
     @yield('conteudo')
+    @include('partials.instalar-pwa')
   </main>
   <nav class="navegacao-mobile" aria-label="Atalhos no celular">
     @if ($menu['inicio'])
@@ -114,6 +120,7 @@
   @include('partials.mensagens')
   @include('conhecimento.contextual')
   @yield('conteudo')
+  @include('partials.instalar-pwa')
 </main>
 @endif
 </body>

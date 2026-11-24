@@ -25,6 +25,12 @@ return [
         'registrar-pagamento' => ['lancamentos', 'extratos', 'lembretes-vencimento'],
     ],
     'artigos' => [
+        'instalar-aplicativo' => $guia('inicio', 'Como instalar o Augi Gestão', 'Abra o Augi pelo ícone da tela inicial ou em uma janela própria.', 'Qualquer usuário com navegador compatível e acesso por HTTPS.', null, 'pwa aplicativo atalho android iphone safari desktop', [
+            'Abra o sistema e procure Instalar Augi Gestão na parte inferior da página.',
+            'No iPhone ou iPad, abra pelo Safari e use Compartilhar → Adicionar à Tela de Início. Em outros navegadores, procure a opção de instalação no menu ou na barra de endereço.',
+            'Use uma conexão com a internet para consultar dados e concluir operações. Se cair durante uma operação, consulte o histórico antes de repetir o envio.',
+            'Quando aparecer um aviso de atualização, salve o trabalho e feche todas as abas e janelas do Augi antes de abrir novamente.',
+        ]),
         'cadastrar-empresa' => $guia('inicio', 'Como adicionar uma empresa', 'Entenda o cadastro da primeira empresa e a inclusão de outras organizações na instalação.', 'Responsável pela instalação ou operador com acesso ao terminal da aplicação.', null, 'nova organização criar empresa cnpj razão social', [
             'Na primeira instalação em cPanel, abra /instalar.php no domínio HTTPS. Com o código de ativação, informe o banco vazio, o CNPJ, a razão social e os dados do primeiro administrador.',
             'Em uma instalação já em uso, solicite à equipe de implantação o cadastro da nova empresa. O formulário Administração → Empresa edita a organização ativa.',

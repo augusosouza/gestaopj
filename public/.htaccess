@@ -1,3 +1,13 @@
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "^(service-worker\.js|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
+
 <FilesMatch "(?i)(^\.(?!well-known$)|^raiz-augi\.php$|^composer\.(json|lock)$|\.(bak|old|orig|sql|sqlite|log|pem|key|augibk|zip|tgz)$)">
     Require all denied
 </FilesMatch>

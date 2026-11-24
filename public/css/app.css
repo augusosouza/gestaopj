@@ -567,3 +567,12 @@ body:has(.painel-baixa[open]) { overflow: hidden; }
   .navegacao-mobile .icone { width: 20px; height: 20px; }
 }
 .painel-baixa:not([open]) { display: none; }
+
+.instalar-pwa { margin-block-start: 2rem; }
+.instalar-pwa summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  width: fit-content;
+}
+.instalar-pwa p, .instalar-pwa ul { max-width: 54ch; }
