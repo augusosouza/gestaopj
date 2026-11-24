@@ -275,7 +275,7 @@ No Gerenciador de Arquivos, habilite a exibição de arquivos ocultos. Se a hosp
 Não precisa de Docker, Node nem acesso root. Roteiro completo, na ordem:
 
 1. **Requisitos da hospedagem:**
-   - PHP **8.3+** (MultiPHP Manager) com as extensões `pdo_mysql`, `mbstring`, `intl`, `openssl`, `curl`, `fileinfo` (anexos), `sodium` (backups criptografados), `zip`, `dom`, `xmlreader` e `xmlwriter` (planilhas Excel/CSV e leitura de OFX/XML de NFS-e) — confira em *Select PHP Version → Extensions*;
+   - PHP **8.3+** (MultiPHP Manager) com as extensões `pdo_mysql`, `mbstring`, `intl`, `openssl`, `curl`, `fileinfo` (anexos), `sodium` (backups criptografados), `zip`, `dom`, `simplexml`, `xmlreader` e `xmlwriter` (planilhas Excel/CSV e leitura de OFX/XML de NFS-e) — confira em *Select PHP Version → Extensions*;
    - MySQL 8 ou MariaDB 10.6+;
    - Cron Jobs; Terminal SSH é muito recomendado (sem ele, os comandos `php artisan` precisam virar tarefas cron de uma vez só).
 2. **Banco:** em *MySQL Databases*, crie o banco, o usuário (senha forte) e dê **todos os privilégios** do usuário no banco.

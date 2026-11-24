@@ -65,7 +65,7 @@ if (preg_match('~^(?:[A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\])(?::[0-9]{1,5})?$~D', $hos
 }
 $ok = false;
 $message = '';
-$extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'intl', 'mbstring', 'openssl', 'pdo_mysql', 'session', 'sodium', 'tokenizer', 'xmlreader', 'xmlwriter', 'zip'];
+$extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'iconv', 'intl', 'json', 'libxml', 'mbstring', 'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'simplexml', 'sodium', 'tokenizer', 'xmlreader', 'xmlwriter', 'zip'];
 $missing = array_values(array_filter($extensions, static fn ($name) => ! extension_loaded($name)));
 $gravaveis = [$root, $root.'/storage/app', $root.'/bootstrap/cache', $root.'/storage/logs', $root.'/storage/framework/views'];
 $requisitos = [
