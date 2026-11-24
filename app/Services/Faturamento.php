@@ -58,6 +58,7 @@ final class Faturamento
                         'status' => StatusFatura::Aberta,
                     ]);
                     $this->financeiro->tituloDeFatura($fatura);
+                    Evento::registrar('fatura.gerada', $fatura);
                     $criadas['faturas']++;
                 }
 

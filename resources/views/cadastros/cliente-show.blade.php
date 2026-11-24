@@ -3,7 +3,7 @@
 @section('conteudo')
 <x-cabecalho :trilha="['Clientes' => route('clientes.index'), 'Ficha do cliente' => null]"
   :titulo="$cliente->razao_social" :sub="$cliente->nome_fantasia">
-  <x-slot:acoes><a class="btn" href="{{ route('clientes.edit', $cliente) }}">Editar cliente</a></x-slot:acoes>
+  <x-slot:acoes><a class="btn secundario" href="{{ route('clientes.historico', $cliente) }}">Histórico</a> <a class="btn" href="{{ route('clientes.edit', $cliente) }}">Editar cliente</a></x-slot:acoes>
 </x-cabecalho>
 <section class="painel" aria-labelledby="dados-cliente">
   <h2 id="dados-cliente">Dados e contato</h2>
@@ -43,5 +43,22 @@
     </tbody>
   </table></div>
   {{ $faturas->links() }}
+</section>
+@include('cadastros.cliente-vinculos')
+<section class="painel" aria-labelledby="parcelas-cliente">
+  <h2 id="parcelas-cliente">Parcelas a receber</h2>
+  <div class="tabela"><table>
+    <thead><tr><th scope="col">Título</th><th scope="col">Vencimento</th><th scope="col">Situação</th><th scope="col" class="n">Saldo</th></tr></thead>
+    <tbody>
+    @forelse ($parcelas as $parcela)
+      <tr><td><a href="{{ route('financeiro.titulo', $parcela->titulo) }}">{{ $parcela->titulo->descricao }} · parcela {{ $parcela->numero }}</a></td>
+        <td>{{ $parcela->vencimento->format('d/m/Y') }}</td><td>{{ $parcela->saldo() <= 0 ? 'Liquidada' : ($parcela->vencida() ? 'Vencida' : 'Em aberto') }}</td>
+        <td class="n">{{ brl($parcela->saldo()) }}</td></tr>
+    @empty
+      <tr><td colspan="4" class="vazio">Nenhum título a receber vinculado às faturas deste cliente.</td></tr>
+    @endforelse
+    </tbody>
+  </table></div>
+  {{ $parcelas->links() }}
 </section>
 @endsection

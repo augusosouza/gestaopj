@@ -9,6 +9,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CaixaController;
 use App\Http\Controllers\CartaoController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ClienteRelacionamentoController;
 use App\Http\Controllers\CobrancaClienteController;
 use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
@@ -269,6 +270,11 @@ Route::middleware('auth')->group(function () {
             Route::post('/empresa/escritorios', [OrganizacaoController::class, 'autorizarEscritorio'])->name('organizacao.autorizar');
             Route::patch('/empresa/escritorios/{autorizacao}/revogar', [OrganizacaoController::class, 'revogarEscritorio'])->name('organizacao.revogar');
             Route::resource('clientes', ClienteController::class)->except('destroy');
+            Route::get('clientes/{cliente}/historico', [ClienteController::class, 'historico'])->name('clientes.historico');
+            Route::get('clientes/{cliente}/cadastro/{tipo}/{item?}', [ClienteRelacionamentoController::class, 'form'])
+                ->whereIn('tipo', ['contato', 'endereco'])->whereNumber('item')->name('clientes.relacionamentos.form');
+            Route::post('clientes/{cliente}/cadastro/{tipo}/{item?}', [ClienteRelacionamentoController::class, 'salvar'])
+                ->whereIn('tipo', ['contato', 'endereco'])->whereNumber('item')->name('clientes.relacionamentos.salvar');
             Route::post('/prestadores/{prestador}/pix', [AlteracaoPixController::class, 'solicitar'])
                 ->middleware('throttle:8,1')->name('prestadores.pix.solicitar');
             Route::patch('/prestadores/{prestador}/pix/{solicitacao}', [AlteracaoPixController::class, 'decidir'])

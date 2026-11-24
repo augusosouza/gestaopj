@@ -32,6 +32,17 @@ class Evento extends Model
     public function rotulo(): string
     {
         return [
+            'cliente.ficha_consultada' => 'Ficha consultada',
+            'cliente.historico_consultado' => 'Histórico consultado',
+            'cliente.edicao_consultada' => 'Formulário de edição aberto',
+            'cliente.relacionamento_consultado' => 'Formulário de contato ou endereço aberto',
+            'cliente.salvo_sem_alteracao' => 'Cadastro salvo sem alterações',
+            'cliente.relacionamento_criado' => 'Contato ou endereço cadastrado',
+            'cliente.relacionamento_atualizado' => 'Contato ou endereço atualizado',
+            'cliente.contrato_criado' => 'Contrato criado',
+            'cliente.contrato_atualizado' => 'Contrato atualizado',
+            'cliente.contrato_desvinculado' => 'Contrato transferido para outro cliente',
+            'fatura.gerada' => 'Fatura gerada',
             'cliente.criado' => 'Cliente cadastrado',
             'cliente.atualizado' => 'Cadastro de cliente atualizado',
             'vinculo.papel_alterado' => 'Papel de acesso alterado',

@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Alocacao;
 use App\Models\Cliente;
 use App\Models\Contrato;
+use App\Models\Evento;
 use App\Models\Prestador;
 use App\Support\Dinheiro;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -30,7 +32,13 @@ class ContratoController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $c = Contrato::create($this->dados($request));
+        $dados = $this->dados($request);
+        $c = DB::transaction(function () use ($dados) {
+            $contrato = Contrato::create($dados);
+            Evento::registrar('cliente.contrato_criado', $contrato->cliente, ['registro' => $contrato->id]);
+
+            return $contrato;
+        });
 
         return redirect()->route('contratos.show', $c)->with('ok', 'Contrato criado. Aloque os prestadores abaixo.');
     }
@@ -50,7 +58,17 @@ class ContratoController extends Controller
 
     public function update(Request $request, Contrato $contrato): RedirectResponse
     {
-        $contrato->update($this->dados($request, $contrato));
+        $dados = $this->dados($request, $contrato);
+        DB::transaction(function () use ($contrato, $dados) {
+            $atual = Contrato::query()->lockForUpdate()->findOrFail($contrato->id);
+            $anterior = $atual->cliente;
+            $atual->update($dados);
+            Evento::registrar('cliente.contrato_atualizado', $atual->cliente()->firstOrFail(), ['registro' => $atual->id,
+                'campos' => array_keys(array_diff_key($atual->getChanges(), ['updated_at' => true]))]);
+            if ($atual->wasChanged('cliente_id')) {
+                Evento::registrar('cliente.contrato_desvinculado', $anterior, ['registro' => $atual->id]);
+            }
+        });
 
         return redirect()->route('contratos.show', $contrato)->with('ok', 'Contrato atualizado. Faturas já geradas não são alteradas.');
     }

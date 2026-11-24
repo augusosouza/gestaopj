@@ -7,6 +7,7 @@ use App\Enums\TipoOrganizacao;
 use App\Models\Organizacao;
 use App\Models\User;
 use App\Models\Vinculo;
+use App\Support\CompatibilidadeInstalacao;
 use App\Support\Documento;
 use Dotenv\Dotenv;
 use Illuminate\Contracts\Console\Kernel;
@@ -65,16 +66,9 @@ if (preg_match('~^(?:[A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\])(?::[0-9]{1,5})?$~D', $hos
 }
 $ok = false;
 $message = '';
-$extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'iconv', 'intl', 'json', 'libxml', 'mbstring', 'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'simplexml', 'sodium', 'tokenizer', 'xmlreader', 'xmlwriter', 'zip'];
-$missing = array_values(array_filter($extensions, static fn ($name) => ! extension_loaded($name)));
-$gravaveis = [$root, $root.'/storage/app', $root.'/bootstrap/cache', $root.'/storage/logs', $root.'/storage/framework/views'];
-$requisitos = [
-    ['PHP 8.3 ou superior', PHP_VERSION_ID >= 80300, PHP_VERSION],
-    ['Extensões PHP', $missing === [], $missing ? 'Ausentes: '.implode(', ', $missing) : 'Extensões obrigatórias disponíveis'],
-    ['Conexão HTTPS', $https, $https ? 'Ativa' : 'Abra o instalador por HTTPS'],
-    ['Dependências PHP', is_file($root.'/vendor/autoload.php'), 'vendor/autoload.php'],
-    ['Permissões de escrita', count(array_filter($gravaveis, 'is_writable')) === count($gravaveis), 'Raiz privada, storage e bootstrap/cache'],
-];
+require $root.'/app/Support/CompatibilidadeInstalacao.php';
+$requisitos = CompatibilidadeInstalacao::verificar($root);
+$requisitos[] = ['Conexão HTTPS', $https, $https ? 'Ativa' : 'Abra o instalador por HTTPS'];
 $compatibilidadeOk = ! in_array(false, array_column($requisitos, 1), true);
 
 if ($compatibilidadeOk && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -280,10 +274,15 @@ function escaped(string $value): string
     <?php if ($ok) { ?>
         <p role="status">A primeira empresa e o administrador foram criados.</p>
         <p><a href="<?= escaped($base) ?>/login">Entrar e configurar a autenticação em dois fatores</a></p>
-        <h2>Agendador e e-mail</h2>
+        <h2>Checklist após instalar</h2>
         <p>No agendador do servidor, use o caminho do PHP CLI da mesma versão que atende o site. A linha abaixo é um exemplo para o cron do Linux.</p>
         <pre><?= escaped('* * * * * /usr/local/bin/php '.escapeshellarg($root.'/artisan').' schedule:run') ?></pre>
-        <p>Confira a execução em Administração Augi → Saúde do sistema. Configure o SMTP no arquivo .env conforme o README para ativar convites e recuperação de senha.</p>
+        <ol>
+            <li>Ative a autenticação em dois fatores e guarde os códigos de recuperação.</li>
+            <li>Configure e teste o SMTP em Administração Augi para ativar convites e recuperação de senha.</li>
+            <li>Confira a execução do cron, a fila e o primeiro backup em Administração Augi → Saúde do sistema.</li>
+            <li>Execute <code>php diagnostico.php</code> na pasta do Augi para verificar a configuração da instalação.</li>
+        </ol>
     <?php } else { ?>
         <?php if ($message) { ?><p role="alert"><?= escaped($message) ?></p><?php } ?>
         <?php if ($compatibilidadeOk) { ?>

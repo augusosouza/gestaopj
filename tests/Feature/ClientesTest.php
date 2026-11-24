@@ -35,4 +35,31 @@ class ClientesTest extends TestCase
         $this->get(route('clientes.show', $externo))->assertNotFound();
         $this->assertDatabaseHas('eventos', ['acao' => 'cliente.criado', 'alvo_id' => $cliente->id]);
     }
+
+    public function test_contatos_enderecos_e_historico_respeitam_o_cliente(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $empresa = $this->empresa();
+        $cliente = Cliente::create(['organizacao_id' => $empresa->id, 'razao_social' => 'Cliente contatos', 'documento' => '52998224725']);
+        $vizinho = Cliente::create(['organizacao_id' => $empresa->id, 'razao_social' => 'Outro cliente', 'documento' => '11144477735']);
+        $this->como('admin@augi.local')->get(route('clientes.relacionamentos.form', [$cliente, 'contato']))->assertOk();
+        $this->post(route('clientes.relacionamentos.salvar', [$cliente, 'contato']), [
+            'ativo' => '1', 'finalidade' => 'financeiro', 'dados' => ['nome' => 'Contato de teste', 'email' => 'financeiro@example.test'],
+        ])->assertRedirect(route('clientes.show', $cliente));
+        $contato = $cliente->relacionamentos()->firstOrFail();
+        $this->post(route('clientes.relacionamentos.salvar', [$vizinho, 'contato', $contato->id]), [
+            'ativo' => '0', 'finalidade' => 'financeiro', 'dados' => ['nome' => 'Intruso'],
+        ])->assertNotFound();
+        $this->post(route('clientes.relacionamentos.salvar', [$cliente, 'endereco']), [
+            'ativo' => '1', 'finalidade' => 'fiscal', 'dados' => ['logradouro' => 'Rua de teste', 'municipio' => 'Juiz de Fora', 'pais' => 'Brasil', 'uf' => 'MG'],
+        ])->assertRedirect(route('clientes.show', $cliente));
+        $this->post(route('clientes.relacionamentos.salvar', [$cliente, 'contato', $contato->id]), [
+            'ativo' => '0', 'finalidade' => 'financeiro', 'dados' => ['nome' => 'Contato de teste', 'email' => 'financeiro@example.test'],
+        ])->assertRedirect(route('clientes.show', $cliente));
+        $this->get(route('clientes.show', $cliente))->assertOk()->assertSee('Rua de teste')->assertSee('Inativo');
+        $this->get(route('clientes.historico', $cliente))->assertOk()->assertSee('Ficha consultada')
+            ->assertSee('Contato ou endereço cadastrado')->assertSee('Contato ou endereço atualizado')->assertSee('Campos: ativo')
+            ->assertDontSee('financeiro@example.test');
+        $this->get(route('clientes.historico', $vizinho))->assertOk()->assertDontSee('Contato ou endereço atualizado');
+    }
 }

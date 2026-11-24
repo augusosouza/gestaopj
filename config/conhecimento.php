@@ -25,6 +25,12 @@ return [
         'registrar-pagamento' => ['lancamentos', 'extratos', 'lembretes-vencimento'],
     ],
     'artigos' => [
+        'ficha-cliente' => $guia('operacao', 'Como consultar a ficha e o histórico de um cliente', 'Encontre contatos, endereços, contratos, faturas e parcelas a receber do cliente.', $admin, 'clientes.index', 'histórico log auditoria endereço contato cobrança cliente', [
+            'Abra Operação → Clientes, pesquise por nome ou CPF/CNPJ e selecione o cliente.',
+            'Na ficha, adicione contatos e endereços com a finalidade correspondente. Use Editar para corrigir ou inativar um registro.',
+            'Consulte Contratos, Faturas e Parcelas a receber. Os links levam aos registros financeiros de origem.',
+            'Abra Histórico para conferir a ação, data, responsável e os campos alterados quando registrados.',
+        ]),
         'instalar-aplicativo' => $guia('inicio', 'Como instalar o Augi Gestão', 'Abra o Augi pelo ícone da tela inicial ou em uma janela própria.', 'Qualquer usuário com navegador compatível e acesso por HTTPS.', null, 'pwa aplicativo atalho android iphone safari desktop', [
             'Abra o sistema e procure Instalar Augi Gestão na parte inferior da página.',
             'No iPhone ou iPad, abra pelo Safari e use Compartilhar → Adicionar à Tela de Início. Em outros navegadores, procure a opção de instalação no menu ou na barra de endereço.',

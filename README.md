@@ -406,3 +406,9 @@ O navegador precisa acessar a instalação por HTTPS. Na parte inferior do siste
 Mantenha `manifest.webmanifest`, `service-worker.js` e a pasta `pwa/` junto ao `index.php` público. O manifesto e o service worker resolvem o escopo a partir da própria URL e funcionam na raiz do domínio ou em um subdiretório, inclusive no pacote cPanel em pasta única.
 
 O cache do service worker guarda apenas a página genérica de falta de conexão. Consultas e operações dependem do servidor. Ao alterar essa página, atualize a versão do cache em `service-worker.js`. Uma versão nova aguarda o fechamento das janelas que ainda usam a anterior.
+
+### Diagnóstico do instalador
+
+Na pasta do Augi, execute `php diagnostico.php` com o PHP CLI escolhido para o site. O diagnóstico roda antes do primeiro acesso e verifica versão, extensões, dependências, diretórios e arquivos públicos. Após a instalação, também verifica conexão com o banco, chave de criptografia, configuração HTTPS e cookies, tabelas da versão, bloqueio da ativação inicial e presença da configuração SMTP. Ele exibe o estado das verificações sem imprimir credenciais.
+
+Faça o teste real de entrega de e-mail na Administração Augi. Consulte a Saúde do sistema para validar cron, fila e backup. A criação da primeira empresa e do administrador continua disponível no instalador Web protegido pelo código de ativação.

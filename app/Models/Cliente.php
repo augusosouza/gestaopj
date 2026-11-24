@@ -12,6 +12,11 @@ class Cliente extends Model
 
     protected $fillable = ['organizacao_id', 'razao_social', 'documento', 'email', 'municipio_ibge', 'nome_fantasia', 'telefone'];
 
+    public function relacionamentos(): HasMany
+    {
+        return $this->hasMany(ClienteRelacionamento::class);
+    }
+
     public function contratos(): HasMany
     {
         return $this->hasMany(Contrato::class);

@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\Evento;
 use App\Models\Fatura;
+use App\Models\Parcela;
+use App\Models\Titulo;
 use App\Rules\DocumentoValido;
 use App\Support\Documento;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,17 +57,55 @@ class ClienteController extends Controller
 
     public function show(Cliente $cliente): View
     {
+        Evento::registrar('cliente.ficha_consultada', $cliente);
         $contratos = $cliente->contratos()->orderByDesc('id')->paginate(15, ['*'], 'contratos');
-        $faturas = Fatura::query()->whereHas('contrato', fn ($q) => $q->where('cliente_id', $cliente->id))
+        $faturas = $this->faturas($cliente)
             ->with('contrato:id,numero')->orderByDesc('competencia')->orderByDesc('id')
             ->paginate(15, ['*'], 'faturas')->withQueryString();
         $contratos->withQueryString();
 
-        return view('cadastros.cliente-show', compact('cliente', 'contratos', 'faturas'));
+        $parcelas = Parcela::query()->whereHas('titulo', fn ($q) => $q
+            ->where('tipo', 'receber')->whereNull('cancelado_em')
+            ->where('origem_type', (new Fatura)->getMorphClass())
+            ->whereIn('origem_id', $this->faturas($cliente)->select('id')))
+            ->with('titulo', 'movimentos.estornoDe')->orderByDesc('vencimento')->orderByDesc('id')
+            ->paginate(15, ['*'], 'parcelas')->withQueryString();
+
+        $relacionamentos = [];
+        foreach (['contato', 'endereco'] as $tipo) {
+            $relacionamentos[$tipo] = $cliente->relacionamentos()->where('tipo', $tipo)
+                ->orderByDesc('ativo')->orderBy('id')->paginate(10, ['*'], $tipo)->withQueryString();
+        }
+
+        return view('cadastros.cliente-show', compact('cliente', 'contratos', 'faturas', 'parcelas', 'relacionamentos'));
+    }
+
+    public function historico(Cliente $cliente): View
+    {
+        $faturas = $this->faturas($cliente)->select('id');
+        $titulos = Titulo::query()->where('origem_type', (new Fatura)->getMorphClass())
+            ->whereIn('origem_id', $faturas)->select('id');
+
+        $eventos = Evento::where('organizacao_id', $cliente->organizacao_id)
+            ->where(function ($q) use ($cliente, $faturas, $titulos) {
+                $q->whereMorphedTo('alvo', $cliente)
+                    ->orWhere(fn ($w) => $w->where('alvo_type', (new Fatura)->getMorphClass())->whereIn('alvo_id', $faturas))
+                    ->orWhere(fn ($w) => $w->where('alvo_type', (new Titulo)->getMorphClass())->whereIn('alvo_id', $titulos));
+            })->with('user:id,name')->orderByDesc('created_at')->orderByDesc('id')->cursorPaginate(30);
+        Evento::registrar('cliente.historico_consultado', $cliente);
+
+        return view('cadastros.cliente-historico', compact('cliente', 'eventos'));
+    }
+
+    private function faturas(Cliente $cliente): Builder
+    {
+        return Fatura::query()->whereHas('contrato', fn ($q) => $q->where('cliente_id', $cliente->id));
     }
 
     public function edit(Cliente $cliente): View
     {
+        Evento::registrar('cliente.edicao_consultada', $cliente);
+
         return view('cadastros.cliente-form', compact('cliente'));
     }
 
@@ -85,12 +126,15 @@ class ClienteController extends Controller
     {
         $dados = $this->dados($request, $cliente);
         DB::transaction(function () use ($cliente, $dados) {
+            $cliente = Cliente::query()->lockForUpdate()->findOrFail($cliente->id);
             $cliente->fill($dados);
             if ($cliente->isDirty()) {
                 $cliente->save();
                 Evento::registrar('cliente.atualizado', $cliente, [
                     'campos' => array_keys(array_diff_key($cliente->getChanges(), ['updated_at' => true])),
                 ]);
+            } else {
+                Evento::registrar('cliente.salvo_sem_alteracao', $cliente);
             }
         });
 
