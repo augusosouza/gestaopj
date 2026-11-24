@@ -1,5 +1,8 @@
 {{-- Ícones de traço simples (24×24), herdam a cor do texto. --}}
 @php($d = [
+  'lateral' => 'M3 4h18v16H3zM9 4v16',
+  'mais' => 'M12 5v14M5 12h14',
+  'exportar' => 'M12 3v12m-5-5 5 5 5-5M5 15v5h14v-5',
   'inicio' => 'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z',
   'operacao' => 'M4 7h16M4 12h16M4 17h10',
   'financeiro' => 'M3 6h18v12H3zM3 10h18M7 15h3',

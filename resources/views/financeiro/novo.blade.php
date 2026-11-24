@@ -1,11 +1,12 @@
 @extends('layouts.app')
 @section('titulo', $tipo === 'receber' ? 'Nova receita' : 'Nova despesa')
+@section('compacta', '1')
 @section('conteudo')
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), ($tipo === 'receber' ? 'Contas a receber' : 'Contas a pagar') => route('financeiro.index', ['tipo' => $tipo]), 'Novo lançamento' => null]"
   :titulo="$tipo === 'receber' ? 'Nova receita' : 'Nova despesa'" />
 <x-abas :itens="[['Despesa', route('financeiro.novo', ['tipo' => 'pagar']), $tipo === 'pagar'], ['Receita', route('financeiro.novo', ['tipo' => 'receber']), $tipo === 'receber']]" />
 <p class="sub">Faturas de clientes e pagamentos de prestadores entram sozinhos ao gerar a competência. Use aqui para o restante (aluguel, impostos, software, outras receitas…).</p>
-<form method="post" action="{{ route('financeiro.store') }}" class="painel" style="max-width:760px">
+<form method="post" action="{{ route('financeiro.store') }}" class="painel">
   @csrf <input type="hidden" name="tipo" value="{{ $tipo }}">
   <div class="campo"><label for="descricao">Descrição</label><input id="descricao" name="descricao" value="{{ old('descricao') }}" required placeholder="{{ $tipo === 'receber' ? 'Ex.: Consultoria avulsa' : 'Ex.: Aluguel do escritório' }}"></div>
   <div class="grade">
@@ -26,7 +27,10 @@
     <div class="campo"><label for="parcelas">Parcelas</label><input id="parcelas" type="number" name="parcelas" min="1" max="120" value="{{ old('parcelas', 1) }}" required></div>
     <div class="campo"><label for="vencimento">1º vencimento</label><input id="vencimento" type="date" name="vencimento" value="{{ old('vencimento', now()->toDateString()) }}" required></div>
   </div>
-  <p class="sub" style="font-size:13px">Parcelas mensais de mesmo valor; centavos da divisão vão para a última. <strong>Competência</strong> é o mês a que a receita/despesa pertence; o <strong>vencimento</strong> é quando deve ser paga.</p>
-  <button>Salvar</button>
+  <p class="sub formulario-ajuda">Parcelas mensais de mesmo valor; centavos da divisão vão para a última. <strong>Competência</strong> é o mês a que a receita/despesa pertence; o <strong>vencimento</strong> é quando deve ser paga.</p>
+  <div class="formulario-rodape">
+    <a class="botao terciario" href="{{ route('financeiro.index', ['tipo' => $tipo]) }}">Cancelar</a>
+    <button>Salvar</button>
+  </div>
 </form>
 @endsection

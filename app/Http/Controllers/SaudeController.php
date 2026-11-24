@@ -68,6 +68,9 @@ class SaudeController extends Controller
     {
         return view('plataforma.saude', [
             'resultados' => $store->latestResults(),
+            'endereco' => config('app.url'),
+            'caminhoSessao' => config('session.path'),
+            'phpWeb' => PHP_VERSION,
             'rotinas' => MonitoredScheduledTask::orderBy('name')->get()->map(fn ($t) => ['t' => $t, 'situacao' => self::situacao($t)]),
         ]);
     }

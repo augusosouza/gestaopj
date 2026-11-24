@@ -20,7 +20,17 @@ header("Content-Security-Policy: default-src 'none'; style-src 'self'; form-acti
 header('Referrer-Policy: no-referrer');
 header('X-Content-Type-Options: nosniff');
 
-$root = dirname(__DIR__);
+$root = require __DIR__.'/raiz-augi.php';
+$script = $_SERVER['SCRIPT_NAME'] ?? '';
+if (! preg_match('~^(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*/instalar\.php$~D', $script)) {
+    http_response_code(400);
+    exit('Não foi possível identificar o endereço do instalador.');
+}
+$base = substr($script, 0, -strlen('/instalar.php'));
+if ($root === null) {
+    http_response_code(503);
+    exit('Mantenha a aplicação fora da raiz pública e publique somente a pasta public. Para usar um subdiretório, configure .augi-root.php conforme o README.');
+}
 $tokenFile = $root.'/storage/app/instalador.sha256';
 $envFile = $root.'/.env';
 $staged = $root.'/.env.instalacao';
@@ -45,22 +55,29 @@ $fields = [
     'email' => ['E-mail do administrador', 'email', 254],
     'senha' => ['Senha do administrador (12 caracteres ou mais)', 'password', 72],
 ];
+$https = ! empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+$urlDetectada = 'https://'.$host.$base;
 $values = ['host' => 'localhost', 'porta' => '3306'];
+if (preg_match('~^(?:[A-Za-z0-9.-]+|\[[0-9A-Fa-f:]+\])(?::[0-9]{1,5})?$~D', $host)
+    && filter_var($urlDetectada, FILTER_VALIDATE_URL)) {
+    $values['url'] = $urlDetectada;
+}
 $ok = false;
 $message = '';
-$extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'intl', 'mbstring', 'openssl', 'pdo_mysql', 'session', 'sodium', 'tokenizer', 'xmlreader', 'xmlwriter', 'zip'];
-$missing = array_filter($extensions, static fn ($name) => ! extension_loaded($name));
-if (PHP_VERSION_ID < 80300 || $missing) {
-    $message = 'Use PHP 8.3 ou superior com as extensões exigidas. Extensões ausentes: '.implode(', ', $missing);
-} elseif (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') {
-    $message = 'Acesse este formulário por HTTPS.';
-} elseif (realpath($_SERVER['DOCUMENT_ROOT'] ?? '') !== __DIR__) {
-    $message = 'A raiz do domínio deve apontar para a pasta public do projeto.';
-} elseif (! is_file($root.'/vendor/autoload.php')) {
-    $message = 'A pasta vendor está ausente. Use o pacote de instalação para cPanel.';
-} elseif (! is_writable($root) || ! is_writable($root.'/storage/app') || ! is_writable($root.'/bootstrap/cache') || ! is_writable($root.'/storage/logs') || ! is_writable($root.'/storage/framework/views')) {
-    $message = 'O PHP precisa gravar na raiz do projeto, em storage e em bootstrap/cache.';
-} elseif (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+$extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'hash', 'iconv', 'intl', 'json', 'libxml', 'mbstring', 'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'simplexml', 'sodium', 'tokenizer', 'xmlreader', 'xmlwriter', 'zip'];
+$missing = array_values(array_filter($extensions, static fn ($name) => ! extension_loaded($name)));
+$gravaveis = [$root, $root.'/storage/app', $root.'/bootstrap/cache', $root.'/storage/logs', $root.'/storage/framework/views'];
+$requisitos = [
+    ['PHP 8.3 ou superior', PHP_VERSION_ID >= 80300, PHP_VERSION],
+    ['Extensões PHP', $missing === [], $missing ? 'Ausentes: '.implode(', ', $missing) : 'Extensões obrigatórias disponíveis'],
+    ['Conexão HTTPS', $https, $https ? 'Ativa' : 'Abra o instalador por HTTPS'],
+    ['Dependências PHP', is_file($root.'/vendor/autoload.php'), 'vendor/autoload.php'],
+    ['Permissões de escrita', count(array_filter($gravaveis, 'is_writable')) === count($gravaveis), 'Raiz privada, storage e bootstrap/cache'],
+];
+$compatibilidadeOk = ! in_array(false, array_column($requisitos, 1), true);
+
+if ($compatibilidadeOk && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $values = [];
     foreach ($fields as $key => [, $type, $max]) {
         $value = $_POST[$key] ?? '';
@@ -81,11 +98,11 @@ if (PHP_VERSION_ID < 80300 || $missing) {
         $port = filter_var($values['porta'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 65535]]);
 
         if (in_array('', $values, true) || ! $url || ($url['scheme'] ?? '') !== 'https'
-            || ! filter_var($values['url'], FILTER_VALIDATE_URL) || array_intersect(['user', 'pass', 'path', 'query', 'fragment'], array_keys($url))
+            || ! filter_var($values['url'], FILTER_VALIDATE_URL) || array_intersect(['user', 'pass', 'query', 'fragment'], array_keys($url)) || ($url['path'] ?? '') !== $base
             || ! preg_match('/^[a-z0-9_.-]+$/iD', $values['host']) || ! preg_match('/^[a-z0-9_-]+$/iD', $values['banco'])
             || ! $port || ! Documento::cnpjValido($values['cnpj']) || ! filter_var($values['email'], FILTER_VALIDATE_EMAIL)
             || mb_strlen($values['senha']) < 12) {
-            $message = 'Preencha todos os campos e confira a URL HTTPS, o banco, o CNPJ, o e-mail e a senha.';
+            $message = 'Confira os campos. A URL HTTPS deve usar o mesmo caminho em que esta tela foi aberta.';
         } else {
             $lock = fopen($root.'/storage/app/instalacao.lock', 'c');
             if (! $lock || ! flock($lock, LOCK_EX | LOCK_NB)) {
@@ -98,6 +115,14 @@ if (PHP_VERSION_ID < 80300 || $missing) {
                 try {
                     $pdo = new PDO("mysql:host={$values['host']};port={$port};dbname={$values['banco']};charset=utf8mb4",
                         $values['usuario'], $values['senha_banco'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                    $safeError = 'O banco precisa ser MariaDB 10.6+ ou MySQL 8.0+.';
+                    $versao = (string) $pdo->query('SELECT VERSION()')->fetchColumn();
+                    $maria = stripos($versao, 'MariaDB') !== false;
+                    $versao = $maria ? preg_replace('/^5\.5\.5-/', '', $versao) : $versao;
+                    if (! preg_match('/^([0-9]+\.[0-9]+(?:\.[0-9]+)?)/', $versao, $partes)
+                        || version_compare($partes[1], $maria ? '10.6' : '8.0', '<')) {
+                        throw new RuntimeException;
+                    }
                     $statement = $pdo->prepare('SELECT GET_LOCK(?, 0)');
                     $statement->execute([hash('sha256', 'augi-instalar:'.$values['banco'])]);
                     if ((int) $statement->fetchColumn() !== 1) {
@@ -114,6 +139,7 @@ if (PHP_VERSION_ID < 80300 || $missing) {
                         'APP_TIMEZONE' => 'America/Sao_Paulo',
                         'APP_LOCALE' => 'pt_BR',
                         'SESSION_SECURE_COOKIE' => 'true',
+                        'SESSION_PATH' => $base ?: '/',
                         'DB_CONNECTION' => 'mysql',
                         'DB_HOST' => $values['host'],
                         'DB_PORT' => (string) $port,
@@ -143,6 +169,7 @@ if (PHP_VERSION_ID < 80300 || $missing) {
 
                     $safeError = 'Não foi possível preparar o banco. Confira os privilégios e o log PHP da hospedagem. Se houve falha no meio de uma migração, use um novo banco vazio seguindo o README.';
                     $app = require $root.'/bootstrap/app.php';
+                    $app->usePublicPath(__DIR__);
                     $app->loadEnvironmentFrom(basename($staged));
                     if ($app->configurationIsCached()) {
                         $safeError = 'Remova o cache de configuração desta instalação nova e tente novamente.';
@@ -236,23 +263,32 @@ function escaped(string $value): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Instalação do Augi Gestão</title>
-    <link rel="stylesheet" href="/css/instalador.css">
+    <link rel="stylesheet" href="<?= escaped($base) ?>/css/instalador.css">
 </head>
 <body>
 <main>
     <h1>Instalação do Augi Gestão</h1>
+    <?php if (! $ok) { ?>
+        <h2>Compatibilidade da hospedagem</h2>
+        <ul class="requisitos">
+            <?php foreach ($requisitos as [$rotulo, $passou, $detalhe]) { ?>
+                <li><strong><?= escaped($rotulo) ?></strong> · <?= $passou ? 'OK' : 'Pendente' ?><br><?= escaped($detalhe) ?></li>
+            <?php } ?>
+            <li><strong>Banco de dados</strong> · Verificado após informar os dados (MariaDB 10.6+ ou MySQL 8.0+)</li>
+        </ul>
+    <?php } ?>
     <?php if ($ok) { ?>
         <p role="status">A primeira empresa e o administrador foram criados.</p>
-        <p><a href="/login">Entrar e configurar a autenticação em dois fatores</a></p>
+        <p><a href="<?= escaped($base) ?>/login">Entrar e configurar a autenticação em dois fatores</a></p>
         <h2>Agendador e e-mail</h2>
-        <p>No cPanel, configure o cron abaixo e ajuste o caminho do binário PHP conforme a versão selecionada no MultiPHP.</p>
+        <p>No agendador do servidor, use o caminho do PHP CLI da mesma versão que atende o site. A linha abaixo é um exemplo para o cron do Linux.</p>
         <pre><?= escaped('* * * * * /usr/local/bin/php '.escapeshellarg($root.'/artisan').' schedule:run') ?></pre>
         <p>Confira a execução em Administração Augi → Saúde do sistema. Configure o SMTP no arquivo .env conforme o README para ativar convites e recuperação de senha.</p>
     <?php } else { ?>
         <?php if ($message) { ?><p role="alert"><?= escaped($message) ?></p><?php } ?>
-        <?php if (! $message || ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') { ?>
+        <?php if ($compatibilidadeOk) { ?>
             <p>Use um banco vazio criado no cPanel e o código que acompanha o pacote.</p>
-            <form method="post" action="/instalar.php" autocomplete="off">
+            <form method="post" action="<?= escaped($script) ?>" autocomplete="off">
                 <?php foreach ($fields as $key => [$label, $type, $max]) { ?>
                     <label for="<?= $key ?>"><?= escaped($label) ?></label>
                     <input id="<?= $key ?>" name="<?= $key ?>" type="<?= $type ?>" required

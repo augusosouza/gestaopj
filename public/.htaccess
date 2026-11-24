@@ -1,4 +1,4 @@
-<FilesMatch "(?i)(^\.(?!well-known$)|^composer\.(json|lock)$|\.(bak|old|orig|sql|sqlite|log|pem|key|augibk|zip|tgz)$)">
+<FilesMatch "(?i)(^\.(?!well-known$)|^raiz-augi\.php$|^composer\.(json|lock)$|\.(bak|old|orig|sql|sqlite|log|pem|key|augibk|zip|tgz)$)">
     Require all denied
 </FilesMatch>
 

@@ -269,6 +269,12 @@ return [
             'Ative a configuração do painel e confirme o salvamento com sua senha do Augi. A senha SMTP armazenada fica protegida e não aparece no formulário.',
             'Use Enviar e-mail de teste para enviar ao próprio e-mail. Confira o resultado no painel e a chegada à caixa de entrada.',
         ]),
+        'migrar-instalacao' => $guia('plataforma', 'Como migrar a instalação do Augi', 'Transfira o banco, os documentos privados e as chaves para outra hospedagem.', 'Responsável pela infraestrutura, com acesso ao banco, aos arquivos e ao agendador.', null, 'cpanel plesk vps hospedagem domínio subdiretório portabilidade backup app key', [
+            'Teste a restauração em um ambiente isolado. Guarde uma cópia verificável do banco e dos arquivos privados, junto com as chaves necessárias para decifrar os backups.',
+            'Na janela de mudança, coloque a origem em manutenção, pause o cron e os processos de fila e obtenha uma cópia final.',
+            'Restaure em uma base dedicada no destino. Preserve a APP_KEY, atualize a URL, o caminho da sessão e as credenciais da hospedagem. Configure o callback do Google se o endereço mudar.',
+            'Valide login, anexos, agendador, e-mail e backup no destino antes de desativar a origem. Consulte a seção de portabilidade no README da versão implantada.',
+        ]),
         'backups' => $guia('plataforma', 'Como configurar e acompanhar backups', 'Defina destino e horários e verifique a capacidade de recuperação.', $global, 'plataforma.backups', 'backup restaurar retenção cópia s3 senha cron', [
             'Em Administração Augi → Backups, configure o destino, os horários, a retenção e a senha de criptografia.',
             'Use o teste de conexão. Solicite um backup e confira a conclusão no histórico e o funcionamento do agendador.',

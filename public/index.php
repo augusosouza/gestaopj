@@ -5,16 +5,21 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// Determine if the application is in maintenance mode...
-if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+$raiz = require __DIR__.'/raiz-augi.php';
+if ($raiz === null) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=UTF-8');
+    header('Cache-Control: no-store');
+    exit('A publicação do Augi precisa ser ajustada. Consulte o guia de instalação.');
+}
+
+if (is_file($maintenance = $raiz.'/storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
-// Register the Composer autoloader...
-require __DIR__.'/../vendor/autoload.php';
+require $raiz.'/vendor/autoload.php';
 
-// Bootstrap Laravel and handle the request...
 /** @var Application $app */
-$app = require_once __DIR__.'/../bootstrap/app.php';
-
+$app = require_once $raiz.'/bootstrap/app.php';
+$app->usePublicPath(__DIR__);
 $app->handleRequest(Request::capture());

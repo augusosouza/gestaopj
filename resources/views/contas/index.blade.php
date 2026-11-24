@@ -1,23 +1,26 @@
 @extends('layouts.app')
-@php($R = $tipo === 'receber')
-@php($T = $R ? ['titulo' => 'Contas a receber', 'serie' => 'receita', 'verbo' => 'Receber', 'pago' => 'Recebido', 'quem' => 'Cliente', 'nova' => '+ Nova receita']
-  : ['titulo' => 'Contas a pagar', 'serie' => 'despesa', 'verbo' => 'Pagar', 'pago' => 'Pago', 'quem' => 'Fornecedor', 'nova' => '+ Nova conta'])
+@php
+  $R = $tipo === 'receber';
+  $T = $R ? ['titulo' => 'Contas a receber', 'serie' => 'receita', 'verbo' => 'Receber', 'pago' => 'Recebido', 'quem' => 'Cliente', 'nova' => 'Nova receita']
+    : ['titulo' => 'Contas a pagar', 'serie' => 'despesa', 'verbo' => 'Pagar', 'pago' => 'Pago', 'quem' => 'Fornecedor', 'nova' => 'Nova conta'];
+  $opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro);
+  $contasAtivas = $contas->where('ativa', true);
+  $q = request()->except(['aba', 'mes', 'page']);
+  $rota = $R ? 'contas_receber.index' : 'contas_pagar.index';
+  $url = fn ($a, $extra = []) => route($rota, array_merge($q, ['aba' => $a], $extra));
+@endphp
 @section('titulo', $T['titulo'])
 @section('conteudo')
-@php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-@php($q = request()->except(['aba', 'mes', 'page']))
-@php($rota = $R ? 'contas_receber.index' : 'contas_pagar.index')
-@php($url = fn ($a, $extra = []) => route($rota, array_merge($q, ['aba' => $a], $extra)))
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $T['titulo'] => null]" :titulo="$T['titulo']"
   :sub="$R ? 'Recebimentos previstos, atrasos, cobranças e renegociações com clientes.' : 'Todos os compromissos de pagamento: contas, parcelas de compras e faturas de cartão.'">
   <x-slot:acoes>
-    @include('partials.exportar', ['relatorio' => $R ? 'inadimplencia' : 'lancamentos', 'extra' => $R ? [] : ['tipo' => 'pagar', 'periodo' => 'todos', 'situacao' => 'aberto']])
-    @if ($opera)<a class="botao" href="{{ route('financeiro.novo', ['tipo' => $tipo]) }}">{{ $T['nova'] }}</a>@endif
+    @include('partials.exportar', ['recolher' => true, 'relatorio' => $R ? 'inadimplencia' : 'lancamentos', 'extra' => $R ? [] : ['tipo' => 'pagar', 'periodo' => 'todos', 'situacao' => 'aberto']])
+    @if ($opera)<a class="botao" href="{{ route('financeiro.novo', ['tipo' => $tipo]) }}">@include('partials.icone', ['nome' => 'mais']) {{ $T['nova'] }}</a>@endif
   </x-slot:acoes>
 </x-cabecalho>
 
 @if ($R)
-<section class="cards" aria-label="Indicadores">
+<section class="cards contas-indicadores" aria-label="Indicadores">
   <div class="card serie-comparativo"><div class="rot">Previsto no mês</div><div class="num">{{ brl($ind['previsto_mes']) }}</div><div class="det">recebido + a receber com vencimento no mês</div></div>
   <div class="card serie-receita"><div class="rot">Recebido no mês</div><div class="num">{{ brl($ind['pago_mes']) }}</div><div class="det"><a href="{{ $url('pagas') }}">ver recebimentos</a></div></div>
   <div class="card serie-receita"><div class="rot">Em aberto</div><div class="num">{{ brl($ind['aberto']) }}</div><div class="det">{{ $ind['qtd'] }} parcela(s) · 7 dias: {{ brl($ind['sete']) }}</div></div>
@@ -26,7 +29,7 @@
 </section>
 @if ($ind['renegociado'])<p class="sub" style="font-size:13px;margin:8px 0 0">Renegociado neste mês: {{ brl($ind['renegociado']) }} · <a href="{{ $url('renegociacoes') }}">ver acordos</a></p>@endif
 @else
-<section class="cards cards-6" aria-label="Indicadores">
+<section class="cards cards-6 contas-indicadores" aria-label="Indicadores">
   <div class="card serie-despesa"><div class="rot">Total em aberto</div><div class="num">{{ brl($ind['aberto']) }}</div><div class="det">{{ $ind['qtd'] }} compromisso(s)</div></div>
   <div class="card serie-pendencia"><div class="rot">Vencido</div><div class="num" @if ($ind['atrasado']) style="color:var(--bad)" @endif>{{ brl($ind['atrasado']) }}</div>
     <div class="det">{{ $ind['qtd_atrasado'] }} conta(s) · <a href="{{ $url('vencidas') }}">ver</a></div></div>
@@ -36,30 +39,61 @@
   <div class="card serie-saldo"><div class="rot">Pago neste mês</div><div class="num">{{ brl($ind['pago_mes']) }}</div><div class="det"><a href="{{ $url('pagas') }}">ver pagamentos</a></div></div>
 </section>
 @endif
-<div style="margin-top:16px"></div>
 <x-abas :itens="collect($abas)->map(fn ($r, $k) => [$r, $url($k), $aba === $k])->values()->all()" />
 
 @if (in_array($aba, ['aberto', 'vencidas', 'parcelamentos', 'pagas'], true))
+@php
+  $filtrosAtivos = array_filter([
+    'fornecedor' => $f['fornecedor'] ?? null,
+    'de' => isset($f['de']) ? 'De '.$f['de']->format('d/m/Y') : null,
+    'ate' => isset($f['ate']) && ! isset($f['proximos']) ? 'Até '.$f['ate']->format('d/m/Y') : null,
+    'proximos' => isset($f['proximos']) ? 'Próximos '.$f['proximos'].' dias' : null,
+    'situacao' => $aba !== 'vencidas' ? (['vencido' => 'Vencidas', 'a_vencer' => 'A vencer', 'parcial' => 'Pagas em parte'][$f['situacao'] ?? ''] ?? null) : null,
+    'categoria' => isset($f['categoria']) ? 'Categoria: '.($categorias->find($f['categoria'])?->nome ?? 'não disponível') : null,
+    'competencia' => isset($f['competencia']) ? 'Competência: '.$f['competencia'] : null,
+    'centro' => isset($f['centro']) ? 'Centro: '.($centros->find($f['centro'])?->nome ?? 'não disponível') : null,
+    'conta' => isset($f['conta']) ? 'Conta: '.($contas->find($f['conta'])?->nome ?? 'não disponível') : null,
+    'min' => isset($f['min']) ? 'Valor mínimo: '.brl($f['min']) : null,
+    'max' => isset($f['max']) ? 'Valor máximo: '.brl($f['max']) : null,
+  ], fn ($valor) => $valor !== null);
+@endphp
+<section class="painel contas-filtros" aria-label="Consultar contas">
 <form method="get" class="filtros-pagar" aria-label="Filtros">
   <input type="hidden" name="aba" value="{{ $aba }}">
-  <div class="campo"><label for="f-de">{{ $aba === 'pagas' ? $T['pago'].' de' : 'Vence de' }}</label><input id="f-de" type="date" name="de" value="{{ ($f['de'] ?? null)?->toDateString() ?? '' }}"></div>
-  <div class="campo"><label for="f-ate">até</label><input id="f-ate" type="date" name="ate" value="{{ is_string(request('ate')) ? request('ate') : '' }}"></div>
-  <div class="campo"><label for="f-cat">Categoria</label><select id="f-cat" name="categoria"><option value="">Todas</option>
-    @foreach ($categorias as $c)<option value="{{ $c->id }}" @selected(($f['categoria'] ?? null) === $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
-  <div class="campo"><label for="f-comp">Competência</label><input id="f-comp" type="month" name="competencia" value="{{ $f['competencia'] ?? '' }}"></div>
-  <div class="campo"><label for="f-centro">Centro de custo</label><select id="f-centro" name="centro"><option value="">Todos</option>
-    @foreach ($centros as $centro)<option value="{{ $centro->id }}" @selected(($f['centro'] ?? null) === $centro->id)>{{ $centro->nome }}</option>@endforeach</select></div>
   <div class="campo"><label for="f-forn">{{ $T['quem'] }} ou descrição</label><input id="f-forn" name="fornecedor" value="{{ $f['fornecedor'] ?? '' }}"></div>
-  <div class="campo"><label for="f-conta">Conta</label><select id="f-conta" name="conta"><option value="">Todas</option>
-    @foreach ($contas as $c)<option value="{{ $c->id }}" @selected(($f['conta'] ?? null) === $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
-  <div class="campo"><label for="f-min">Valor de</label><input id="f-min" name="min" inputmode="decimal" value="{{ is_string(request('min')) ? request('min') : '' }}" placeholder="0,00"></div>
-  <div class="campo"><label for="f-max">até</label><input id="f-max" name="max" inputmode="decimal" value="{{ is_string(request('max')) ? request('max') : '' }}" placeholder="0,00"></div>
+  <div class="campo"><label for="f-de">{{ $aba === 'pagas' ? $T['pago'].' de' : 'Vence de' }}</label><input id="f-de" type="date" name="de" value="{{ ($f['de'] ?? null)?->toDateString() ?? '' }}"></div>
+  <div class="campo"><label for="f-ate">Até</label><input id="f-ate" type="date" name="ate" value="{{ is_string(request('ate')) ? request('ate') : '' }}"></div>
   @if ($aba === 'aberto')
     <div class="campo"><label for="f-sit">Situação</label><select id="f-sit" name="situacao"><option value="">Todas</option>
       @foreach (['vencido' => 'Vencidas', 'a_vencer' => 'A vencer', 'parcial' => 'Pagas em parte'] as $k => $v)<option value="{{ $k }}" @selected(($f['situacao'] ?? null) === $k)>{{ $v }}</option>@endforeach</select></div>
   @endif
-  <div class="acoes" style="align-self:end"><button class="sec">Filtrar</button>@if (count(array_diff_key($f, ['situacao' => $aba === 'vencidas'])))<a href="{{ route($rota, ['aba' => $aba]) }}" class="sub">limpar</a>@endif</div>
+  <details class="filtros-avancados" @if (array_intersect_key($f, array_flip(['categoria', 'competencia', 'centro', 'conta', 'min', 'max']))) open @endif>
+    <summary>Filtros avançados</summary>
+    <div class="grade">
+      <div class="campo"><label for="f-cat">Categoria</label><select id="f-cat" name="categoria"><option value="">Todas</option>
+        @foreach ($categorias as $c)<option value="{{ $c->id }}" @selected(($f['categoria'] ?? null) === $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
+      <div class="campo"><label for="f-comp">Competência</label><input id="f-comp" type="month" name="competencia" value="{{ $f['competencia'] ?? '' }}"></div>
+      <div class="campo"><label for="f-centro">Centro de custo</label><select id="f-centro" name="centro"><option value="">Todos</option>
+        @foreach ($centros as $centro)<option value="{{ $centro->id }}" @selected(($f['centro'] ?? null) === $centro->id)>{{ $centro->nome }}</option>@endforeach</select></div>
+      <div class="campo"><label for="f-conta">Conta</label><select id="f-conta" name="conta"><option value="">Todas</option>
+        @foreach ($contas as $c)<option value="{{ $c->id }}" @selected(($f['conta'] ?? null) === $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
+      <div class="campo"><label for="f-min">Valor de</label><input id="f-min" name="min" inputmode="decimal" value="{{ is_string(request('min')) ? request('min') : '' }}" placeholder="0,00"></div>
+      <div class="campo"><label for="f-max">Valor até</label><input id="f-max" name="max" inputmode="decimal" value="{{ is_string(request('max')) ? request('max') : '' }}" placeholder="0,00"></div>
+    </div>
+  </details>
+  <div class="acoes">
+    <button>Filtrar</button>
+    @if ($filtrosAtivos)<a href="{{ route($rota, ['aba' => $aba]) }}" class="botao terciario">Limpar filtros</a>@endif
+  </div>
 </form>
+@if ($filtrosAtivos)
+  <ul class="contas-filtrosativos" aria-label="Filtros ativos">
+    @foreach ($filtrosAtivos as $campo => $rotulo)
+      <li><a href="{{ $url($aba, [$campo => null]) }}" aria-label="Remover filtro {{ $rotulo }}">{{ $rotulo }} <span aria-hidden="true">×</span></a></li>
+    @endforeach
+  </ul>
+@endif
+</section>
 @if (! $R && in_array($aba, ['aberto', 'vencidas'], true) && (isset($f['competencia']) || isset($f['centro'])))
   <p class="sub">Faturas agrupadas do cartão ficam fora dos filtros por competência e centro de custo. Consulte as compras na fatura.</p>
 @endif
@@ -117,16 +151,20 @@
           @if ($l['tipo'] === 'fatura')<a class="botao sec" href="{{ $l['url'] }}#pagar">Pagar fatura</a>
           @else
             @if ($R && $l['atrasado'])<a class="botao sec" href="{{ $l['url'] }}?aba=cobranca" style="margin-bottom:4px">Cobrar</a>@endif
-            <details class="pagar-rapido"><summary class="botao sec">{{ $T['verbo'] }}</summary>
-              <form method="post" action="{{ route('financeiro.baixar', $l['parcela']) }}">@csrf
-                <input type="hidden" name="chave" value="{{ $chave }}-{{ $l['parcela']->id }}">
-                <label>Conta<select name="conta_id" required>@foreach ($contas->where('ativa', true) as $c)<option value="{{ $c->id }}" @selected($l['conta_id'] === $c->id)>{{ $c->nome }}</option>@endforeach</select></label>
-                <label>Data<input type="date" name="data" value="{{ $hoje->toDateString() }}" max="{{ $hoje->toDateString() }}" required></label>
-                <label>Valor {{ $R ? 'recebido' : 'pago' }}<input name="valor" inputmode="decimal" value="{{ valor_campo($l['saldo']) }}" required></label>
-                <button>Registrar</button>
-                <span class="sub" style="font-size:12px">Valor menor que o saldo = {{ $R ? 'recebimento' : 'pagamento' }} parcial; o restante continua em aberto.</span>
-              </form>
-            </details>
+            @if ($contasAtivas->isEmpty())
+              <a class="botao sec" href="{{ route('financeiro.contas') }}">Cadastrar conta bancária</a>
+            @else
+              <details class="pagar-rapido"><summary class="botao sec">{{ $T['verbo'] }}</summary>
+                <form method="post" action="{{ route('financeiro.baixar', $l['parcela']) }}" data-evitar-reenvio>@csrf
+                  <input type="hidden" name="chave" value="{{ $chave }}-{{ $l['parcela']->id }}">
+                  <label>Conta<select name="conta_id" required>@foreach ($contasAtivas as $c)<option value="{{ $c->id }}" @selected($l['conta_id'] === $c->id)>{{ $c->nome }}</option>@endforeach</select></label>
+                  <label>Data<input type="date" name="data" value="{{ $hoje->toDateString() }}" max="{{ $hoje->toDateString() }}" required></label>
+                  <label>Valor {{ $R ? 'recebido' : 'pago' }}<input name="valor" inputmode="decimal" value="{{ valor_campo($l['saldo']) }}" required></label>
+                  <button>Registrar</button>
+                  <span class="sub" style="font-size:12px">Valor menor que o saldo = {{ $R ? 'recebimento' : 'pagamento' }} parcial; o restante continua em aberto.</span>
+                </form>
+              </details>
+            @endif
           @endif
         @endif</td>
       </tr>

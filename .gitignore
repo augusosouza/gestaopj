@@ -26,3 +26,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /build
+
+# Configuração local da pasta privada em publicação separada
+/public/.augi-root.php
