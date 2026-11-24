@@ -1,0 +1,4 @@
+<?php
+
+// Copie como .augi-root.php na pasta pública quando ela estiver separada.
+return '/home/USUARIO/augi';

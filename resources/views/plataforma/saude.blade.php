@@ -8,6 +8,15 @@
   <x-slot:acoes><form method="post" action="{{ route('plataforma.saude.verificar') }}">@csrf<button class="sec">Verificar agora</button></form></x-slot:acoes>
 </x-cabecalho>
 
+<section class="painel ajustes-painel" aria-labelledby="saude-publicacao">
+  <h2 id="saude-publicacao">Publicação e portabilidade</h2>
+  <dl class="ajustes-dados">
+    <div><dt>Endereço configurado</dt><dd>{{ $endereco }}</dd></div>
+    <div><dt>Caminho da sessão</dt><dd>{{ $caminhoSessao }}</dd></div>
+    <div><dt>PHP do servidor web</dt><dd>{{ $phpWeb }}</dd></div>
+  </dl>
+  <p class="sub"><a href="{{ route('conhecimento.artigo', 'migrar-instalacao') }}">Consultar guia de migração</a></p>
+</section>
 <h2>Verificações</h2>
 @if (! $resultados)
   <p class="painel vazio">Nenhuma verificação registrada ainda. Clique em “Verificar agora” ou aguarde o agendador (a cada 5 minutos).</p>

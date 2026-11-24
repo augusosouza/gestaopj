@@ -43,3 +43,11 @@ pre {
     padding: .7rem;
     border-inline-start: .25rem solid #c74754;
 }
+
+.requisitos {
+    padding-inline-start: 1.2rem;
+}
+
+.requisitos li {
+    margin-bottom: .45rem;
+}

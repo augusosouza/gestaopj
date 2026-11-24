@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // O contexto precisa estar ativo ANTES do route model binding: assim um ID
         // de outra empresa na URL já é resolvido com o escopo e resulta em 404.
         $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: ExigeContexto::class);
-        $middleware->redirectGuestsTo('/login');
+        $middleware->redirectGuestsTo(fn () => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontFlash(['smtp_password', 'nova_chave_pix', 'chave_pix']);

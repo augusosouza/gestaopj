@@ -240,11 +240,35 @@ Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 
 ### Instalador pelo navegador
 
 1. Em uma máquina com PHP 8.3+, Composer, Git, tar e zip, gere o pacote a partir de um commit que contenha o instalador: `sh scripts/pacote-cpanel.sh /caminho/privado/pacotes`. Cada pacote vem com um código de ativação separado. Guarde o código em local privado e gere um pacote próprio para cada instalação.
-2. No cPanel, crie um banco MySQL ou MariaDB **vazio** e conceda todos os privilégios desse banco ao usuário que a aplicação usará.
-3. Extraia o ZIP fora de `public_html`. Aponte a raiz do domínio HTTPS para a pasta `augi/public`. Confira as extensões PHP da seção abaixo.
-4. Abra `https://seu.dominio/instalar.php`. Informe o código, a URL do sistema, o banco, a primeira empresa e as credenciais do administrador. Use essa senha para entrar e ativar o 2FA.
+2. No painel da hospedagem, crie um banco MySQL 8.0+ ou MariaDB 10.6+ **vazio** e conceda ao usuário da aplicação os privilégios nesse banco. O servidor que recebe o ZIP não precisa de Git nem Composer.
+3. Extraia o ZIP em uma pasta privada. Para domínio dedicado, aponte a raiz pública para `augi/public`. Para uma URL como `https://seu.dominio/gestaopj`, siga a configuração de subdiretório abaixo.
+4. Abra `/instalar.php` na raiz da URL pública do Augi. Confira os requisitos na tela e informe o código, o banco e as credenciais iniciais. A URL sugerida é obtida pelo endereço de acesso. Confirme o domínio e o prefixo antes de continuar.
 5. Ative a tarefa de cron exibida e confira o primeiro resultado em **Administração Augi → Saúde do sistema**. Configure o SMTP no `.env` antes de usar convites ou recuperação de senha. A instalação começa com o envio de e-mails desativado (`MAIL_MAILER=array`). Após configurar SMTP, rode `php artisan optimize` com o PHP da aplicação para habilitar o cache.
 6. Se uma etapa falhar, tente novamente com os mesmos dados. Se uma migração interrompida deixar tabelas parciais, use um novo banco vazio e uma nova extração do pacote em outra pasta. Preserve a pasta e o banco anteriores até conferir os dados. Para atualizar instalações existentes, siga o procedimento de atualização abaixo.
+
+### Publicação em subdiretório sem mudar o site principal
+
+O exemplo abaixo mantém o Augi em `https://seu.dominio/gestaopj`. Descubra a raiz do site em **Domínios** no cPanel ou em **Hosting Settings** no Plesk. Prepare a pasta privada antes de copiar os arquivos públicos.
+
+| Local | Conteúdo |
+|---|---|
+| `/home/USUARIO/augi` | Pacote completo extraído, incluindo `artisan`, `storage/`, `vendor/` e `public/`. Escolha uma pasta fora da raiz pública de todos os sites. |
+| `<raiz do site>/gestaopj` | Cópia **somente do conteúdo** de `/home/USUARIO/augi/public/`. Inclua os arquivos ocultos `.htaccess` e `.augi-root.example`. |
+
+1. Na pasta pública `gestaopj`, copie `.augi-root.example` como `.augi-root.php` e configure o caminho absoluto da pasta privada. O mesmo valor pode ser fornecido ao PHP por `AUGI_ROOT` na configuração do servidor. Essa opção é da hospedagem, pois precisa funcionar antes de carregar o `.env`.
+2. Se o site principal redireciona todas as URLs para seu próprio aplicativo, exclua `/gestaopj` da regra abrangente do site pai. Mantenha as regras do Augi no `.htaccess` da pasta `gestaopj`. Se a hospedagem usar Nginx sem Apache, configure o roteamento equivalente no servidor, preservando o prefixo no `SCRIPT_NAME` do PHP e bloqueando arquivos ocultos.
+3. Acesse `https://seu.dominio/gestaopj/instalar.php`. Após a instalação, o endereço de login será `https://seu.dominio/gestaopj/login`. Em instalações manuais ou migradas, use `APP_URL=https://seu.dominio/gestaopj` e `SESSION_PATH=/gestaopj`.
+4. Ao atualizar, sincronize também os arquivos públicos copiados. Preserve o `.augi-root.php` do destino e o `.env` da pasta privada.
+
+No Gerenciador de Arquivos, habilite a exibição de arquivos ocultos. Se a hospedagem usa CageFS ou `open_basedir`, a pasta privada precisa estar acessível ao mesmo usuário que executa o PHP. No Plesk, a mesma estrutura funciona quando Apache processa as regras do site e o pool PHP tem acesso às duas pastas. Na VPS com Docker, a configuração padrão publica `public/` na raiz. O proxy precisa fornecer HTTPS e preservar o prefixo quando o Augi for publicado em subdiretório. Ajustes de proxy confiável pertencem à implantação.
+
+### Migração entre hospedagens
+
+1. Homologue a restauração em um ambiente isolado, usando uma cópia do banco, dos arquivos privados e da configuração necessária para a recuperação. Guarde a `APP_KEY`, as senhas de backup e os dados do destino remoto em local protegido.
+2. Na janela de migração, ative manutenção na origem e pause cron e workers. Faça uma cópia final do banco e do armazenamento privado. Em Docker, inclua os dois volumes. Mantenha uma cópia fora do servidor de origem.
+3. Instale no destino a mesma versão do código e carregue a configuração privada. Restaure banco e arquivos. Preserve a `APP_KEY` original para continuar lendo os tokens OAuth, as credenciais SMTP e outros dados criptografados. Use o procedimento de restauração, pois o instalador inicial exige um banco vazio.
+4. Ajuste `APP_URL`, `SESSION_PATH`, credenciais do banco, SMTP, armazenamento e cron. Se o endereço mudar, revise o callback registrado no Google e `GOOGLE_REDIRECT_URI`, se definido. Confira também qualquer `ASSET_URL`. Limpe caches copiados, aplique migrações necessárias para a versão, sincronize o agendador e recrie os caches.
+5. Confira login, download de arquivo privado, SMTP, tarefas agendadas e a capacidade de gerar e restaurar um backup. Troque o tráfego após essas verificações. Mantenha a origem em manutenção até o encerramento da migração.
 
 ### Instalação manual
 
