@@ -13,6 +13,7 @@ use App\Http\Controllers\CobrancaController;
 use App\Http\Controllers\CompetenciaController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ConfiguracoesController;
+use App\Http\Controllers\ConhecimentoController;
 use App\Http\Controllers\ContabilController;
 use App\Http\Controllers\ContasPagarController;
 use App\Http\Controllers\ContextoController;
@@ -59,6 +60,10 @@ Route::middleware('auth')->group(function () {
 
     // Notificações do usuário (todas as empresas em que atua)
     Route::middleware('contexto:opcional')->group(function () {
+        Route::get('/ajuda', [ConhecimentoController::class, 'index'])->name('conhecimento.index');
+        Route::get('/ajuda/{slug}', [ConhecimentoController::class, 'artigo'])
+            ->where('slug', '[a-z0-9-]+')->name('conhecimento.artigo');
+
         Route::get('/notificacoes', [NotificacaoController::class, 'index'])->name('notificacoes.index');
         Route::get('/notificacoes/{notificacao}', [NotificacaoController::class, 'abrir'])->whereNumber('notificacao')->name('notificacoes.abrir');
         Route::post('/notificacoes/lidas', [NotificacaoController::class, 'marcarLidas'])->name('notificacoes.lidas');

@@ -56,6 +56,9 @@
           <a href="{{ $menu['config']['url'] }}" @class(['menu-raiz', 'ativo' => $menu['config']['ativo']])>
             @include('partials.icone', ['nome' => 'administracao']) <span>Configurações</span></a>
         @endif
+        <a href="{{ route('conhecimento.index') }}" @class(['menu-raiz', 'ativo' => request()->routeIs('conhecimento.*')])
+          @if (request()->routeIs('conhecimento.index')) aria-current="page" @endif>
+          @include('partials.icone', ['nome' => 'ajuda']) <span>Base de conhecimento</span></a>
       </nav>
       <script>
         // Lembra os grupos abertos (preferência só deste navegador). Falha em silêncio se o armazenamento estiver bloqueado.
@@ -80,6 +83,7 @@
   </aside>
   <main class="conteudo">
     @include('partials.mensagens')
+    @include('conhecimento.contextual')
     @yield('conteudo')
   </main>
 </div>
@@ -91,11 +95,13 @@
       <div class="acoes">
         @if (auth()->user()->admin_plataforma)<a class="sub" style="margin:0" href="{{ route('plataforma.configuracoes') }}">Configurações da plataforma</a>
           <a class="sub" style="margin:0" href="{{ route('plataforma.backups') }}">Backups</a>@endif
+        <a class="sub" style="margin:0" href="{{ route('conhecimento.index') }}">Base de conhecimento</a>
         <a class="sub" style="margin:0" href="{{ route('seguranca') }}">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form></div>
     </div>
   @endauth
   @include('partials.mensagens')
+  @include('conhecimento.contextual')
   @yield('conteudo')
 </main>
 @endif
