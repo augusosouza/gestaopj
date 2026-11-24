@@ -625,3 +625,16 @@ body:has(.painel-baixa[open]) { overflow: hidden; }
   .clientes-lista .registro-principal a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
   .clientes-lista td[data-rotulo]::before { display: block; content: attr(data-rotulo); font: 400 var(--fonte-meta) var(--sans); color: var(--muted); }
 }
+
+.busca-cabecalho { display: flex; justify-content: flex-end; margin-bottom: var(--space-3); }
+.busca-cabecalho kbd { color: var(--muted); font: var(--fonte-meta) var(--mono); }
+.busca-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-2); margin-bottom: var(--space-5); }
+.busca-form .campo { margin: 0; }
+.busca-grupo ul { list-style: none; margin: 0; padding: 0; }
+.busca-grupo li + li { border-top: 1px solid var(--line); }
+.busca-grupo li a { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--altura-controle); overflow-wrap: anywhere; }
+.busca-grupo li .sub { flex: none; max-width: 45%; margin: 0; text-align: end; }
+@media (max-width: 650px) {
+  .busca-cabecalho kbd { display: none; }
+  .busca-grupo li a { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+}

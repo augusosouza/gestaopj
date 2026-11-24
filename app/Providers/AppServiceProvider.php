@@ -10,8 +10,11 @@ use App\Support\GerenciadorCorreio;
 use App\Support\Plataforma;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Health\Checks\Checks\CacheCheck;
 use Spatie\Health\Checks\Checks\DatabaseCheck;
@@ -34,6 +37,11 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setLocale(config('app.locale'));
         CarbonImmutable::setLocale(config('app.locale'));
         Date::use(CarbonImmutable::class);
+
+        RateLimiter::for('busca-global', static fn (Request $r) => $r->isMethod('post')
+            ? Limit::perMinute(30)->by('usuario:'.$r->user()->id)
+            : Limit::none());
+        RateLimiter::for('visoes-salvas', static fn (Request $r) => Limit::perMinute(20)->by('usuario:'.$r->user()->id));
 
         // Nome do sistema definido na área de configurações (prevalece sobre o .env).
         Plataforma::aplicar();

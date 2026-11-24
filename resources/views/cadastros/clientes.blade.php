@@ -13,7 +13,7 @@
 </x-cabecalho>
 <form method="get" action="{{ route('clientes.index') }}" class="painel lista-filtros">
   <div class="lista-filtros-principais">
-    <div class="campo lista-pesquisa"><label for="busca">Nome ou CPF/CNPJ</label><input type="search" id="busca" name="busca" maxlength="120" value="{{ $filtros['busca'] ?? '' }}"></div>
+    <div class="campo lista-pesquisa"><label for="busca">Nome, CPF/CNPJ ou e-mail</label><input type="search" id="busca" name="busca" maxlength="120" value="{{ $filtros['busca'] ?? '' }}"></div>
     <div class="campo"><label for="tipo">Tipo de pessoa</label><select id="tipo" name="tipo">
       <option value="">Todos</option>
       @foreach ($rotulos['tipo'][1] as $valor => $rotulo)<option value="{{ $valor }}" @selected(($filtros['tipo'] ?? '') === $valor)>{{ $rotulo }}</option>@endforeach
@@ -34,6 +34,7 @@
   </details>
   <div class="acoes"><button type="submit" class="sec">Filtrar</button>@if ($filtrosAtivos)<a href="{{ route('clientes.index') }}">Limpar filtros</a>@endif</div>
 </form>
+@include('partials.visoes-salvas', ['modulo' => 'clientes', 'filtrosVisao' => $filtrosAtivos])
 @if ($filtrosAtivos)
   <ul class="contas-filtrosativos" aria-label="Filtros aplicados">
     @foreach ($filtrosAtivos as $campo => $valor)

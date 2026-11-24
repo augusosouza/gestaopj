@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\DoisFatoresController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\BuscaController;
 use App\Http\Controllers\CaixaController;
 use App\Http\Controllers\CartaoController;
 use App\Http\Controllers\ClienteController;
@@ -41,6 +42,7 @@ use App\Http\Controllers\RelatorioController;
 use App\Http\Controllers\SaudeController;
 use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\VisaoSalvaController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/desenvolvimento/componentes', static function () {
@@ -126,6 +128,14 @@ Route::middleware('auth')->group(function () {
     // Contexto com empresa: todos os dados abaixo são filtrados por ela.
     Route::middleware('contexto:empresa')->group(function () {
         Route::get('/', PainelController::class)->name('painel');
+        Route::match(['get', 'post'], '/busca', BuscaController::class)
+            ->middleware(['papel:admin,financeiro,analista,revisor', 'throttle:busca-global'])->name('busca');
+        Route::middleware(['papel:admin,financeiro,analista,revisor', 'throttle:visoes-salvas'])->group(function () {
+            Route::post('/visoes/{modulo}', [VisaoSalvaController::class, 'salvar'])
+                ->whereIn('modulo', ['clientes', 'faturas'])->name('visoes.salvar');
+            Route::delete('/visoes/{modulo}/{visao}', [VisaoSalvaController::class, 'remover'])
+                ->whereIn('modulo', ['clientes', 'faturas'])->whereNumber('visao')->name('visoes.remover');
+        });
 
         // Todos os papéis (o controller restringe o prestador às próprias cobranças).
         Route::get('/cobrancas/{cobranca}', [CobrancaController::class, 'show'])->name('cobrancas.show');

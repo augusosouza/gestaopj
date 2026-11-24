@@ -412,3 +412,9 @@ O cache do service worker guarda apenas a página genérica de falta de conexão
 Na pasta do Augi, execute `php diagnostico.php` com o PHP CLI escolhido para o site. O diagnóstico roda antes do primeiro acesso e verifica versão, extensões, dependências, diretórios e arquivos públicos. Após a instalação, também verifica conexão com o banco, chave de criptografia, configuração HTTPS e cookies, tabelas da versão, bloqueio da ativação inicial e presença da configuração SMTP. Ele exibe o estado das verificações sem imprimir credenciais.
 
 Faça o teste real de entrega de e-mail na Administração Augi. Consulte a Saúde do sistema para validar cron, fila e backup. A criação da primeira empresa e do administrador continua disponível no instalador Web protegido pelo código de ativação.
+
+### Busca global e visões salvas
+
+Acesse **Buscar** no cabeçalho ou use **Ctrl+K** (Windows/Linux) ou **⌘K** (macOS). A pesquisa consulta diretamente os registros da empresa ativa e abre os destinos existentes. Os resultados são limitados a cinco por grupo e os termos da busca global são enviados pelo formulário, fora da URL. A busca usa as permissões do vínculo ativo.
+
+Em **Clientes** e **Faturas**, aplique os filtros e use **Minhas visões** para salvar uma combinação com nome, reabri-la ou removê-la. As visões são pessoais por empresa. Em Faturas, a competência faz parte da visão. Atualize o banco com `php artisan migrate --force` antes de usar essas telas em uma instalação existente.

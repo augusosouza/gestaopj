@@ -77,6 +77,13 @@
     </div>
   </aside>
   <main id="conteudo-principal" tabindex="-1" @class(['conteudo', 'conteudo-compacto' => View::hasSection('compacta'), 'conteudo-expandido' => View::hasSection('larga')])>
+    @if ($c->empresa() && $c->ehInterno())
+      <div class="busca-cabecalho">
+        <a class="botao sec" href="{{ route('busca') }}" data-busca-global aria-keyshortcuts="Control+K Meta+K">
+          @include('partials.icone', ['nome' => 'busca']) Buscar <kbd aria-hidden="true">Ctrl/⌘ K</kbd>
+        </a>
+      </div>
+    @endif
     @include('partials.mensagens')
     @include('conhecimento.contextual')
     @yield('conteudo')

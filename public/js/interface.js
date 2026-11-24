@@ -164,3 +164,16 @@ for (const controle of document.querySelectorAll('[data-densidade]')) {
     atualizarDensidade();
     controle.hidden = false;
 }
+
+const buscaGlobal = document.querySelector('[data-busca-global]');
+if (buscaGlobal) {
+    document.addEventListener('keydown', event => {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey ||
+            event.key.toLowerCase() !== 'k' || event.defaultPrevented) return;
+
+        event.preventDefault();
+        const campo = document.getElementById('busca-global');
+        if (campo) campo.focus();
+        else window.location.assign(buscaGlobal.href);
+    });
+}

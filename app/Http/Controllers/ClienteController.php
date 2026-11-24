@@ -7,6 +7,7 @@ use App\Models\Evento;
 use App\Models\Fatura;
 use App\Models\Parcela;
 use App\Models\Titulo;
+use App\Models\VisaoSalva;
 use App\Rules\DocumentoValido;
 use App\Services\EnvioFatura;
 use App\Support\Documento;
@@ -34,7 +35,8 @@ class ClienteController extends Controller
             $termo = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $busca).'%';
             $query->where(function ($q) use ($termo, $documento) {
                 $q->whereRaw("razao_social LIKE ? ESCAPE '!'", [$termo])
-                    ->orWhereRaw("nome_fantasia LIKE ? ESCAPE '!'", [$termo]);
+                    ->orWhereRaw("nome_fantasia LIKE ? ESCAPE '!'", [$termo])
+                    ->orWhereRaw("email LIKE ? ESCAPE '!'", [$termo]);
                 if ($documento !== '') {
                     $q->orWhere('documento', $documento);
                 }
@@ -56,7 +58,9 @@ class ClienteController extends Controller
             ->orderBy('id')->paginate(25)->appends($filtros);
         $request->session()->put('clientes.lista.'.$request->user()->id.'.'.ctx()->organizacaoId(), $filtros);
 
-        return view('cadastros.clientes', compact('clientes', 'filtros'));
+        $visoes = VisaoSalva::pessoais('clientes')->orderBy('nome')->limit(20)->get();
+
+        return view('cadastros.clientes', compact('clientes', 'filtros', 'visoes'));
     }
 
     public function create(): View

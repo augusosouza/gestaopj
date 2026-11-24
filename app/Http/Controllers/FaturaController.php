@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StatusFatura;
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
 use App\Models\Fatura;
+use App\Models\VisaoSalva;
 use App\Services\EnvioFatura;
 use App\Services\Faturamento;
 use App\Services\Financeiro;
@@ -13,6 +15,7 @@ use App\Support\Dinheiro;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -21,11 +24,33 @@ class FaturaController extends Controller
     public function index(Request $request): View
     {
         $competencia = Competencia::de($request->query('competencia'));
-        $faturas = Fatura::with('contrato.cliente', 'notaFiscal')
-            ->whereDate('competencia', $competencia->toDateString())
-            ->orderBy('vencimento')->get();
+        $filtros = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'situacao' => ['nullable', Rule::enum(StatusFatura::class)],
+        ]);
+        $consulta = Fatura::with('contrato.cliente', 'notaFiscal')
+            ->whereDate('competencia', $competencia->toDateString());
+        if (! empty($filtros['situacao'])) {
+            $consulta->where('status', $filtros['situacao']);
+        }
+        $termo = Str::squish($filtros['q'] ?? '');
+        if ($termo !== '') {
+            $parcial = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $termo).'%';
+            $id = ltrim($termo, '#');
+            $consulta->where(function ($q) use ($parcial, $id) {
+                $q->whereHas('contrato', fn ($c) => $c->whereRaw("numero LIKE ? ESCAPE '!'", [$parcial])
+                    ->orWhereHas('cliente', fn ($cliente) => $cliente->whereRaw("razao_social LIKE ? ESCAPE '!'", [$parcial])));
+                if (ctype_digit($id) && strlen($id) <= 18) {
+                    $q->orWhereKey((int) $id);
+                }
+            });
+        }
+        $faturas = $consulta->orderBy('vencimento')->orderBy('id')->paginate(25)
+            ->appends($filtros + ['competencia' => $competencia->format('Y-m')]);
 
-        return view('faturas.index', compact('faturas', 'competencia'));
+        $visoes = VisaoSalva::pessoais('faturas')->orderBy('nome')->limit(20)->get();
+
+        return view('faturas.index', compact('faturas', 'competencia', 'filtros', 'visoes'));
     }
 
     public function show(Fatura $fatura): View
