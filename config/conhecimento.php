@@ -30,6 +30,8 @@ return [
             'Na ficha, adicione contatos e endereços com a finalidade correspondente. Use Editar para corrigir ou inativar um registro.',
             'Consulte Contratos, Faturas e Parcelas a receber. Os links levam aos registros financeiros de origem.',
             'Abra Histórico para conferir a ação, data, responsável e os campos alterados quando registrados.',
+            'Use Comunicações de faturas para ver as tentativas de envio e os motivos de falha. A aceitação pelo SMTP ainda não confirma entrega na caixa de entrada.',
+            'Para enviar um resumo, abra a fatura, confira o e-mail de cobrança e selecione Enviar resumo da fatura. O envio usa o SMTP configurado na plataforma.',
         ]),
         'instalar-aplicativo' => $guia('inicio', 'Como instalar o Augi Gestão', 'Abra o Augi pelo ícone da tela inicial ou em uma janela própria.', 'Qualquer usuário com navegador compatível e acesso por HTTPS.', null, 'pwa aplicativo atalho android iphone safari desktop', [
             'Abra o sistema e procure Instalar Augi Gestão na parte inferior da página.',

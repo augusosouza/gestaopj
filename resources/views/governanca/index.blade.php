@@ -21,6 +21,10 @@
           {{ $rotulos[$evento->acao] }}
           @if (str_starts_with($evento->acao, 'pix.alteracao_'))
             · <a href="{{ route('prestadores.edit', $evento->alvo_id) }}">Abrir prestador</a>
+          @elseif (isset(\App\Services\EnvioFatura::ROTULOS[$evento->acao]))
+            · <a href="{{ route('faturas.show', $evento->alvo_id) }}">Fatura #{{ $evento->alvo_id }}</a>
+            · <a href="{{ route('clientes.historico', [$evento->dados['cliente_id'], 'tipo' => 'comunicacao']) }}">Histórico do cliente</a>
+            @include('faturas.motivo-envio')
           @endif
         </td><td>{{ $evento->user?->name ?? 'Sistema' }}</td></tr>
       @empty

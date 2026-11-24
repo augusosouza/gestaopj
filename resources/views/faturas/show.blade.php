@@ -51,4 +51,27 @@
     @endif
   </div>
 </div>
+<section class="painel" aria-labelledby="envios-fatura">
+  <h2 id="envios-fatura">Envios por e-mail</h2>
+  @if ($pode && $fatura->status !== \App\Enums\StatusFatura::Cancelada)
+    @if (filter_var($fatura->contrato->cliente->email, FILTER_VALIDATE_EMAIL))
+      <p>Destinatário de cobrança: <strong>{{ $fatura->contrato->cliente->email }}</strong></p>
+      <p class="sub">O e-mail inclui o número, valor e vencimento da fatura. Sem anexos.</p>
+      <form method="post" action="{{ route('faturas.enviar', $fatura) }}">
+        @csrf
+        <input type="hidden" name="chave" value="{{ $chave }}">
+        <input type="hidden" name="destinatario" value="{{ $fatura->contrato->cliente->email }}">
+        <button type="submit">Enviar resumo da fatura</button>
+      </form>
+    @else
+      <p>Cadastre um e-mail de cobrança válido para enviar o resumo da fatura.</p>
+    @endif
+  @endif
+  @forelse ($envios as $evento)
+    <p><time datetime="{{ $evento->created_at->toIso8601String() }}">{{ $evento->created_at->format('d/m/Y H:i') }}</time> · {{ $evento->rotulo() }}</p>
+    @include('faturas.motivo-envio')
+  @empty
+    <p class="sub">Nenhuma tentativa de envio registrada.</p>
+  @endforelse
+</section>
 @endsection

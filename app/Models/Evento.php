@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\EnvioFatura;
 use App\Support\Contexto;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,6 +33,7 @@ class Evento extends Model
     public function rotulo(): string
     {
         return [
+            ...EnvioFatura::ROTULOS,
             'cliente.ficha_consultada' => 'Ficha consultada',
             'cliente.historico_consultado' => 'Histórico consultado',
             'cliente.edicao_consultada' => 'Formulário de edição aberto',

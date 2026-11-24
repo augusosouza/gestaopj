@@ -8,6 +8,7 @@ use App\Models\Fatura;
 use App\Models\Parcela;
 use App\Models\Titulo;
 use App\Rules\DocumentoValido;
+use App\Services\EnvioFatura;
 use App\Support\Documento;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -80,8 +81,9 @@ class ClienteController extends Controller
         return view('cadastros.cliente-show', compact('cliente', 'contratos', 'faturas', 'parcelas', 'relacionamentos'));
     }
 
-    public function historico(Cliente $cliente): View
+    public function historico(Request $request, Cliente $cliente): View
     {
+        $filtro = $request->validate(['tipo' => ['nullable', Rule::in(['comunicacao'])]])['tipo'] ?? null;
         $faturas = $this->faturas($cliente)->select('id');
         $titulos = Titulo::query()->where('origem_type', (new Fatura)->getMorphClass())
             ->whereIn('origem_id', $faturas)->select('id');
@@ -89,12 +91,16 @@ class ClienteController extends Controller
         $eventos = Evento::where('organizacao_id', $cliente->organizacao_id)
             ->where(function ($q) use ($cliente, $faturas, $titulos) {
                 $q->whereMorphedTo('alvo', $cliente)
-                    ->orWhere(fn ($w) => $w->where('alvo_type', (new Fatura)->getMorphClass())->whereIn('alvo_id', $faturas))
+                    ->orWhere(fn ($w) => $w->where('alvo_type', (new Fatura)->getMorphClass())
+                        ->whereNotIn('acao', array_keys(EnvioFatura::ROTULOS))->whereIn('alvo_id', $faturas))
+                    ->orWhere(fn ($w) => $w->whereIn('acao', array_keys(EnvioFatura::ROTULOS))
+                        ->where('dados->cliente_id', $cliente->id))
                     ->orWhere(fn ($w) => $w->where('alvo_type', (new Titulo)->getMorphClass())->whereIn('alvo_id', $titulos));
-            })->with('user:id,name')->orderByDesc('created_at')->orderByDesc('id')->cursorPaginate(30);
+            })->when($filtro === 'comunicacao', fn ($q) => $q->whereIn('acao', array_keys(EnvioFatura::ROTULOS)))
+            ->with('user:id,name')->orderByDesc('created_at')->orderByDesc('id')->cursorPaginate(30)->appends(['tipo' => $filtro]);
         Evento::registrar('cliente.historico_consultado', $cliente);
 
-        return view('cadastros.cliente-historico', compact('cliente', 'eventos'));
+        return view('cadastros.cliente-historico', compact('cliente', 'eventos', 'filtro'));
     }
 
     private function faturas(Cliente $cliente): Builder

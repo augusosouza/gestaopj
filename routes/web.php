@@ -143,6 +143,8 @@ Route::middleware('auth')->group(function () {
         // Financeiro
         Route::middleware('papel:admin,financeiro')->group(function () {
             Route::post('/competencias/gerar', [CompetenciaController::class, 'gerar'])->name('competencias.gerar');
+            Route::post('/faturas/{fatura}/enviar', [FaturaController::class, 'enviar'])
+                ->middleware('throttle:10,1')->name('faturas.enviar');
             Route::post('/faturas/{fatura}/nota', [FaturaController::class, 'vincularNota'])->name('faturas.nota');
             Route::post('/faturas/{fatura}/recebimento', [FaturaController::class, 'receber'])->name('faturas.receber');
             Route::post('/cobrancas/{cobranca}/aprovar', [CobrancaController::class, 'aprovar'])->name('cobrancas.aprovar');

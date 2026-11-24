@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Evento;
+use App\Services\EnvioFatura;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -12,6 +13,7 @@ final class GovernancaController extends Controller
     public function index(Request $request): View
     {
         $tipos = [
+            'comunicacao' => ['Comunicações de faturas', EnvioFatura::ROTULOS],
             'pix' => ['Dados de pagamento', [
                 'pix.alteracao_solicitada' => 'Revisão de chave Pix solicitada',
                 'pix.alteracao_aplicada' => 'Alteração de chave Pix aplicada',
