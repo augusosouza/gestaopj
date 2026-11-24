@@ -17,9 +17,10 @@
 </div>
 
 <nav class="filtros" aria-label="Mostrar">
-  <a href="{{ request()->fullUrlWithQuery(['mostrar' => null]) }}" @class(['ativo' => $mostrar === 'pendentes'])>Pendentes</a>
-  <a href="{{ request()->fullUrlWithQuery(['mostrar' => 'todas']) }}" @class(['ativo' => $mostrar === 'todas'])>Todas</a>
+  <a href="{{ request()->fullUrlWithQuery(['mostrar' => null, 'linha' => null]) }}" @class(['ativo' => $mostrar === 'pendentes'])>Pendentes</a>
+  <a href="{{ request()->fullUrlWithQuery(['mostrar' => 'todas', 'linha' => null]) }}" @class(['ativo' => $mostrar === 'todas'])>Todas</a>
 </nav>
+@if (request()->filled('linha'))<p class="sub">Exibindo a movimentação selecionada na busca.</p>@endif
 <div class="tabela"><table>
   <thead><tr><th>Data</th><th>Descrição no extrato</th><th class="n">Valor</th><th>Lançamento no sistema</th><th></th></tr></thead>
   <tbody>

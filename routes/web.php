@@ -25,6 +25,8 @@ use App\Http\Controllers\CorreioPlataformaController;
 use App\Http\Controllers\EscritorioController;
 use App\Http\Controllers\ExportacaoController;
 use App\Http\Controllers\FaturaController;
+use App\Http\Controllers\FaturaLoteController;
+use App\Http\Controllers\FerramentasController;
 use App\Http\Controllers\FinanceiroController;
 use App\Http\Controllers\GoogleAgendaController;
 use App\Http\Controllers\GovernancaController;
@@ -130,9 +132,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/', PainelController::class)->name('painel');
         Route::match(['get', 'post'], '/busca', BuscaController::class)
             ->middleware(['papel:admin,financeiro,analista,revisor', 'throttle:busca-global'])->name('busca');
+        Route::match(['get', 'post'], '/ferramentas', FerramentasController::class)
+            ->middleware(['papel:admin,financeiro,analista,revisor', 'throttle:ferramentas'])->name('ferramentas');
         Route::middleware(['papel:admin,financeiro,analista,revisor', 'throttle:visoes-salvas'])->group(function () {
             Route::post('/visoes/{modulo}', [VisaoSalvaController::class, 'salvar'])
                 ->whereIn('modulo', ['clientes', 'faturas'])->name('visoes.salvar');
+            Route::patch('/visoes/{modulo}/{visao}', [VisaoSalvaController::class, 'compartilhar'])
+                ->whereIn('modulo', ['clientes', 'faturas'])->whereNumber('visao')->name('visoes.compartilhar');
             Route::delete('/visoes/{modulo}/{visao}', [VisaoSalvaController::class, 'remover'])
                 ->whereIn('modulo', ['clientes', 'faturas'])->whereNumber('visao')->name('visoes.remover');
         });
@@ -161,6 +167,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/competencias/gerar', [CompetenciaController::class, 'gerar'])->name('competencias.gerar');
             Route::post('/faturas/{fatura}/enviar', [FaturaController::class, 'enviar'])
                 ->middleware('throttle:10,1')->name('faturas.enviar');
+            Route::post('/faturas/lote/previa', [FaturaLoteController::class, 'previa'])->middleware('throttle:faturas-lote')->name('faturas.lote.previa');
+            Route::post('/faturas/lote/exportar', [FaturaLoteController::class, 'exportar'])->middleware('throttle:faturas-lote')->name('faturas.lote.exportar');
             Route::post('/faturas/{fatura}/nota', [FaturaController::class, 'vincularNota'])->name('faturas.nota');
             Route::post('/faturas/{fatura}/recebimento', [FaturaController::class, 'receber'])->name('faturas.receber');
             Route::post('/cobrancas/{cobranca}/aprovar', [CobrancaController::class, 'aprovar'])->name('cobrancas.aprovar');
@@ -214,7 +222,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/financeiro/titulos/{titulo}/cancelar', [FinanceiroController::class, 'cancelar'])->name('financeiro.cancelar');
             Route::post('/financeiro/contas', [FinanceiroController::class, 'salvarConta'])->name('financeiro.conta_salvar');
             Route::patch('/financeiro/contas/{conta}', [FinanceiroController::class, 'alternarConta'])->name('financeiro.conta_alternar');
-            Route::post('/financeiro/contas/{conta}/extrato', [FinanceiroController::class, 'importar'])->name('financeiro.importar');
+            Route::post('/financeiro/contas/{conta}/extrato', [FinanceiroController::class, 'importar'])->middleware('throttle:importar-extrato')->name('financeiro.importar');
             Route::put('/financeiro/contas/{conta}/lembrete', [FinanceiroController::class, 'salvarLembrete'])->name('financeiro.conta_lembrete');
             Route::post('/financeiro/contas/{conta}/lembrete/dispensa', [FinanceiroController::class, 'dispensarLembrete'])->name('financeiro.conta_dispensar');
             Route::post('/financeiro/extrato/{linha}/conciliar', [FinanceiroController::class, 'conciliar'])->name('financeiro.conciliar');

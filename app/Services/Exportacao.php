@@ -66,7 +66,7 @@ final class Exportacao
         $caminho = $dir.'/'.Str::uuid().'.'.$formato;
         $w = $formato === 'csv' ? SimpleExcelWriter::create($caminho, 'csv', delimiter: ';', shouldAddBom: true) : SimpleExcelWriter::create($caminho, 'xlsx');
         $w->addHeader(array_column($r['colunas'], 0));
-        $conv = fn (array $l) => array_map(fn ($v, $c) => $c[1] === 'dinheiro' && is_int($v) ? $this->celula(['R', $v], $formato) : $v, $l, $r['colunas']);
+        $conv = fn (array $l) => array_map(fn ($v, $c) => $c[1] === 'dinheiro' && is_int($v) ? $this->celula(['R', $v], $formato) : $this->celula($v, $formato), $l, $r['colunas']);
         foreach ($r['linhas'] as $l) {
             $w->addRow($conv(array_map(fn ($v) => is_string($v) ? trim($v) : $v, $l)));
         }
@@ -93,7 +93,7 @@ final class Exportacao
             return $formato === 'xlsx' ? round($v[1] / 100, 2) : number_format($v[1] / 100, 2, ',', '');
         }
 
-        return $v;
+        return $formato === 'csv' && is_string($v) && preg_match('/^[\s\p{C}]*[=+@-]/u', $v) === 1 ? "'".$v : $v;
     }
 
     private function r(?int $c): array

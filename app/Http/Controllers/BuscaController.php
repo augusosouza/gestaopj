@@ -8,7 +8,9 @@ use App\Models\Cartao;
 use App\Models\Cliente;
 use App\Models\Compra;
 use App\Models\Contrato;
+use App\Models\ExtratoLinha;
 use App\Models\Fatura;
+use App\Models\NotaFiscal;
 use App\Models\Prestador;
 use App\Models\Titulo;
 use App\Support\Documento;
@@ -42,6 +44,7 @@ final class BuscaController extends Controller
     private function atalhos(): array
     {
         $atalhos = [
+            ['Ferramentas: validador cadastral e simulador', route('ferramentas')],
             ['Contas vencidas', route('contas_pagar.index', ['aba' => 'vencidas'])],
             ['Relatórios financeiros', route('relatorios.index')],
             ['Minhas notificações', route('notificacoes.index')],
@@ -129,6 +132,26 @@ final class BuscaController extends Controller
             })->when($id !== null, fn ($q) => $q->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$id]))
             ->orderByDesc('id')->limit(self::LIMITE)->get()
             ->map(fn (Fatura $fatura) => ['Fatura #'.$fatura->id, route('faturas.show', $fatura), $fatura->contrato->numero.' · '.$fatura->competencia->format('m/Y')])->all();
+
+        $grupos['Notas fiscais'] = NotaFiscal::query()->select('id', 'numero', 'competencia')
+            ->where(function ($q) use ($termo, $id, $parcial) {
+                $q->where('numero', $termo)->orWhere('chave_acesso', $termo)
+                    ->orWhereRaw("emitente_nome LIKE ? ESCAPE '!'", [$parcial])
+                    ->orWhereRaw("tomador_nome LIKE ? ESCAPE '!'", [$parcial]);
+                if ($id !== null) {
+                    $q->orWhereKey($id);
+                }
+            })->latest('id')->limit(self::LIMITE)->get()
+            ->map(fn ($nota) => ['Nota fiscal '.($nota->numero ?: '#'.$nota->id), route('notas.index', ['nota' => $nota->id]), $nota->competencia?->format('m/Y')])->all();
+
+        $grupos['Movimentações bancárias'] = ExtratoLinha::query()->select('id', 'conta_id', 'descricao', 'data')
+            ->whereHas('conta')->where(function ($q) use ($termo, $id, $parcial) {
+                $q->where('identificador', $termo)->orWhereRaw("descricao LIKE ? ESCAPE '!'", [$parcial]);
+                if ($id !== null) {
+                    $q->orWhereKey($id);
+                }
+            })->orderByDesc('data')->orderByDesc('id')->limit(self::LIMITE)->get()
+            ->map(fn ($linha) => [$linha->descricao, route('financeiro.conciliacao', ['conta' => $linha->conta_id, 'linha' => $linha->id, 'mostrar' => 'todas']), $linha->data->format('d/m/Y')])->all();
 
         return array_filter($grupos);
     }

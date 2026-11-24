@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Papel;
 use App\Enums\StatusFatura;
+use App\Models\Evento;
 use App\Models\User;
 use App\Models\VisaoSalva;
 use Illuminate\Http\RedirectResponse;
@@ -58,6 +59,27 @@ final class VisaoSalvaController extends Controller
         VisaoSalva::pessoais($modulo)->findOrFail($visao)->delete();
 
         return back()->with('ok', 'Visão removida.');
+    }
+
+    public function compartilhar(Request $request, string $modulo, int $visao): RedirectResponse
+    {
+        $this->autorizar($modulo);
+        abort_unless(ctx()->tem(Papel::Admin, Papel::Financeiro), 403);
+        $estado = $request->boolean('compartilhada');
+
+        DB::transaction(function () use ($modulo, $visao, $estado) {
+            $registro = VisaoSalva::pessoais($modulo)->lockForUpdate()->findOrFail($visao);
+            if ($estado && (isset($registro->filtros['q']) || isset($registro->filtros['busca']))) {
+                throw ValidationException::withMessages(['visao' => 'Salve uma visão sem texto de pesquisa para compartilhar com a equipe.']);
+            }
+            $registro->compartilhada = $estado;
+            if ($registro->isDirty()) {
+                $registro->save();
+                Evento::registrar($estado ? 'visao.compartilhada' : 'visao.privada', $registro);
+            }
+        });
+
+        return back()->with('ok', $estado ? 'Visão compartilhada com a equipe.' : 'Visão agora pessoal.');
     }
 
     private function autorizar(string $modulo): void

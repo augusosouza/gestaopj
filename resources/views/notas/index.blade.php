@@ -15,6 +15,7 @@
     <noscript><button class="sec">Filtrar</button></noscript>
   </form>
 </div>
+@if (request()->filled('nota'))<p><a href="{{ route('notas.index') }}">Ver todas as notas</a></p>@endif
 <div class="tabela">
   <table>
     <thead><tr><th>Tipo</th><th>Nº</th><th>Emitente</th><th>Tomador</th><th>Competência</th><th class="n">Valor</th><th>XML</th></tr></thead>

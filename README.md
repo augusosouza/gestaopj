@@ -418,3 +418,10 @@ Faça o teste real de entrega de e-mail na Administração Augi. Consulte a Saú
 Acesse **Buscar** no cabeçalho ou use **Ctrl+K** (Windows/Linux) ou **⌘K** (macOS). A pesquisa consulta diretamente os registros da empresa ativa e abre os destinos existentes. Os resultados são limitados a cinco por grupo e os termos da busca global são enviados pelo formulário, fora da URL. A busca usa as permissões do vínculo ativo.
 
 Em **Clientes** e **Faturas**, aplique os filtros e use **Minhas visões** para salvar uma combinação com nome, reabri-la ou removê-la. As visões são pessoais por empresa. Em Faturas, a competência faz parte da visão. Atualize o banco com `php artisan migrate --force` antes de usar essas telas em uma instalação existente.
+
+
+A busca global também encontra notas pelo número, chave ou emitente/tomador, e movimentações pelo identificador do extrato ou descrição. Os resultados levam à nota filtrada ou à conciliação da conta. Abra **Ferramentas** nos atalhos da busca para validar CPF, CNPJ, CEP e e-mail ou simular parcelas mensais.
+
+Administradores e usuários financeiros podem compartilhar visões com a equipe autorizada da empresa. As visões compartilhadas aceitam filtros estruturados e são revogáveis pelo responsável. O compartilhamento não concede acesso a registros.
+
+Em **Faturas**, administradores e usuários financeiros podem selecionar registros, conferir a prévia e confirmar a exportação XLSX. O limite é de 100 faturas por operação, e a confirmação expira após dez minutos. A exportação é registrada na auditoria.

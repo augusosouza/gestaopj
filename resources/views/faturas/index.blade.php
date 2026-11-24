@@ -17,12 +17,18 @@
 </form>
 @include('partials.visoes-salvas', ['modulo' => 'faturas', 'filtrosVisao' => array_filter($filtros) + ['competencia' => $competencia->format('Y-m')]])
 <div class="lista-barra"><p class="sub">{{ $faturas->total() }} faturas com os filtros aplicados</p><x-densidade tabela="lista-faturas" /></div>
+@php($exportaLote = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
+@if ($exportaLote)
+  <form method="post" action="{{ route('faturas.lote.previa') }}" id="faturas-lote">@csrf</form>
+  @if ($faturas->count())<p><button type="submit" class="sec" form="faturas-lote">Conferir exportação das selecionadas</button></p>@endif
+@endif
 <div class="tabela" id="lista-faturas">
   <table>
-    <thead><tr><th>Contrato</th><th>Cliente</th><th class="n">Valor</th><th>Vencimento</th><th>NFS-e</th><th>Status</th><th></th></tr></thead>
+    <thead><tr>@if ($exportaLote)<th scope="col">Seleção</th>@endif<th>Contrato</th><th>Cliente</th><th class="n">Valor</th><th>Vencimento</th><th>NFS-e</th><th>Status</th><th></th></tr></thead>
     <tbody>
     @forelse ($faturas as $f)
       <tr>
+        @if ($exportaLote)<td><input type="checkbox" form="faturas-lote" name="faturas[]" value="{{ $f->id }}" aria-label="Selecionar fatura {{ $f->id }}"></td>@endif
         <td>{{ $f->contrato->numero }}</td>
         <td>{{ $f->contrato->cliente->razao_social }}</td>
         <td class="n">{{ brl($f->valor_centavos) }}</td>
@@ -32,7 +38,7 @@
         <td><a href="{{ route('faturas.show', $f) }}">Abrir</a></td>
       </tr>
     @empty
-      <tr><td colspan="7" class="vazio">Nenhuma fatura nesta competência.</td></tr>
+      <tr><td colspan="{{ $exportaLote ? 8 : 7 }}" class="vazio">Nenhuma fatura nesta competência.</td></tr>
     @endforelse
     </tbody>
   </table>

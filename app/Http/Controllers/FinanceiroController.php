@@ -305,7 +305,9 @@ class FinanceiroController extends Controller
     public function conciliacao(Request $request, ContaFinanceira $conta): View
     {
         $mostrar = $request->query('mostrar') === 'todas' ? 'todas' : 'pendentes';
+        $linha = $request->validate(['linha' => ['nullable', 'integer', 'min:1']])['linha'] ?? null;
         $linhas = ExtratoLinha::with('movimento.parcela.titulo', 'transferencia.origem', 'transferencia.destino')->where('conta_id', $conta->id)
+            ->when($linha, fn ($q) => $q->whereKey($linha))
             ->when($mostrar === 'pendentes', fn ($q) => $q->pendentes())
             ->orderByDesc('data')->orderByDesc('id')->limit(300)->get();
 

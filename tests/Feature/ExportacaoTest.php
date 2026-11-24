@@ -82,6 +82,14 @@ class ExportacaoTest extends TestCase
         $this->assertSame('Vencido', $l[0]['Situação']);
     }
 
+    public function test_csv_exporta_texto_com_prefixo_de_formula_como_texto(): void
+    {
+        DB::table('titulos')->where('descricao', 'Aluguel')->update(['descricao' => '=1+1']);
+        [, $linhas] = $this->baixar('lancamentos', ['formato' => 'csv', 'tipo' => 'pagar']);
+        $this->assertSame("'=1+1", $linhas[0]['Descrição']);
+        $this->assertSame('1234,56', $linhas[0]['Valor original']);
+    }
+
     public function test_compras_inadimplencia_e_caixa(): void
     {
         [, $c] = $this->baixar('compras');

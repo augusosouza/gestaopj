@@ -41,6 +41,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('busca-global', static fn (Request $r) => $r->isMethod('post')
             ? Limit::perMinute(30)->by('usuario:'.$r->user()->id)
             : Limit::none());
+        RateLimiter::for('importar-extrato', static fn (Request $r) => Limit::perMinute(8)->by('usuario:'.$r->user()->id));
+        RateLimiter::for('faturas-lote', static fn (Request $r) => Limit::perMinute(15)->by('usuario:'.$r->user()->id));
+        RateLimiter::for('ferramentas', static fn (Request $r) => Limit::perMinute(30)->by('usuario:'.$r->user()->id));
         RateLimiter::for('visoes-salvas', static fn (Request $r) => Limit::perMinute(20)->by('usuario:'.$r->user()->id));
 
         // Nome do sistema definido na área de configurações (prevalece sobre o .env).

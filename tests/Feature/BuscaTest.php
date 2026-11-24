@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Cliente;
+use App\Models\ContaFinanceira;
 use App\Models\Contrato;
+use App\Models\ExtratoLinha;
 use App\Models\Fatura;
+use App\Models\NotaFiscal;
+use App\Models\Titulo;
 use App\Models\VisaoSalva;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,5 +76,76 @@ class BuscaTest extends TestCase
         $this->delete(route('visoes.remover', ['faturas', $visao]))->assertNotFound();
         $this->como('admin@augi.local')->delete(route('visoes.remover', ['faturas', $visao]))->assertRedirect();
         $this->assertModelMissing($visao);
+    }
+
+    public function test_busca_nota_e_extrato_abre_os_registros_da_empresa(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $urlNotas = $urlExtratos = [];
+        foreach ([self::A, self::B] as $cnpj) {
+            $org = $this->empresa($cnpj)->id;
+            $nota = NotaFiscal::create(['organizacao_id' => $org, 'numero' => 'NF-4926', 'direcao' => 'emitida',
+                'chave_acesso' => str_repeat('1', 50), 'emitente_documento' => $cnpj, 'origem' => 'chave']);
+            $conta = ContaFinanceira::create(['organizacao_id' => $org, 'nome' => 'Conta teste', 'tipo' => 'corrente',
+                'saldo_inicial_centavos' => 0, 'saldo_inicial_em' => '2026-11-01']);
+            $linha = ExtratoLinha::create(['organizacao_id' => $org, 'conta_id' => $conta->id, 'descricao' => 'Recebimento Alvorada',
+                'data' => '2026-11-02', 'valor_centavos' => 100, 'identificador' => 'fitid-alvorada']);
+            $urlNotas[] = route('notas.index', ['nota' => $nota->id]);
+            $urlExtratos[] = route('financeiro.conciliacao', [$conta, 'linha' => $linha->id, 'mostrar' => 'todas']);
+        }
+        $this->como('financeiro@augi.local')->post(route('busca'), ['q' => 'NF-4926'])
+            ->assertOk()->assertSee($urlNotas[0])->assertDontSee($urlNotas[1]);
+        $this->post(route('busca'), ['q' => 'fitid-alvorada'])->assertOk()->assertSee($urlExtratos[0])->assertDontSee($urlExtratos[1]);
+        $this->get($urlExtratos[0])->assertOk()->assertSee('Recebimento Alvorada');
+        $this->get($urlExtratos[1])->assertNotFound();
+    }
+
+    public function test_ferramentas_validam_cnpj_e_simulam_sem_criar_titulos(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $antes = Titulo::count();
+        $this->como('financeiro@augi.local')->post(route('ferramentas'), [
+            'acao' => 'validar', 'tipo' => 'cnpj', 'valor' => '12.ABC.345/01DE-35',
+        ])->assertOk()->assertSee('Dado válido');
+        $this->post(route('ferramentas'), [
+            'acao' => 'simular', 'total' => '100,00', 'quantidade' => 3, 'inicio' => '2026-01-31',
+        ])->assertOk()->assertSee('28/02/2026')->assertSee('R$ 33,34')->assertSee('R$ 33,33');
+        $this->assertDatabaseCount('titulos', $antes);
+    }
+
+    public function test_visao_compartilhada_fica_na_empresa_e_retorna_ao_modo_pessoal(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $dados = ['nome' => 'Visão equipe de teste', 'filtros' => ['situacao' => 'aberta']];
+        $this->como('admin@augi.local')->post(route('visoes.salvar', 'faturas'), $dados)->assertRedirect();
+        $visao = VisaoSalva::query()->where('nome', $dados['nome'])->firstOrFail();
+        $url = route('visoes.compartilhar', ['faturas', $visao]);
+        $this->patch($url, ['compartilhada' => 1])->assertRedirect();
+        $this->como('financeiro@augi.local')->get(route('faturas.index'))->assertOk()->assertSee($dados['nome']);
+        $this->patch($url, ['compartilhada' => 0])->assertNotFound();
+        $this->como('admin.b@augi.local', self::B)->get(route('faturas.index'))->assertOk()->assertDontSee($dados['nome']);
+        $this->como('admin@augi.local')->patch($url, ['compartilhada' => 0])->assertRedirect();
+        $this->como('financeiro@augi.local')->get(route('faturas.index'))->assertOk()->assertDontSee($dados['nome']);
+    }
+
+    public function test_lote_exporta_apenas_a_previa_autorizada_e_audita_o_download(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $ids = [];
+        foreach ([self::A, self::B] as $cnpj) {
+            $org = $this->empresa($cnpj)->id;
+            $contrato = Contrato::where('organizacao_id', $org)->firstOrFail();
+            $ids[] = Fatura::create(['organizacao_id' => $org, 'contrato_id' => $contrato->id,
+                'competencia' => '2026-11-01', 'vencimento' => '2026-12-10', 'valor_centavos' => 100, 'status' => 'aberta'])->id;
+        }
+        $previa = $this->como('admin@augi.local')->post(route('faturas.lote.previa'), ['faturas' => $ids])->assertOk()
+            ->assertViewHas('bloqueadas', 1)->assertViewHas('faturas', fn ($registros) => $registros->modelKeys() === [$ids[0]]);
+        $payload = ['confirmacao' => $previa->viewData('confirmacao')];
+        $this->como('financeiro@augi.local')->post(route('faturas.lote.exportar'), $payload)->assertUnprocessable();
+        $exportacao = $this->como('admin@augi.local')->post(route('faturas.lote.exportar'), $payload)->assertOk()->assertDownload();
+        $arquivo = $exportacao->baseResponse->getFile()->getPathname();
+        $this->assertFileExists($arquivo);
+        unlink($arquivo);
+        $this->assertDatabaseHas('eventos', ['acao' => 'financeiro.exportado', 'organizacao_id' => $this->empresa()->id]);
     }
 }

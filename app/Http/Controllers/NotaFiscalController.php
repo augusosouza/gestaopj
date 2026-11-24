@@ -19,7 +19,8 @@ class NotaFiscalController extends Controller
     {
         $competencia = $request->filled('competencia') ? Competencia::de($request->query('competencia')) : null;
         $direcao = in_array($request->query('direcao'), ['emitida', 'recebida'], true) ? $request->query('direcao') : null;
-        $notas = NotaFiscal::query()
+        $nota = $request->validate(['nota' => ['nullable', 'integer', 'min:1']])['nota'] ?? null;
+        $notas = NotaFiscal::query()->when($nota, fn ($q) => $q->whereKey($nota))
             ->when($competencia, fn ($q) => $q->whereDate('competencia', $competencia->toDateString()))
             ->when($direcao, fn ($q) => $q->where('direcao', $direcao))
             ->latest('id')->paginate(50)->withQueryString();
