@@ -11,3 +11,13 @@ O fluxo reutiliza as baixas, o vínculo da tarifa, o histórico de eventos, Suge
 ## Atualização e reversão
 
 Faça backup da aplicação, do banco e dos arquivos privados. Preserve `.env`, `APP_KEY` e `storage`. Após atualizar os arquivos, execute `php artisan migrate --force` e recarregue os caches. Confira o radar e, quando autorizada, teste a orientação com uma credencial do próprio ambiente. Para reverter o código, reaplique o pacote anterior em manutenção e mantenha as colunas adicionais para preservar configuração e histórico. Se precisar remover a credencial do banco, desative e revogue o acesso no Augi e no provedor antes de reverter.
+
+## Alertas no Financeiro e no Meu Caixa
+
+O resumo do Painel Financeiro mostra os alertas dos próximos 30 dias usando a mesma projeção diária do Meu Caixa. O Meu Caixa acompanha o horizonte, o saldo das contas selecionadas e o cenário em análise. A seleção de contas controla o saldo de partida. Os compromissos previstos são da empresa ativa.
+
+O alerta de concentração destaca o maior compromisso a pagar da projeção ou a maior baixa em dinheiro acumulada em um título da competência, conforme a tela. O critério inicial exige pelo menos R$ 1.000 e participação mínima de 25% no respectivo total. A indicação representa concentração financeira. O link abre o registro original para conferência. A simulação pode afetar o alerta de déficit, mas não entra no cálculo da concentração nem gera um lançamento.
+
+A lista do Meu Caixa usa a data projetada e mostra o saldo ao fim de cada dia calculado pela série do gráfico. As parcelas vencidas conservam a data de vencimento no indicador de atraso.
+
+A entrega reutiliza `Financeiro`, `PosicaoFinanceira`, o acesso ao Radar de Economia e os padrões de ação Blade. O novo componente `alertas-caixa` é compartilhado pelas duas telas. Esta revisão não adiciona migrations. No cPanel, reaplique o pacote mantendo a configuração e os arquivos privados e limpe o cache das views com `php artisan view:clear`. A reversão consiste em reaplicar os arquivos do pacote anterior e limpar o mesmo cache.

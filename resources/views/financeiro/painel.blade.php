@@ -17,6 +17,24 @@
   ['Despesas', route('financeiro.painel', ['aba' => 'despesas', 'competencia' => $competencia->format('Y-m')]), $aba === 'despesas'],
 ]" />
 
+@if ($projecao)
+  <x-alertas-caixa :projecao="$projecao" />
+@endif
+
+@if ($despesa = $p['despesa_concentrada'])
+  <div class="acao acao-warn">
+    <div>
+      <strong>Despesa paga de alto impacto</strong>
+      <p class="sub">{{ $despesa['titulo']->descricao }} · {{ brl($despesa['valor']) }}. Representa {{ $despesa['percentual'] }}% do valor pago em dinheiro nos lançamentos desta competência.</p>
+    </div>
+    <a class="botao sec" href="{{ route('financeiro.titulo', $despesa['titulo']) }}">Abrir lançamento</a>
+  </div>
+@endif
+
+@if ($aba !== 'fluxo' && ctx()->empresa()->sugestoes_ativas)
+  <p><a href="{{ route('inteligencia.economia') }}">Consultar Radar de Economia</a></p>
+@endif
+
 @if ($aba === 'resumo')
   <section class="cards" aria-label="Indicadores da competência">
     <div class="card serie-saldo"><div class="rot">Saldo nas contas</div><div class="num">{{ brl($p['saldo_contas']) }}</div><div class="det">hoje · <a href="{{ route('financeiro.contas') }}">contas</a></div></div>
@@ -40,6 +58,7 @@
   @endforelse
 
 @elseif ($aba === 'fluxo')
+  <p><a href="{{ route('financeiro.caixa') }}">Ver projeção diária e simular no Meu Caixa</a></p>
   @php($negativo = collect($fluxo)->firstWhere('saldo', '<', 0))
   @if ($negativo)
     <div class="aviso bad"><strong>Atenção:</strong> o saldo projetado fica negativo na semana de {{ $negativo['inicio']->format('d/m') }} ({{ brl($negativo['saldo']) }}).</div>

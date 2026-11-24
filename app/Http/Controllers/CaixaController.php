@@ -25,7 +25,7 @@ class CaixaController extends Controller
         $incluir = $request->boolean('vencidos');
         $simulacao = null;
         if ($request->filled('simular_valor')) {
-            $request->validate(['simular_data' => ['required', 'date']], ['simular_data.required' => 'Informe a data da simulação.']);
+            $request->validate(['simular_data' => ['required', 'date', 'before_or_equal:'.CarbonImmutable::today()->addDays($dias)->toDateString()]], ['simular_data.required' => 'Informe a data da simulação.']);
             $simulacao = ['valor' => $this->centavos($request->query('simular_valor'), 'simular_valor'),
                 'data' => $request->query('simular_data'), 'tipo' => $request->query('simular_tipo') === 'receber' ? 'receber' : 'pagar'];
         }
@@ -36,7 +36,7 @@ class CaixaController extends Controller
             'p' => $p, 'semSimular' => $semSimular, 'dias' => $dias, 'contaIds' => $contaIds, 'incluir' => $incluir,
             'todasContas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(),
             'confirmados' => $posicao->confirmados($p['contas']),
-            'sugestoes' => $sugestoes->gerar()->whereIn('tipo', ['caixa', 'inadimplencia', 'fatura', 'parcelados'])->take(4)->values(),
+            'sugestoes' => $sugestoes->gerar()->whereIn('tipo', ['inadimplencia', 'fatura', 'parcelados'])->take(4)->values(),
         ]);
     }
 

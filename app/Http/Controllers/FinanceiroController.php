@@ -24,6 +24,7 @@ use App\Services\ImportadorExtrato;
 use App\Services\LembretesBancarios;
 use App\Services\LembretesVencimento;
 use App\Services\Planejamento;
+use App\Services\PosicaoFinanceira;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
 use Carbon\CarbonImmutable;
@@ -90,14 +91,15 @@ class FinanceiroController extends Controller
     }
 
     /** Painel financeiro: Resumo, Fluxo de caixa e Despesas (FIN-UI-01). */
-    public function painel(Request $request): View
+    public function painel(Request $request, PosicaoFinanceira $posicao): View
     {
         $this->fin->garantirPadroes(ctx()->organizacaoId());
         $competencia = Competencia::de($request->query('competencia'));
         $aba = in_array($request->query('aba'), ['resumo', 'fluxo', 'despesas'], true) ? $request->query('aba') : 'resumo';
 
         return view('financeiro.painel', [
-            'aba' => $aba, 'competencia' => $competencia, 'p' => $this->fin->painel($competencia),
+            'aba' => $aba, 'competencia' => $competencia, 'p' => $this->fin->painel($competencia, $aba !== 'fluxo'),
+            'projecao' => $aba === 'resumo' ? $posicao->projetar() : null,
             'acoes' => $aba === 'resumo' ? $this->fin->acoesNecessarias() : [],
             'fluxo' => $aba === 'fluxo' ? $this->fin->fluxoCaixa(12) : [],
             'categorias' => $aba === 'despesas' ? $this->fin->despesasPorCategoria($competencia) : collect(),

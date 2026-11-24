@@ -14,10 +14,7 @@
   </x-slot:acoes>
 </x-cabecalho>
 
-@if ($p['negativo'])
-  <div class="aviso bad"><strong>Falta dinheiro em {{ $p['negativo']['data']->format('d/m/Y') }}:</strong>
-    com os vencimentos previstos, o saldo fica em {{ brl(-$p['negativo']['deficit']) }}. Antecipe recebimentos, renegocie datas ou reforce a conta antes desse dia.</div>
-@endif
+<x-alertas-caixa :projecao="$p" :no-caixa="true" />
 
 <section class="decisao painel" aria-label="Livre para decidir">
   <div>
@@ -131,15 +128,15 @@
   @endforeach
 </section>
 
-<h2>Compromissos do período</h2>
-@php($acumulado = $p['saldo_atual'])
+<h2 id="compromissos-caixa">Compromissos do período</h2>
+@php($saldosDiarios = collect($p['serie'])->keyBy(fn ($dia) => $dia['data']->toDateString()))
 <div class="tabela"><table>
-  <thead><tr><th>Data</th><th>Descrição</th><th>Contraparte</th><th class="n">Entrada</th><th class="n">Saída</th><th class="n">Saldo após</th></tr></thead>
+  <thead><tr><th>Data</th><th>Descrição</th><th>Contraparte</th><th class="n">Entrada</th><th class="n">Saída</th><th class="n">Saldo ao fim do dia</th></tr></thead>
   <tbody>
   @forelse ($p['eventos'] as $e)
-    @php($acumulado += $e['tipo'] === 'receber' ? $e['valor'] : -$e['valor'])
+    @php($acumulado = $saldosDiarios[$e['data']->toDateString()]['saldo'])
     <tr>
-      <td>{{ $e['vencimento']->format('d/m/Y') }}@if ($e['atrasado'])<br><span class="tag bad">vencido</span>@endif</td>
+      <td>{{ $e['data']->format('d/m/Y') }}@if ($e['atrasado'])<br><span class="tag bad">vencido em {{ $e['vencimento']->format('d/m/Y') }}</span>@endif</td>
       <td>@if ($e['simulado'] ?? false)<em>{{ $e['descricao'] }}</em>@else<a href="{{ $e['url'] }}">{{ $e['descricao'] }}</a>@endif</td>
       <td>{{ $e['contraparte'] ?? '—' }}</td>
       <td class="n">{{ $e['tipo'] === 'receber' ? brl($e['valor']) : '' }}</td>

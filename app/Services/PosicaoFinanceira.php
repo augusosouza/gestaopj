@@ -98,9 +98,14 @@ final class PosicaoFinanceira
 
         if ($simulacao && $simulacao['valor'] > 0) {
             $d = CarbonImmutable::parse($simulacao['data']);
-            $eventos->push(['data' => $d->lt($hoje) ? $hoje : $d, 'vencimento' => $d, 'tipo' => $simulacao['tipo'] === 'receber' ? 'receber' : 'pagar',
-                'descricao' => 'Simulação (não gravada)', 'contraparte' => null, 'valor' => $simulacao['valor'], 'url' => '#simular', 'atrasado' => false,
-                'cartao' => false, 'simulado' => true]);
+            if ($d->lte($ate)) {
+                $eventos->push(['data' => $d->lt($hoje) ? $hoje : $d, 'vencimento' => $d, 'tipo' => $simulacao['tipo'] === 'receber' ? 'receber' : 'pagar',
+                    'descricao' => 'Simulação (não gravada)', 'contraparte' => null, 'valor' => $simulacao['valor'], 'url' => '#simular', 'atrasado' => false,
+                    'cartao' => false, 'simulado' => true]);
+                $eventos = $eventos->sortBy('data')->values();
+            } else {
+                $simulacao = null;
+            }
         }
 
         $porDia = $eventos->groupBy(fn ($e) => $e['data']->toDateString());
@@ -127,9 +132,14 @@ final class PosicaoFinanceira
         $compromissos = $eventos->reject(fn ($e) => $e['simulado'] ?? false);
         $origens = $compromissos->groupBy(['tipo', 'origem']);
         $aReceber = (int) $compromissos->where('tipo', 'receber')->sum('valor');
-        $aPagar = (int) $compromissos->where('tipo', 'pagar')->sum('valor');
+        $saidas = $compromissos->where('tipo', 'pagar');
+        $aPagar = (int) $saidas->sum('valor');
+        $maiorSaida = $saidas->sortByDesc('valor')->first();
 
         return [
+            'saida_concentrada' => $maiorSaida && $maiorSaida['valor'] >= 100000 && $aPagar <= $maiorSaida['valor'] * 4
+                ? $maiorSaida + ['percentual' => round($maiorSaida['valor'] * 100 / $aPagar)]
+                : null,
             'hoje' => $hoje, 'ate' => $ate, 'dias' => $dias, 'contas' => $contas,
             'saldo_atual' => $saldoAtual,
             'a_receber' => $aReceber, 'a_pagar' => $aPagar,

@@ -313,8 +313,31 @@ class Financeiro2Test extends TestCase
         // Simulação não grava nada.
         $antes = Titulo::count();
         $this->como('financeiro@augi.local')->get(route('financeiro.caixa', ['contas' => [$this->conta->id], 'simular_valor' => '500,00', 'simular_data' => '2026-11-25']))
-            ->assertOk()->assertSee('Não cabe agora')->assertSee('Falta dinheiro em 05/12/2026');
+            ->assertOk()->assertSee('Não cabe agora')->assertSee('Déficit no cenário simulado')->assertSee('Em 05/12/2026, faltam R$ 1.400,00');
         $this->assertSame($antes, Titulo::count());
+    }
+
+    public function test_alertas_financeiros_usam_despesas_pagas_e_compromissos_do_horizonte(): void
+    {
+        $this->ctxA();
+        $fin = app(Financeiro::class);
+        $org = $this->empresa()->id;
+        $paga = $fin->criarTitulo($org, ['tipo' => 'pagar', 'descricao' => 'Equipamento já quitado',
+            'competencia' => '2026-11-01'], 150000, 1, '2026-11-20');
+        $fin->baixar($paga->parcelas()->sole(), ['conta_id' => $this->conta->id, 'valor' => 150000, 'data' => '2026-11-20']);
+        $prevista = $fin->criarTitulo($org, ['tipo' => 'pagar', 'descricao' => 'Equipamento a vencer',
+            'competencia' => '2026-11-01'], 900000, 1, '2026-12-05');
+        $this->como('financeiro@augi.local')->get(route('financeiro.painel', ['competencia' => '2026-11']))
+            ->assertOk()->assertSee('Despesa paga de alto impacto')->assertSee('Equipamento já quitado')
+            ->assertSee('Saída prevista de alto impacto')->assertSee(route('financeiro.titulo', $prevista))
+            ->assertSee('Risco de saldo negativo')->assertSee('Consultar Radar de Economia');
+
+        $this->get(route('financeiro.caixa', ['dias' => 7]))
+            ->assertOk()->assertDontSee('Saída prevista de alto impacto')->assertDontSee('Risco de saldo negativo');
+        $this->get(route('financeiro.caixa', ['dias' => 30]))
+            ->assertOk()->assertSee('Saída prevista de alto impacto')->assertSee('Risco de saldo negativo');
+        $this->como('admin.b@augi.local', self::B)->get(route('financeiro.painel', ['competencia' => '2026-11']))
+            ->assertOk()->assertDontSee('Equipamento já quitado')->assertDontSee('Equipamento a vencer');
     }
 
     public function test_recebimento_vencido_fica_fora_da_projecao_por_padrao(): void

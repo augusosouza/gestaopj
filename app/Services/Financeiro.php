@@ -647,15 +647,25 @@ final class Financeiro
     // ---------------- Painel ----------------
 
     /** Previsto x realizado da competência, vencidos e saldo em contas. */
-    public function painel(CarbonImmutable $competencia): array
+    public function painel(CarbonImmutable $competencia, bool $detalharDespesas = false): array
     {
         $titulos = Titulo::with('parcelas.movimentos.estornoDe')->whereNull('cancelado_em')
+            ->when($detalharDespesas, fn ($q) => $q->with('parcelas.movimentos.estorno'))
             ->whereDate('competencia', $competencia->startOfMonth())->get();
         $todos = Titulo::with('parcelas.movimentos.estornoDe')->whereNull('cancelado_em')->get();
         $soma = fn ($tipo, $f) => (int) $titulos->where('tipo', $tipo)->sum($f);
         $vencidas = $todos->flatMap(fn (Titulo $t) => $t->parcelas->filter->vencida()->map(fn ($p) => [$t, $p]));
 
+        $despesasPagas = ($detalharDespesas ? $titulos->where('tipo', 'pagar') : collect())
+            ->map(fn (Titulo $titulo) => ['titulo' => $titulo, 'valor' => $titulo->pagoEmDinheiro()])
+            ->filter(fn (array $despesa) => $despesa['valor'] > 0);
+        $maiorDespesa = $despesasPagas->sortByDesc('valor')->first();
+        $totalPago = (int) $despesasPagas->sum('valor');
+
         return [
+            'despesa_concentrada' => $maiorDespesa && $maiorDespesa['valor'] >= 100000 && $totalPago <= $maiorDespesa['valor'] * 4
+                ? $maiorDespesa + ['percentual' => round($maiorDespesa['valor'] * 100 / $totalPago)]
+                : null,
             'receitas_previstas' => $soma('receber', fn ($t) => $t->valor_total_centavos),
             'receitas_realizadas' => $soma('receber', fn ($t) => $t->liquidado()),
             'despesas_previstas' => $soma('pagar', fn ($t) => $t->valor_total_centavos),
