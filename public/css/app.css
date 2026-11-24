@@ -529,3 +529,41 @@ textarea { border-radius: var(--radius-controle); }
 .botao.terciario:hover { color: var(--text); background: var(--bg); }
 .formulario-ajuda { font-size: .875rem; }
 .formulario-rodape { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--espaco-2); padding-top: var(--espaco-3); border-top: 1px solid var(--line); }
+
+/* Baixa rápida mantém o mesmo formulário no painel lateral e no fallback sem JS. */
+.painel-baixa {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(100%, 30rem);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  padding-bottom: max(var(--espaco-4), env(safe-area-inset-bottom));
+  background: var(--surface);
+  color: var(--text);
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  overflow-y: auto;
+}
+.painel-baixa::backdrop { background: rgb(0 0 0 / .52); }
+body:has(.painel-baixa[open]) { overflow: hidden; }
+.painel-baixa-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--espaco-2); margin-bottom: var(--espaco-3); }
+.painel-baixa-topo h2 { margin: 0; font-size: 1.2rem; }
+.painel-baixa form { display: grid; gap: var(--espaco-2); }
+.painel-baixa label { display: grid; gap: .25rem; }
+.painel-baixa .erro { color: var(--bad); }
+.painel-baixa .erro:empty { display: none; }
+.baixa-resumo { display: grid; gap: .25rem; padding: var(--espaco-2); border-radius: var(--radius); background: var(--bg); overflow-wrap: anywhere; }
+.baixa-resumo > span { color: var(--muted); }
+.baixa-ajuda { margin: 0; font-size: .85rem; }
+.navegacao-mobile { display: none; }
+@media (max-width: 900px) {
+  .app .conteudo { padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)); }
+  .navegacao-mobile { position: fixed; inset: auto 0 0; z-index: 28; display: flex; justify-content: space-around; align-items: stretch; gap: .15rem; padding: .25rem max(.25rem, env(safe-area-inset-right)) max(.25rem, env(safe-area-inset-bottom)) max(.25rem, env(safe-area-inset-left)); border-top: 1px solid var(--line); background: var(--surface); }
+  .navegacao-mobile a, .navegacao-mobile button { flex: 1 1 0; min-width: 0; min-height: 44px; display: grid; place-content: center; justify-items: center; gap: .15rem; color: var(--muted); text-decoration: none; text-align: center; font: 500 .71rem/1.2 var(--sans); background: transparent; border: 0; padding: .25rem; }
+  .navegacao-mobile [aria-current="page"] { color: var(--accent); font-weight: 600; }
+  .navegacao-mobile .icone { width: 20px; height: 20px; }
+}
+.painel-baixa:not([open]) { display: none; }

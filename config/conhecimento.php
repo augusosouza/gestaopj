@@ -135,13 +135,13 @@ return [
         ]),
         'registrar-pagamento' => $guia('financeiro', 'Como registrar pagamento, baixa parcial ou estorno', 'Acompanhe a obrigação e registre a movimentação efetivamente realizada.', $financeiro, 'contas_pagar.index', 'baixar pagar pagamento estornar comprovante contas a pagar', [
             'Abra Financeiro → Contas a pagar. Em Em aberto ou Vencidas, localize a obrigação pelo fornecedor, vencimento, competência ou centro de custo. A listagem é paginada e o total cobre o filtro inteiro.',
-            'Selecione a parcela e informe a conta, a data e o valor pago. Confira os dados e confirme o registro. O registro atualiza o financeiro do Augi.',
+            'Na parcela, selecione Pagar para abrir o painel de baixa rápida. Confira a obrigação e o saldo. Informe a conta, a data e o valor pago, e confirme o registro.',
             'Se o pagamento foi parcial, acompanhe o saldo que continua em aberto. Use Pagas ou o histórico do título para conferir as baixas.',
             'Se registrou um pagamento incorretamente, abra o movimento no título e use Estornar quando disponível, com a justificativa solicitada.',
         ]),
         'recebimentos' => $guia('financeiro', 'Como registrar recebimentos e acompanhar cobranças', 'Controle valores previstos, baixas, contatos, promessas e renegociações.', $financeiro, 'contas_receber.index', 'contas a receber cobrança promessa renegociação cliente atraso', [
             'Abra Financeiro → Contas a receber. Use os filtros de cliente, vencimento, competência e centro de custo para encontrar o título. A aba Recebidos mostra as baixas por data de recebimento.',
-            'Depois da entrada do dinheiro, informe a conta, a data e o valor efetivamente recebido. Confira eventual saldo pendente.',
+            'Depois da entrada do dinheiro, use Receber na parcela para abrir o painel de baixa rápida. Informe a conta, a data e o valor efetivamente recebido. Confira o saldo restante.',
             'Para acompanhar atrasos, consulte Inadimplência ou abra a área de cobrança do título. Registre contatos, promessas e renegociações conforme a situação.',
             'Uma promessa continua em acompanhamento até que o recebimento seja registrado.',
         ]),

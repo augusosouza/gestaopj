@@ -154,14 +154,41 @@
             @if ($contasAtivas->isEmpty())
               <a class="botao sec" href="{{ route('financeiro.contas') }}">Cadastrar conta bancária</a>
             @else
-              <details class="pagar-rapido"><summary class="botao sec">{{ $T['verbo'] }}</summary>
-                <form method="post" action="{{ route('financeiro.baixar', $l['parcela']) }}" data-evitar-reenvio>@csrf
-                  <input type="hidden" name="chave" value="{{ $chave }}-{{ $l['parcela']->id }}">
-                  <label>Conta<select name="conta_id" required>@foreach ($contasAtivas as $c)<option value="{{ $c->id }}" @selected($l['conta_id'] === $c->id)>{{ $c->nome }}</option>@endforeach</select></label>
-                  <label>Data<input type="date" name="data" value="{{ $hoje->toDateString() }}" max="{{ $hoje->toDateString() }}" required></label>
-                  <label>Valor {{ $R ? 'recebido' : 'pago' }}<input name="valor" inputmode="decimal" value="{{ valor_campo($l['saldo']) }}" required></label>
-                  <button>Registrar</button>
-                  <span class="sub" style="font-size:12px">Valor menor que o saldo = {{ $R ? 'recebimento' : 'pagamento' }} parcial; o restante continua em aberto.</span>
+              @php($reabrirBaixa = $errors->any() && is_string(old('parcela_rapida')) && old('parcela_rapida') === (string) $l['parcela']->id)
+              @php($entradaBaixa = fn ($campo, $padrao = '') => $reabrirBaixa && is_string(old($campo)) ? old($campo) : $padrao)
+              <details class="pagar-rapido" data-baixa-rapida @if ($reabrirBaixa) open data-reabrir-baixa @endif>
+                <summary class="botao sec">{{ $T['verbo'] }}</summary>
+                <form method="post" action="{{ route('financeiro.baixar', $l['parcela']) }}" data-evitar-reenvio>
+                  @csrf
+                  <input type="hidden" name="parcela_rapida" value="{{ $l['parcela']->id }}">
+                  <input type="hidden" name="chave" value="{{ $entradaBaixa('chave', $chave.'-'.$l['parcela']->id) }}">
+                  <div class="baixa-resumo">
+                    <strong>{{ $l['descricao'] }}</strong>
+                    @if ($l['fornecedor'])<span>{{ $l['fornecedor'] }}</span>@endif
+                    <span>Saldo em aberto <strong>{{ brl($l['saldo']) }}</strong></span>
+                  </div>
+                  <label>Conta
+                    <select name="conta_id" required>
+                      @foreach ($contasAtivas as $c)
+                        <option value="{{ $c->id }}" @selected((string) $entradaBaixa('conta_id', $l['conta_id']) === (string) $c->id)>{{ $c->nome }}</option>
+                      @endforeach
+                    </select>
+                    @if ($reabrirBaixa)<small class="erro">{{ $errors->first('conta_id') }}</small>@endif
+                  </label>
+                  <label>Data
+                    <input type="date" name="data" value="{{ $entradaBaixa('data', $hoje->toDateString()) }}" max="{{ $hoje->toDateString() }}" required>
+                    @if ($reabrirBaixa)<small class="erro">{{ $errors->first('data') }}</small>@endif
+                  </label>
+                  <label>Valor {{ $R ? 'recebido' : 'pago' }}
+                    <input name="valor" inputmode="decimal" value="{{ $entradaBaixa('valor', valor_campo($l['saldo'])) }}" required>
+                    @if ($reabrirBaixa)<small class="erro">{{ $errors->first('valor') }}</small>@endif
+                  </label>
+                  <label>Observação <textarea name="observacao" rows="2" maxlength="500">{{ $entradaBaixa('observacao') }}</textarea></label>
+                  <p class="sub baixa-ajuda">Para uma baixa parcial, informe um valor menor que o saldo.</p>
+                  <div class="acoes">
+                    <button type="submit">Registrar {{ $R ? 'recebimento' : 'pagamento' }}</button>
+                    <a href="{{ $l['url'] }}">Abrir lançamento</a>
+                  </div>
                 </form>
               </details>
             @endif
@@ -175,6 +202,15 @@
     @if ($linhas->total())<tfoot><tr><td colspan="4">{{ $linhas->total() }} compromisso(s) no filtro</td><td class="n"><strong>{{ brl($totalLinhas) }}</strong></td><td colspan="2"></td></tr></tfoot>@endif
   </table></div>
   {{ $linhas->links() }}
+  @if ($opera && $contasAtivas->isNotEmpty())
+    <dialog class="painel-baixa" data-painel-baixa aria-labelledby="titulo-painel-baixa">
+      <header class="painel-baixa-topo">
+        <h2 id="titulo-painel-baixa">{{ $R ? 'Registrar recebimento' : 'Registrar pagamento' }}</h2>
+        <button type="button" class="botao sec" data-fechar-baixa>Fechar</button>
+      </header>
+      <div data-conteudo-baixa></div>
+    </dialog>
+  @endif
 
 @elseif ($aba === 'parcelamentos')
   <div class="tabela"><table>

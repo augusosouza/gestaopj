@@ -1,5 +1,6 @@
 {{-- Ícones de traço simples (24×24), herdam a cor do texto. --}}
 @php($d = [
+  'agenda' => 'M4 6h16v15H4zM8 3v5m8-5v5M4 11h16',
   'lateral' => 'M3 4h18v16H3zM9 4v16',
   'mais' => 'M12 5v14M5 12h14',
   'exportar' => 'M12 3v12m-5-5 5 5 5-5M5 15v5h14v-5',

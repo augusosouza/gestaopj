@@ -5,6 +5,26 @@ if (painel) {
     const botao = painel.querySelector('.lateral-compactar');
     const menuMobile = painel.querySelector('#menu');
     const desktop = matchMedia('(min-width: 901px)');
+    const atalhoMobile = painel.querySelector('[data-menu-mobile]');
+    const lateral = painel.querySelector('#menu-principal');
+    let focoAnterior = menuMobile;
+    atalhoMobile.hidden = false;
+
+    function atualizarMenuMobile() {
+        atalhoMobile.setAttribute('aria-expanded', String(menuMobile.checked));
+        if (menuMobile.checked) lateral.querySelector('a[href]')?.focus();
+        else if (!desktop.matches) focoAnterior.focus();
+    }
+
+    atalhoMobile.addEventListener('click', () => {
+        focoAnterior = atalhoMobile;
+        menuMobile.checked = !menuMobile.checked;
+        atualizarMenuMobile();
+    });
+    menuMobile.addEventListener('change', () => {
+        if (menuMobile.checked) focoAnterior = menuMobile;
+        atualizarMenuMobile();
+    });
     const grupos = Array.from(painel.querySelectorAll('.menu-grupo'));
     const ler = (nome, padrao) => {
         try { return JSON.parse(localStorage.getItem(nome)) ?? padrao; } catch { return padrao; }
@@ -32,12 +52,13 @@ if (painel) {
     });
     desktop.addEventListener('change', () => {
         menuMobile.checked = false;
+        atalhoMobile.setAttribute('aria-expanded', 'false');
         atualizarMenu();
     });
     document.addEventListener('keydown', (evento) => {
         if (evento.key === 'Escape' && menuMobile.checked) {
             menuMobile.checked = false;
-            menuMobile.focus();
+            atualizarMenuMobile();
         }
     });
     for (const grupo of grupos) {
@@ -66,7 +87,7 @@ for (const abas of document.querySelectorAll('[data-abas]')) {
 }
 
 for (const formulario of document.querySelectorAll('[data-evitar-reenvio]')) {
-    const botao = formulario.querySelector('button');
+    const botao = formulario.querySelector('button[type=submit], button:not([type])');
     const texto = botao.textContent;
     formulario.addEventListener('submit', (evento) => {
         if (botao.disabled) {
@@ -88,4 +109,37 @@ for (const menu of document.querySelectorAll('.exportar-menu')) {
         menu.open = false;
         menu.querySelector('summary').focus();
     });
+}
+
+const painelBaixa = document.querySelector('[data-painel-baixa]');
+if (painelBaixa && typeof painelBaixa.showModal === 'function') {
+    const conteudo = painelBaixa.querySelector('[data-conteudo-baixa]');
+    let origem = null;
+    let resumo = null;
+
+    function abrirBaixa(detalhes) {
+        if (painelBaixa.open) return;
+        origem = detalhes;
+        resumo = detalhes.querySelector('summary');
+        const formulario = detalhes.querySelector('form');
+        detalhes.open = false;
+        conteudo.append(formulario);
+        painelBaixa.showModal();
+        formulario.querySelector('select').focus();
+    }
+
+    painelBaixa.querySelector('[data-fechar-baixa]').addEventListener('click', () => painelBaixa.close());
+    painelBaixa.addEventListener('close', () => {
+        origem.append(conteudo.firstElementChild);
+        resumo.focus({preventScroll: true});
+    });
+    for (const detalhes of document.querySelectorAll('[data-baixa-rapida]')) {
+        const gatilho = detalhes.querySelector('summary');
+        gatilho.setAttribute('aria-haspopup', 'dialog');
+        gatilho.addEventListener('click', (evento) => {
+            evento.preventDefault();
+            abrirBaixa(detalhes);
+        });
+        if (detalhes.hasAttribute('data-reabrir-baixa')) abrirBaixa(detalhes);
+    }
 }

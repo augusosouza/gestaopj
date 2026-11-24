@@ -75,6 +75,28 @@
     @include('conhecimento.contextual')
     @yield('conteudo')
   </main>
+  <nav class="navegacao-mobile" aria-label="Atalhos no celular">
+    @if ($menu['inicio'])
+      <a href="{{ $menu['inicio']['url'] }}" @if ($menu['inicio']['ativo']) aria-current="page" @endif>
+        @include('partials.icone', ['nome' => 'inicio'])
+        <span>{{ $c->ehPrestador() ? 'Cobranças' : $menu['inicio']['rotulo'] }}</span>
+      </a>
+    @endif
+    @if ($c->empresa() && $c->ehInterno())
+      <a href="{{ route('financeiro.painel') }}" @if (request()->routeIs('financeiro.painel')) aria-current="page" @endif>
+        @include('partials.icone', ['nome' => 'financeiro']) <span>Financeiro</span>
+      </a>
+      <a href="{{ route('financeiro.agenda') }}" @if (request()->routeIs('financeiro.agenda')) aria-current="page" @endif>
+        @include('partials.icone', ['nome' => 'agenda']) <span>Agenda</span>
+      </a>
+    @endif
+    <a href="{{ route('notificacoes.index') }}" @if (request()->routeIs('notificacoes.*')) aria-current="page" @endif>
+      @include('partials.icone', ['nome' => 'sino']) <span>Avisos</span>
+    </a>
+    <button type="button" data-menu-mobile aria-controls="menu-principal" aria-expanded="false" hidden>
+      @include('partials.icone', ['nome' => 'operacao']) <span>Menu</span>
+    </button>
+  </nav>
 </div>
 @else
 <main @class(["solo", "larga" => View::hasSection("larga")])>
