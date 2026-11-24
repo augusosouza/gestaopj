@@ -228,7 +228,7 @@ final class Financeiro
      */
     public function baixar(Parcela $parcela, array $d): Movimento
     {
-        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'observacao' => null, 'chave' => null, 'via_fatura' => false];
+        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'tarifa' => 0, 'observacao' => null, 'chave' => null, 'via_fatura' => false];
 
         // Duplo envio do mesmo formulário: devolve a baixa já registrada, sem criar outra.
         if ($d['chave'] && ($ja = Movimento::where('chave_idempotencia', $d['chave'])->first())) {
@@ -243,28 +243,48 @@ final class Financeiro
             }
             $t = $parcela->titulo;
             $this->conferirBaixa($parcela, $d);
+            $tarifa = $d['tarifa'] > 0 ? $this->baixarTarifaDoRecebimento($parcela, $d) : null;
             $m = Movimento::create([
                 'organizacao_id' => $parcela->organizacao_id, 'parcela_id' => $parcela->id, 'conta_id' => $d['conta_id'],
                 'tipo' => 'baixa', 'data' => $d['data'], 'valor_centavos' => $d['valor'], 'desconto_centavos' => $d['desconto'],
                 'retencao_centavos' => $d['retencao'], 'acrescimo_centavos' => $d['acrescimo'], 'observacao' => $d['observacao'],
-                'chave_idempotencia' => $d['chave'], 'criado_por' => auth()->id(),
+                'chave_idempotencia' => $d['chave'], 'criado_por' => auth()->id(), 'tarifa_movimento_id' => $tarifa?->id,
+                'tarifa_separada' => $tarifa !== null && isset($d['tarifa_data']),
             ]);
-            Evento::registrar('financeiro.baixa', $t, ['parcela' => $parcela->numero, 'valor' => $d['valor'], 'data' => $d['data']]);
+            Evento::registrar('financeiro.baixa', $t, ['parcela' => $parcela->numero, 'valor' => $d['valor'], 'data' => $d['data']]
+                + ($tarifa ? ['tarifa' => $tarifa->valor_centavos, 'movimento_tarifa' => $tarifa->id] : []));
             $this->refletirNaOrigem($t);
 
             return $m;
         });
     }
 
+    private function baixarTarifaDoRecebimento(Parcela $parcela, array $dados): Movimento
+    {
+        $data = $dados['tarifa_data'] ?? $dados['data'];
+        $categoria = $this->categoriaPadrao($parcela->organizacao_id, 'tarifas');
+        $titulo = $this->criarTitulo($parcela->organizacao_id, [
+            'tipo' => 'pagar', 'descricao' => 'Tarifa de recebimento · título #'.$parcela->titulo_id,
+            'categoria_id' => $categoria?->id,
+            'competencia' => CarbonImmutable::parse($data)->startOfMonth()->toDateString(),
+            'documento' => 'Título #'.$parcela->titulo_id,
+        ], $dados['tarifa'], 1, $data);
+
+        return $this->baixar($titulo->parcelas()->firstOrFail(), [
+            'conta_id' => $dados['conta_id'], 'data' => $data, 'valor' => $dados['tarifa'],
+        ]);
+    }
+
     /** Confere os dados da baixa sem gravar movimentações. */
     public function conferirBaixa(Parcela $parcela, array $d): array
     {
-        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'via_fatura' => false];
+        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'via_fatura' => false, 'tarifa' => 0];
         $parcela->loadMissing('titulo', 'movimentos.estornoDe');
         $t = $parcela->titulo;
         $conta = ContaFinanceira::where('ativa', true)->find($d['conta_id']);
 
         $erro = match (true) {
+            $d['tarifa'] < 0 || ($d['tarifa'] > 0 && (! $t->receber() || $d['tarifa'] >= $d['valor'])) => 'A tarifa deve ser menor que o recebimento bruto.',
             $t->cancelado() => 'Título cancelado.',
             // Compra no cartão sai do caixa quando a fatura é paga: pagar a parcela avulsa duplicaria a saída.
             $parcela->fatura_cartao_id && ! $d['via_fatura'] => 'Parcela de cartão de crédito: registre o pagamento pela fatura do cartão.',
@@ -280,6 +300,13 @@ final class Financeiro
         $this->exigirOrigemLiberada($t);
         $this->exigirMesAberto($parcela->organizacao_id, $d['data'], 'data');
 
+        if ($d['tarifa'] > 0) {
+            $dataTarifa = $d['tarifa_data'] ?? $d['data'];
+            if (CarbonImmutable::parse($dataTarifa)->gt(now())) {
+                throw ValidationException::withMessages(['tarifa_data' => 'A data da tarifa não pode ser futura.']);
+            }
+            $this->exigirMesAberto($parcela->organizacao_id, $dataTarifa, 'tarifa_data');
+        }
         $abatimento = $d['valor'] + $d['desconto'] + $d['retencao'] - $d['acrescimo'];
         $saldo = $parcela->saldo();
         if ($abatimento > $saldo) {
@@ -298,9 +325,15 @@ final class Financeiro
 
     public function estornar(Movimento $m, string $motivo): Movimento
     {
-        return DB::transaction(function () use ($m, $motivo) {
-            $m = Movimento::lockForUpdate()->with('estorno', 'linhaExtrato', 'parcela.titulo')->findOrFail($m->id);
+        return $this->estornarBaixa($m, $motivo);
+    }
+
+    private function estornarBaixa(Movimento $m, string $motivo, bool $juntoComRecebimento = false): Movimento
+    {
+        return DB::transaction(function () use ($m, $motivo, $juntoComRecebimento) {
+            $m = Movimento::lockForUpdate()->with('estorno', 'linhaExtrato', 'parcela.titulo', 'tarifa.parcela.titulo', 'recebimentoDaTarifa')->findOrFail($m->id);
             $erro = match (true) {
+                $m->recebimentoDaTarifa && ! $juntoComRecebimento => 'Estorne a tarifa pelo recebimento original.',
                 $m->tipo !== 'baixa' => 'Só baixas podem ser estornadas.',
                 $m->estorno !== null => 'Esta baixa já foi estornada.',
                 $m->linhaExtrato !== null => 'Baixa conciliada com o extrato. Desfaça a conciliação antes de estornar.',
@@ -312,6 +345,10 @@ final class Financeiro
             $hoje = now()->toDateString();
             $this->exigirMesAberto($m->organizacao_id, $hoje, 'motivo');
 
+            if ($m->tarifa) {
+                $this->estornarBaixa($m->tarifa, $motivo, true);
+                $this->cancelarTitulo($m->tarifa->parcela->titulo, $motivo);
+            }
             $e = Movimento::create([
                 'organizacao_id' => $m->organizacao_id, 'parcela_id' => $m->parcela_id, 'conta_id' => $m->conta_id,
                 'tipo' => 'estorno', 'data' => $hoje, 'valor_centavos' => $m->valor_centavos,
@@ -385,13 +422,14 @@ final class Financeiro
     {
         DB::transaction(function () use ($linha, $m) {
             $linha = ExtratoLinha::lockForUpdate()->findOrFail($linha->id);
-            $m->load('estorno', 'linhaExtrato', 'parcela.titulo');
+            $m = Movimento::lockForUpdate()->with('estorno', 'linhaExtrato', 'parcela.titulo', 'tarifa', 'recebimentoDaTarifa')->findOrFail($m->id);
             $erro = match (true) {
                 $linha->conciliada() => 'Esta linha do extrato já está conciliada.',
                 $m->linhaExtrato !== null => 'Este movimento já está conciliado com outra linha.',
                 $m->tipo !== 'baixa' || $m->estornado() => 'Só baixas ativas podem ser conciliadas.',
                 $m->conta_id !== $linha->conta_id => 'O movimento é de outra conta.',
-                $m->efeitoNaConta() !== $linha->valor_centavos => 'Valor ou sentido diferentes: extrato '.brl($linha->valor_centavos).', movimento '.brl($m->efeitoNaConta()).'.',
+                $m->tarifaEmCreditoLiquido() => 'Esta tarifa será conciliada junto com o recebimento bruto.',
+                $m->valorConciliavel() !== $linha->valor_centavos => 'Valor ou sentido diferentes: extrato '.brl($linha->valor_centavos).', movimento '.brl($m->valorConciliavel()).'.',
                 default => null,
             };
             if ($erro) {
@@ -520,11 +558,12 @@ final class Financeiro
     {
         $d = CarbonImmutable::instance($linha->data);
 
-        return Movimento::with('parcela.titulo', 'estorno', 'linhaExtrato')
+        return Movimento::with('parcela.titulo', 'estorno', 'linhaExtrato', 'tarifa', 'recebimentoDaTarifa')
             ->where('conta_id', $linha->conta_id)->where('tipo', 'baixa')
             ->whereDate('data', '>=', $d->subDays(5)->toDateString())->whereDate('data', '<=', $d->addDays(5)->toDateString())
-            ->where('valor_centavos', abs($linha->valor_centavos))->get()
-            ->filter(fn (Movimento $m) => ! $m->estornado() && ! $m->linhaExtrato && $m->efeitoNaConta() === $linha->valor_centavos)
+            ->where(fn ($q) => $q->where('valor_centavos', abs($linha->valor_centavos))->orWhereNotNull('tarifa_movimento_id'))->get()
+            ->filter(fn (Movimento $m) => ! $m->estornado() && ! $m->linhaExtrato
+                && ! $m->tarifaEmCreditoLiquido() && $m->valorConciliavel() === $linha->valor_centavos)
             ->values();
     }
 

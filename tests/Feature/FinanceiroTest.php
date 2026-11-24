@@ -11,6 +11,7 @@ use App\Models\ContaFinanceira;
 use App\Models\ExtratoLinha;
 use App\Models\Fatura;
 use App\Models\Movimento;
+use App\Models\Parcela;
 use App\Models\Titulo;
 use App\Services\Faturamento;
 use App\Services\Financeiro;
@@ -177,6 +178,68 @@ class FinanceiroTest extends TestCase
             'data' => '2026-11-15', 'valor_centavos' => 50000, 'descricao' => 'entrada', 'identificador' => 'x']);
         $this->como('financeiro@augi.local')->post(route('financeiro.conciliar', $linha), ['movimento_id' => Movimento::sole()->id])
             ->assertSessionHasErrors('movimento_id');
+    }
+
+    public function test_recebimento_bruto_tarifa_e_credito_liquido_preservam_classificacao_e_estorno(): void
+    {
+        $parcela = $this->recebivelParaTarifa();
+        $resumo = $this->como('financeiro@augi.local')->post(route('financeiro.baixa.previa', $parcela), [
+            'conta_id' => $this->conta->id, 'data' => '2026-11-15', 'valor' => '1000,00', 'tarifa' => '30,00',
+        ])->assertOk()->assertSee('R$ 970,00');
+        $this->assertDatabaseCount('movimentos', 0);
+        $dados = ['confirmacao' => $resumo->viewData('confirmacao')];
+        $this->post(route('financeiro.baixa.confirmar', $parcela), $dados)->assertSessionHasNoErrors();
+        $this->post(route('financeiro.baixa.confirmar', $parcela), $dados)->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('movimentos', 2);
+        $mov = $parcela->movimentos()->sole();
+        $this->assertSame(100000, $mov->valor_centavos);
+        $this->assertSame(97000, $mov->valorConciliavel());
+        $this->assertSame(3000, $mov->tarifa->valor_centavos);
+        $this->assertSame('tarifas', $mov->tarifa->parcela->titulo->categoria->chave);
+        $this->assertSame(0, $parcela->fresh()->saldo());
+        $this->assertSame(1097000, $this->conta->saldo());
+
+        $credito = $this->extratoParaTarifa(97000, 'credito-liquido');
+        $debito = $this->extratoParaTarifa(-3000, 'tarifa-ja-embutida');
+        $this->get(route('financeiro.conciliacao', $this->conta))->assertOk()->assertSee('Bruto R$ 1.000,00');
+        $this->post(route('financeiro.conciliar', $credito), ['movimento_id' => $mov->id])->assertSessionHasNoErrors();
+        $this->post(route('financeiro.conciliar', $debito), ['movimento_id' => $mov->tarifa->id])->assertSessionHasErrors('movimento_id');
+        $this->post(route('financeiro.estornar', $mov), ['motivo' => 'Correção'])->assertSessionHasErrors('motivo');
+
+        app(Financeiro::class)->desconciliar($credito->fresh());
+        $this->post(route('financeiro.estornar', $mov), ['motivo' => 'Correção'])->assertSessionHasNoErrors();
+        $this->assertSame(100000, $parcela->fresh()->saldo());
+        $this->assertSame(1000000, $this->conta->saldo());
+        $this->assertTrue($mov->tarifa->parcela->titulo->fresh()->cancelado());
+        $this->assertDatabaseCount('movimentos', 4);
+    }
+
+    public function test_debito_de_tarifa_em_dia_separado_concilia_individualmente(): void
+    {
+        $parcela = $this->recebivelParaTarifa();
+        $mov = app(Financeiro::class)->baixar($parcela, [
+            'conta_id' => $this->conta->id, 'data' => '2026-11-15', 'valor' => 100000,
+            'tarifa' => 3000, 'tarifa_data' => '2026-11-16',
+        ]);
+        $credito = $this->extratoParaTarifa(100000, 'credito-bruto');
+        $debito = $this->extratoParaTarifa(-3000, 'tarifa-separada', '2026-11-16');
+        $this->como('financeiro@augi.local')->post(route('financeiro.conciliar', $credito), ['movimento_id' => $mov->id])->assertSessionHasNoErrors();
+        $this->post(route('financeiro.conciliar', $debito), ['movimento_id' => $mov->tarifa->id])->assertSessionHasNoErrors();
+        $this->assertSame(1100000, $this->conta->saldo(CarbonImmutable::parse('2026-11-15')));
+        $this->assertSame(1097000, $this->conta->saldo(CarbonImmutable::parse('2026-11-16')));
+    }
+
+    private function recebivelParaTarifa(): Parcela
+    {
+        return app(Financeiro::class)->criarTitulo($this->empresa()->id, [
+            'tipo' => 'receber', 'descricao' => 'Venda de teste', 'competencia' => '2026-11-01',
+        ], 100000, 1, '2026-11-15')->parcelas()->sole();
+    }
+
+    private function extratoParaTarifa(int $valor, string $identificador, string $data = '2026-11-15'): ExtratoLinha
+    {
+        return ExtratoLinha::create(['conta_id' => $this->conta->id, 'organizacao_id' => $this->empresa()->id,
+            'data' => $data, 'valor_centavos' => $valor, 'descricao' => 'Recebimento de teste', 'identificador' => $identificador]);
     }
 
     public function test_fatura_e_cobranca_viram_titulos_e_aceitam_parcial(): void

@@ -119,11 +119,17 @@
             @else{{ $t->receber() ? 'Recebimento' : 'Pagamento' }} @if ($m->estornado())<span class="tag">estornado</span>@endif
               @if ($m->observacao)<br><span style="font-size:12.5px">{{ $m->observacao }}</span>@endif @endif</td>
         <td>{{ $m->conta->nome }}</td>
-        <td class="n">{{ $m->tipo === 'estorno' ? '−' : '' }}{{ brl($m->valor_centavos) }}</td>
+        <td class="n">{{ $m->tipo === 'estorno' ? '−' : '' }}{{ brl($m->valor_centavos) }}
+          @if ($m->tarifa)
+            <div><a href="{{ route('financeiro.titulo', $m->tarifa->parcela->titulo_id) }}">Tarifa {{ brl($m->tarifa->valor_centavos) }}</a></div>
+            @if (!$m->tarifa_separada)<div>Líquido {{ brl($m->valorConciliavel()) }}</div>@endif
+          @endif
+        </td>
         <td class="n" style="font-weight:400">@if ($m->desconto_centavos || $m->retencao_centavos || $m->acrescimo_centavos){{ brl($m->desconto_centavos) }} / {{ brl($m->retencao_centavos) }} / {{ brl($m->acrescimo_centavos) }}@else — @endif</td>
-        <td>@if ($m->linhaExtrato)<span class="tag ok">Conciliado</span>@elseif ($m->tipo === 'baixa' && ! $m->estornado())<span class="tag warn">Pendente</span>@else — @endif</td>
+        <td>@if ($m->linhaExtrato || ($m->tarifaEmCreditoLiquido() && $m->recebimentoDaTarifa->linhaExtrato))<span class="tag ok">Conciliado</span>
+          @elseif ($m->tarifaEmCreditoLiquido() && !$m->estornado())<span class="tag info">Vinculada ao recebimento</span>@elseif ($m->tipo === 'baixa' && ! $m->estornado())<span class="tag warn">Pendente</span>@else — @endif</td>
         <td>{{ $m->criadoPor?->name ?? 'Sistema' }}</td>
-        <td>@if ($opera && $m->tipo === 'baixa' && ! $m->estornado() && ! $m->linhaExtrato)
+        <td>@if ($opera && $m->tipo === 'baixa' && ! $m->estornado() && ! $m->linhaExtrato && ! $m->recebimentoDaTarifa)
           <details><summary class="link-sum">estornar</summary>
             <form method="post" action="{{ route('financeiro.estornar', $m) }}" style="display:flex;gap:6px;margin-top:6px">@csrf
               <input name="motivo" required placeholder="Motivo" aria-label="Motivo do estorno"><button class="perigo">Estornar</button></form>
@@ -140,7 +146,7 @@
     <div class="aviso info" id="registrar" style="margin-top:14px">Compra no cartão de crédito: as parcelas são pagas <strong>pela fatura</strong>, para a despesa não sair duas vezes do caixa.
       <a href="{{ route('cartoes.fatura', $aberta->fatura) }}">Abrir fatura {{ $aberta->fatura->rotulo() }}</a></div>
   @elseif ($opera && ! $t->cancelado() && $aberta)
-    <form method="post" action="{{ route('financeiro.baixar', $aberta) }}" class="painel" id="registrar" style="margin-top:14px"
+    <form method="post" action="{{ route('financeiro.baixa.previa', $aberta) }}" class="painel" id="registrar" style="margin-top:14px"
       data-saldo="{{ $aberta->saldo() }}">
       @csrf <input type="hidden" name="chave" value="{{ $chave }}-{{ $aberta->id }}">
       <strong>Registrar {{ $t->receber() ? 'recebimento' : 'pagamento' }} · parcela {{ $aberta->numero }} (vence {{ $aberta->vencimento->format('d/m/Y') }}, saldo {{ brl($aberta->saldo()) }})</strong>
@@ -148,13 +154,23 @@
         <div><label for="conta">Conta</label><select id="conta" name="conta_id" required>
           @forelse ($contas as $c)<option value="{{ $c->id }}">{{ $c->nome }}</option>@empty<option value="">Cadastre uma conta</option>@endforelse</select></div>
         <div><label for="data">Data</label><input id="data" type="date" name="data" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}" required></div>
-        <div><label for="valor">Valor em dinheiro</label><input id="valor" name="valor" inputmode="decimal" value="{{ valor_campo($aberta->saldo()) }}" required data-calc></div>
+        <div><label for="valor">{{ $t->receber() ? 'Valor bruto recebido' : 'Valor em dinheiro' }}</label><input id="valor" name="valor" inputmode="decimal" value="{{ valor_campo($aberta->saldo()) }}" required data-calc></div>
         <div><label for="desconto">Desconto</label><input id="desconto" name="desconto" inputmode="decimal" placeholder="0,00" data-calc></div>
         <div><label for="retencao">Retenção (imposto retido)</label><input id="retencao" name="retencao" inputmode="decimal" placeholder="0,00" data-calc></div>
         <div><label for="acrescimo">Acréscimo (juros/multa)</label><input id="acrescimo" name="acrescimo" inputmode="decimal" placeholder="0,00" data-calc></div>
       </div>
+      @if ($t->receber())
+        <details class="filtros-avancados">
+          <summary>Informar tarifa do recebimento</summary>
+          <p class="sub">Quando o banco creditar o valor líquido, deixe a data da tarifa em branco. Se houver uma linha separada para a tarifa no extrato, informe a data do débito.</p>
+          <div class="grade">
+            <div class="campo"><label for="tarifa">Tarifa em reais</label><input id="tarifa" name="tarifa" inputmode="decimal" placeholder="0,00" value="{{ old('tarifa') }}"></div>
+            <div class="campo"><label for="tarifa-data">Data do débito separado</label><input id="tarifa-data" name="tarifa_data" type="date" max="{{ now()->toDateString() }}" value="{{ old('tarifa_data') }}"></div>
+          </div>
+        </details>
+      @endif
       <div class="campo" style="margin-top:10px"><label for="obs">Observação (opcional)</label><input id="obs" name="observacao"></div>
-      <div class="resumo-baixa"><span>Saldo da parcela após o registro: <strong id="saldo-apos">{{ brl(0) }}</strong></span><button>Registrar</button></div>
+      <div class="resumo-baixa"><span>Saldo da parcela após o registro: <strong id="saldo-apos">{{ brl(0) }}</strong></span><button>Conferir baixa</button></div>
     </form>
     <script>
       (function () {

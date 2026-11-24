@@ -18,11 +18,11 @@ class Movimento extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = ['organizacao_id', 'parcela_id', 'conta_id', 'tipo', 'data', 'valor_centavos', 'desconto_centavos',
-        'retencao_centavos', 'acrescimo_centavos', 'estorno_de_id', 'observacao', 'chave_idempotencia', 'criado_por'];
+        'retencao_centavos', 'acrescimo_centavos', 'estorno_de_id', 'observacao', 'chave_idempotencia', 'criado_por', 'tarifa_movimento_id', 'tarifa_separada'];
 
     protected function casts(): array
     {
-        return ['data' => 'date'];
+        return ['data' => 'date', 'tarifa_separada' => 'boolean'];
     }
 
     protected static function booted(): void
@@ -39,6 +39,31 @@ class Movimento extends Model
     public function conta(): BelongsTo
     {
         return $this->belongsTo(ContaFinanceira::class, 'conta_id');
+    }
+
+    public function tarifa(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'tarifa_movimento_id');
+    }
+
+    public function recebimentoDaTarifa(): HasOne
+    {
+        return $this->hasOne(self::class, 'tarifa_movimento_id');
+    }
+
+    public function tarifaEmCreditoLiquido(): bool
+    {
+        return $this->recebimentoDaTarifa !== null && ! $this->recebimentoDaTarifa->tarifa_separada;
+    }
+
+    public function valorConciliavel(): int
+    {
+        $efeito = $this->efeitoNaConta();
+        if ($this->tarifa && ! $this->tarifa_separada) {
+            return $efeito - $this->tarifa->valor_centavos;
+        }
+
+        return $efeito;
     }
 
     public function estornoDe(): BelongsTo

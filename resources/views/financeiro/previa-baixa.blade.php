@@ -9,7 +9,16 @@
     <dt>Operação</dt><dd>{{ $parcela->titulo->receber() ? 'Recebimento' : 'Pagamento' }}</dd>
     <dt>Conta</dt><dd>{{ $resumo['conta']->nome }}</dd>
     <dt>Data</dt><dd>{{ \Carbon\CarbonImmutable::parse($dados['data'])->format('d/m/Y') }}</dd>
-    <dt>Valor</dt><dd>{{ brl($dados['valor']) }}</dd>
+    <dt>{{ ($dados['tarifa'] ?? 0) ? 'Valor bruto' : 'Valor' }}</dt><dd>{{ brl($dados['valor']) }}</dd>
+    @if ($dados['tarifa'] ?? 0)
+      @php($dataTarifa = \Carbon\CarbonImmutable::parse($dados['tarifa_data'] ?? $dados['data']))
+      <dt>Tarifa bancária</dt><dd>{{ brl($dados['tarifa']) }} em {{ $dataTarifa->format('d/m/Y') }}</dd>
+      @if (empty($dados['tarifa_data']))
+        <dt>Crédito líquido para conciliar</dt><dd>{{ brl($dados['valor'] - $dados['tarifa']) }}</dd>
+      @else
+        <dt>Conciliação</dt><dd>Crédito bruto e débito da tarifa em linhas separadas.</dd>
+      @endif
+    @endif
     @foreach (['desconto' => 'Desconto', 'retencao' => 'Retenção', 'acrescimo' => 'Acréscimo'] as $campo => $rotulo)
       @if ($dados[$campo])<dt>{{ $rotulo }}</dt><dd>{{ brl($dados[$campo]) }}</dd>@endif
     @endforeach

@@ -32,13 +32,18 @@
       <td>
         @if ($l->movimento)
           <span class="tag ok">Conciliado</span> <a href="{{ route('financeiro.titulo', $l->movimento->parcela->titulo_id) }}">{{ $l->movimento->parcela->titulo->descricao }}</a>
+          @if ($l->movimento->tarifa && !$l->movimento->tarifa_separada)
+            <div class="sub">Bruto {{ brl($l->movimento->valor_centavos) }} · tarifa {{ brl($l->movimento->tarifa->valor_centavos) }} · líquido {{ brl($l->movimento->valorConciliavel()) }}</div>
+          @endif
         @elseif ($l->transferencia)
           <span class="tag ok">Conciliado</span> <a href="{{ route('transferencias.index') }}">Transferência {{ $l->transferencia->origem->nome }} → {{ $l->transferencia->destino->nome }}</a>
         @elseif ((($sug = $sugestoes[$l->id] ?? collect())->isNotEmpty() || ($sugT = $sugestoesTransf[$l->id] ?? collect())->isNotEmpty()) && $opera)
           @foreach ($sug as $m)
             <form method="post" action="{{ route('financeiro.conciliar', $l) }}" style="display:flex;gap:6px;align-items:center;margin-bottom:4px">@csrf
               <input type="hidden" name="movimento_id" value="{{ $m->id }}">
-              <span style="font-size:13px">{{ $m->parcela->titulo->descricao }} · {{ $m->data->format('d/m') }}</span><button class="sec">Conciliar</button></form>
+              <span style="font-size:13px">{{ $m->parcela->titulo->descricao }} · {{ $m->data->format('d/m') }}
+                @if ($m->tarifa && !$m->tarifa_separada)<br>Bruto {{ brl($m->valor_centavos) }} · tarifa {{ brl($m->tarifa->valor_centavos) }}@endif
+              </span><button class="sec">Conciliar</button></form>
           @endforeach
           @foreach ($sugestoesTransf[$l->id] ?? [] as $tr)
             <form method="post" action="{{ route('financeiro.conciliar_transferencia', $l) }}" style="display:flex;gap:6px;align-items:center;margin-bottom:4px">@csrf

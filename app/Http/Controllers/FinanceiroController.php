@@ -148,7 +148,8 @@ class FinanceiroController extends Controller
     {
         $aba = in_array($request->query('aba'), ['resumo', 'parcelas', 'pagamentos', 'documentos', 'lembretes', 'cobranca', 'historico'], true) ? $request->query('aba') : 'resumo';
         $titulo->load('rateios.centro', 'categoria.pai', 'anexos.enviadoPor', 'origem', 'parcelas.fatura.cartao', 'parcelas.movimentos.estornoDe', 'parcelas.movimentos.estorno', 'parcelas.movimentos.conta',
-            'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'categoria');
+            'parcelas.movimentos.criadoPor', 'parcelas.movimentos.linhaExtrato', 'parcelas.movimentos.tarifa.parcela',
+            'parcelas.movimentos.recebimentoDaTarifa.linhaExtrato', 'categoria');
 
         $historico = Evento::with('user')->where('alvo_type', $titulo->getMorphClass())->where('alvo_id', $titulo->id)->latest('id')->get();
 
@@ -180,7 +181,11 @@ class FinanceiroController extends Controller
 
     public function baixar(Request $request, Parcela $parcela): RedirectResponse
     {
-        $this->fin->baixar($parcela, $this->dadosBaixa($request));
+        $dados = $this->dadosBaixa($request);
+        if ($dados['tarifa'] > 0) {
+            throw ValidationException::withMessages(['tarifa' => 'Confira o recebimento e a tarifa antes de confirmar.']);
+        }
+        $this->fin->baixar($parcela, $dados);
 
         return back()->with('ok', 'Baixa registrada.');
     }
@@ -229,6 +234,8 @@ class FinanceiroController extends Controller
             'valor' => ['required', 'string'],
             'desconto' => ['nullable', 'string'], 'retencao' => ['nullable', 'string'], 'acrescimo' => ['nullable', 'string'],
             'observacao' => ['nullable', 'string', 'max:500'],
+            'tarifa' => ['nullable', 'string', 'max:16'],
+            'tarifa_data' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             'chave' => ['nullable', 'string', 'max:64'],
         ]);
 
@@ -238,6 +245,7 @@ class FinanceiroController extends Controller
             'desconto' => $this->centavos($d['desconto'] ?? '', 'desconto', true),
             'retencao' => $this->centavos($d['retencao'] ?? '', 'retencao', true),
             'acrescimo' => $this->centavos($d['acrescimo'] ?? '', 'acrescimo', true),
+            'tarifa' => $this->centavos($d['tarifa'] ?? '', 'tarifa', true), 'tarifa_data' => $d['tarifa_data'] ?? null,
             'observacao' => $d['observacao'] ?? null, 'chave' => $d['chave'] ?? null,
         ];
     }
@@ -350,7 +358,7 @@ class FinanceiroController extends Controller
     {
         $mostrar = $request->query('mostrar') === 'todas' ? 'todas' : 'pendentes';
         $linha = $request->validate(['linha' => ['nullable', 'integer', 'min:1']])['linha'] ?? null;
-        $linhas = ExtratoLinha::with('movimento.parcela.titulo', 'transferencia.origem', 'transferencia.destino')->where('conta_id', $conta->id)
+        $linhas = ExtratoLinha::with('movimento.parcela.titulo', 'movimento.tarifa', 'transferencia.origem', 'transferencia.destino')->where('conta_id', $conta->id)
             ->when($linha, fn ($q) => $q->whereKey($linha))
             ->when($mostrar === 'pendentes', fn ($q) => $q->pendentes())
             ->orderByDesc('data')->orderByDesc('id')->limit(300)->get();

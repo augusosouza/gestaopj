@@ -433,3 +433,9 @@ No Fechamento do mês, use **Conferir faturamento** para revisar contratos, pend
 Em Contas a Pagar e Contas a Receber, o fluxo de baixa rápida mostra a conta, data, valor e saldo restante antes da confirmação. No Meu Caixa, as ações **Entender entradas** e **Entender saídas** abrem a composição do indicador no mesmo período. Simulações aparecem na projeção e ficam fora desses totais.
 
 A triagem de Notificações permite filtrar, agrupar e adiar lembretes financeiros elegíveis por 24 horas. Para atualizar a instalação, faça backup e execute `php artisan migrate --force` após atualizar os arquivos.
+
+### Recebimentos com tarifa bancária
+
+No detalhe de uma conta a receber, abra **Recebimentos → Informar tarifa do recebimento**. Informe o valor bruto e a tarifa e revise a conferência antes de confirmar. O Augi quita a parcela pelo valor bruto e registra a tarifa como despesa bancária vinculada.
+
+Quando o extrato traz somente o crédito líquido, deixe a data do débito separada em branco. Quando o extrato traz o crédito bruto e um débito próprio, preencha a data desse débito, mesmo se for o mesmo dia. Neste segundo caso, concilie as duas linhas individualmente. Para estornar, desfaça as conciliações e use a ação no recebimento original. O histórico de ambos os movimentos é preservado.
