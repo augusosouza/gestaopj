@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Papel;
 use App\Enums\StatusCobranca;
+use App\Models\AlteracaoPix;
 use App\Models\Cobranca;
 use App\Models\ContaFinanceira;
 use App\Models\Evento;
@@ -38,7 +40,10 @@ class CobrancaController extends Controller
         $eventos = Evento::with('user')->where('alvo_type', $cobranca->getMorphClass())
             ->where('alvo_id', $cobranca->id)->latest('id')->get();
 
-        return view('cobrancas.show', ['cobranca' => $cobranca, 'eventos' => $eventos, 'titulo' => $titulo,
+        $pixEmRevisao = ctx()->tem(Papel::Admin, Papel::Financeiro)
+            && AlteracaoPix::where('prestador_id', $cobranca->prestador_id)->where('estado', 'pendente')->exists();
+
+        return view('cobrancas.show', ['cobranca' => $cobranca, 'eventos' => $eventos, 'titulo' => $titulo, 'pixEmRevisao' => $pixEmRevisao,
             'contas' => ContaFinanceira::where('ativa', true)->orderBy('nome')->get(), 'chave' => (string) Str::uuid()]);
     }
 

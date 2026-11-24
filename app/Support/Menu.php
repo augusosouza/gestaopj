@@ -98,6 +98,7 @@ final class Menu
         if ($c->tem($P::Admin, $P::Revisor)) {
             $grupos[] = ['chave' => 'administracao', 'rotulo' => 'Administração', 'icone' => 'administracao', 'itens' => array_values(array_filter([
                 $c->empresa() && $c->tem($P::Admin) ? $item('Empresa', route('organizacao.show'), $rota('organizacao.*')) : null,
+                $c->empresa() && $c->tem($P::Admin) ? $item('Governança', route('governanca.index'), $rota('governanca.index')) : null,
                 $item('Equipe e acessos', route('usuarios.index'), $rota('usuarios.*')),
             ]))];
         }

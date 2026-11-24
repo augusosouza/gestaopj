@@ -60,6 +60,20 @@ return [
             'Para retirar o acesso, abra Encerrar acesso e confirme o encerramento. O vínculo anterior continua no histórico.',
             'Para verificar o resultado, filtre por Encerrados ou Vigentes. O sistema bloqueia a alteração do próprio acesso.',
         ], 'usuarios.index'),
+        'simular-acesso' => $guia('equipe', 'Como simular o acesso de uma pessoa', 'Confira qual ação um vínculo pode acessar e por qual motivo.', 'Administrador da empresa ou Revisor do escritório.', null, 'permissão simulador papel autorização', [
+            'Em Equipe e acessos, encontre a pessoa e clique em Simular acesso no vínculo a avaliar.',
+            'Escolha um recurso e confira o resultado de cada ação. No escritório, selecione uma empresa autorizada na Carteira para avaliar operações daquela empresa.',
+            'Use o motivo da decisão para identificar contexto ausente, vínculo encerrado, exigência de 2FA ou papel insuficiente.',
+        ], 'usuarios.index'),
+        'governanca' => $guia('equipe', 'Como consultar alterações na Governança', 'Confira mudanças de acessos, dados de pagamento e configurações.', $admin, 'governanca.index', 'auditoria histórico antifraude governança', [
+            'Abra Administração → Governança e filtre pelo tipo de alteração.',
+            'Consulte o responsável, a data e o resultado. Para revisar uma alteração Pix, abra o cadastro do prestador pelo histórico.',
+        ]),
+        'alterar-pix-prestador' => $guia('operacao', 'Como solicitar e revisar a alteração de uma chave Pix', 'Proteja alterações nos dados de pagamento de prestadores.', $admin, null, 'antifraude chave pix aprovação favorecido', [
+            'Em Operação → Prestadores, edite o cadastro e abra Dados de pagamento.',
+            'Informe a chave proposta, o motivo e sua senha. Outro administrador receberá uma notificação e deve conferir a mudança antes de aprovar ou rejeitar.',
+            'Confira a decisão no cadastro ou na Governança. Durante a revisão, a chave atual permanece em uso. A nova chave passa a valer após a aprovação.',
+        ], 'prestadores.index'),
         'editar-empresa' => $guia('equipe', 'Como editar os dados da empresa', 'Atualize os dados cadastrais da organização ativa.', $admin, 'organizacao.show', 'razão social município cnpj inscrição municipal cadastro', [
             'No menu Administração, abra Empresa.',
             'Em Dados cadastrais, revise a razão social, a inscrição municipal e o município conforme os dados da empresa.',

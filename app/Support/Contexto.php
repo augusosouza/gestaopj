@@ -61,6 +61,11 @@ final class Contexto
         return $this->vinculo !== null && in_array($this->vinculo->papel, $papeis, true);
     }
 
+    public function faltaDoisFatores(User $usuario): bool
+    {
+        return config('gestao.exigir_2fa') && $this->tem(Papel::Admin, Papel::Revisor) && ! $usuario->temDoisFatores();
+    }
+
     public function ehPrestador(): bool
     {
         return $this->tem(Papel::Prestador);

@@ -104,6 +104,9 @@
 
     @if ($financeiro && $cobranca->status === $S::Aprovada)
       <h2 style="margin-top:0">Registrar pagamento</h2>
+      @if ($pixEmRevisao)
+        <p class="aviso info">Existe uma alteração de chave Pix em revisão. Confira o favorecido por um canal já conhecido antes de pagar. A chave exibida é a vigente.</p>
+      @endif
       <p class="sub">Aprovada por {{ $cobranca->aprovadaPor?->name }} em {{ $cobranca->aprovada_em?->format('d/m/Y H:i') }}.
         @if ($cobranca->prestador->chave_pix) PIX: <span class="mono">{{ $cobranca->prestador->chave_pix }}</span>@endif</p>
       @php($ret = $cobranca->notaFiscal && $cobranca->notaFiscal->valor_liquido_centavos !== null ? max(0, $cobranca->notaFiscal->valor_servicos_centavos - $cobranca->notaFiscal->valor_liquido_centavos) : 0)

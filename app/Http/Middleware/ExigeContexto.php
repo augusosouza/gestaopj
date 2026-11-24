@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\Papel;
 use App\Support\Contexto;
 use Closure;
 use Illuminate\Http\Request;
@@ -45,7 +44,7 @@ class ExigeContexto
         }
 
         // Perfis privilegiados só operam com verificação em duas etapas ativa.
-        if (config('gestao.exigir_2fa') && $this->ctx->tem(Papel::Admin, Papel::Revisor) && ! $request->user()->temDoisFatores()) {
+        if ($this->ctx->faltaDoisFatores($request->user())) {
             $this->ctx->desativar();
 
             return redirect()->route('seguranca')

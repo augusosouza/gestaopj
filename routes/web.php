@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AlteracaoPixController;
 use App\Http\Controllers\AnexoController;
 use App\Http\Controllers\Auth\DoisFatoresController;
 use App\Http\Controllers\Auth\LoginController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\ExportacaoController;
 use App\Http\Controllers\FaturaController;
 use App\Http\Controllers\FinanceiroController;
 use App\Http\Controllers\GoogleAgendaController;
+use App\Http\Controllers\GovernancaController;
 use App\Http\Controllers\InteligenciaController;
 use App\Http\Controllers\LembreteController;
 use App\Http\Controllers\NotaFiscalController;
@@ -102,6 +104,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('papel:admin,revisor')->group(function () {
             Route::get('/acessos', [UsuarioController::class, 'index'])->name('usuarios.index');
+            Route::get('/acessos/{vinculo}/simular', [UsuarioController::class, 'simular'])->name('usuarios.simular');
             Route::post('/acessos', [UsuarioController::class, 'store'])->name('usuarios.store');
             Route::patch('/acessos/{vinculo}/papel', [UsuarioController::class, 'atualizarPapel'])->middleware('throttle:12,1')->name('usuarios.papel');
             Route::patch('/acessos/{vinculo}/encerrar', [UsuarioController::class, 'encerrar'])->name('usuarios.encerrar');
@@ -260,11 +263,16 @@ Route::middleware('auth')->group(function () {
 
         // Administração da empresa
         Route::middleware('papel:admin')->group(function () {
+            Route::get('/governanca', [GovernancaController::class, 'index'])->name('governanca.index');
             Route::get('/empresa', [OrganizacaoController::class, 'show'])->name('organizacao.show');
             Route::put('/empresa', [OrganizacaoController::class, 'update'])->name('organizacao.update');
             Route::post('/empresa/escritorios', [OrganizacaoController::class, 'autorizarEscritorio'])->name('organizacao.autorizar');
             Route::patch('/empresa/escritorios/{autorizacao}/revogar', [OrganizacaoController::class, 'revogarEscritorio'])->name('organizacao.revogar');
             Route::resource('clientes', ClienteController::class)->only(['index', 'store', 'edit', 'update']);
+            Route::post('/prestadores/{prestador}/pix', [AlteracaoPixController::class, 'solicitar'])
+                ->middleware('throttle:8,1')->name('prestadores.pix.solicitar');
+            Route::patch('/prestadores/{prestador}/pix/{solicitacao}', [AlteracaoPixController::class, 'decidir'])
+                ->whereNumber('solicitacao')->middleware('throttle:8,1')->name('prestadores.pix.decidir');
             Route::resource('prestadores', PrestadorController::class)->only(['index', 'store', 'edit', 'update'])
                 ->parameters(['prestadores' => 'prestador']);
             Route::get('/contratos/novo', [ContratoController::class, 'create'])->name('contratos.create');

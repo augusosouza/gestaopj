@@ -31,6 +31,7 @@
             <br><span class="sub">Criado por {{ $v->criadoPor?->name ?? 'sistema' }}</span>
           </td>
           <td>
+            <p><a href="{{ route('usuarios.simular', $v) }}">Simular acesso</a></p>
             @if ($v->vigente() && $v->user_id !== auth()->id())
               <details>
                 <summary>Alterar papel</summary>

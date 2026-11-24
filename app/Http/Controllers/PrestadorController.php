@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TipoPrestador;
+use App\Models\AlteracaoPix;
 use App\Models\Prestador;
 use App\Rules\DocumentoValido;
 use App\Support\Documento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PrestadorController extends Controller
@@ -20,7 +22,10 @@ class PrestadorController extends Controller
 
     public function edit(Prestador $prestador): View
     {
-        return view('cadastros.prestadores', ['prestadores' => Prestador::withCount('alocacoes')->orderBy('nome')->get(), 'editar' => $prestador]);
+        return view('cadastros.prestadores', ['prestadores' => Prestador::withCount('alocacoes')->orderBy('nome')->get(), 'editar' => $prestador,
+            'alteracoesPix' => AlteracaoPix::with('solicitante')->where('prestador_id', $prestador->id)->latest('id')->limit(10)->get(),
+            'pixPendente' => AlteracaoPix::with('solicitante')->where('prestador_id', $prestador->id)->where('estado', 'pendente')->first(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -32,7 +37,12 @@ class PrestadorController extends Controller
 
     public function update(Request $request, Prestador $prestador): RedirectResponse
     {
-        $prestador->update($this->dados($request, $prestador));
+        $dados = $this->dados($request, $prestador);
+        if (array_key_exists('chave_pix', $dados) && $dados['chave_pix'] !== $prestador->chave_pix) {
+            throw ValidationException::withMessages(['chave_pix' => 'Solicite a alteração da chave Pix na área Dados de pagamento.']);
+        }
+        unset($dados['chave_pix']);
+        $prestador->update($dados);
 
         return redirect()->route('prestadores.index')->with('ok', 'Prestador atualizado.');
     }

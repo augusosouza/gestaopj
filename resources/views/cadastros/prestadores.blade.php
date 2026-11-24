@@ -24,9 +24,12 @@
       </select></div>
       <div class="campo"><label for="documento">CNPJ (ou CPF se PF)</label><input id="documento" name="documento" value="{{ old('documento', doc($editar?->documento)) }}" required class="mono"></div>
       <div class="campo"><label for="email">E-mail</label><input id="email" type="email" name="email" value="{{ old('email', $editar?->email) }}"></div>
-      <div class="campo"><label for="chave_pix">Chave PIX para pagamento</label><input id="chave_pix" name="chave_pix" value="{{ old('chave_pix', $editar?->chave_pix) }}"></div>
+      @unless ($editar)<div class="campo"><label for="chave_pix">Chave PIX para pagamento</label><input id="chave_pix" name="chave_pix" value="{{ old('chave_pix', $editar?->chave_pix) }}"></div>@endunless
     </div>
     <button>Salvar</button> @if ($editar)<a href="{{ route('prestadores.index') }}">Cancelar</a>@endif
   </form>
 </div>
+@if ($editar)
+  @include('cadastros.prestador-pix')
+@endif
 @endsection

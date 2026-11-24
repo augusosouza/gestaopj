@@ -15,9 +15,13 @@ class ExigePapel
 
     public function handle(Request $request, Closure $next, string ...$papeis): Response
     {
-        $permitidos = array_map(fn ($p) => Papel::from($p), $papeis);
-        abort_unless($this->ctx->tem(...$permitidos), 403, 'Seu perfil não tem acesso a esta área.');
+        abort_unless(self::permite($this->ctx, ...$papeis), 403, 'Seu perfil não tem acesso a esta área.');
 
         return $next($request);
+    }
+
+    public static function permite(Contexto $contexto, string ...$papeis): bool
+    {
+        return $contexto->tem(...array_map(Papel::from(...), $papeis));
     }
 }

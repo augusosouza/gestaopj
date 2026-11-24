@@ -9,6 +9,7 @@ use App\Models\Prestador;
 use App\Models\User;
 use App\Models\Vinculo;
 use App\Support\Contexto;
+use App\Support\SimuladorAcesso;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,20 @@ class UsuarioController extends Controller
             'busca' => $busca, 'status' => $filtros['status'] ?? '',
             'papeis' => $org->ehEscritorio() ? Papel::doEscritorio() : Papel::daEmpresa(),
             'prestadores' => $org->ehEscritorio() ? collect() : Prestador::orderBy('nome')->get(),
+        ]);
+    }
+
+    public function simular(Request $request, Contexto $ctx, Vinculo $vinculo, SimuladorAcesso $simulador): View
+    {
+        $org = $this->organizacao($ctx);
+        abort_unless($vinculo->organizacao_id === $org->id, 404);
+        $dados = $request->validate(['recurso' => ['nullable', Rule::in(array_keys(SimuladorAcesso::RECURSOS))]]);
+        $recurso = $dados['recurso'] ?? 'bancos';
+        $resultados = $simulador->avaliar($vinculo->load('user'), $ctx->organizacaoId(), $recurso);
+
+        return view('cadastros.simular-acesso', [
+            'org' => $org, 'empresa' => $ctx->empresa(), 'vinculo' => $vinculo,
+            'recursos' => SimuladorAcesso::RECURSOS, 'recurso' => $recurso, 'resultados' => $resultados,
         ]);
     }
 
