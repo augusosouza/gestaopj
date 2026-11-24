@@ -425,3 +425,11 @@ A busca global também encontra notas pelo número, chave ou emitente/tomador, e
 Administradores e usuários financeiros podem compartilhar visões com a equipe autorizada da empresa. As visões compartilhadas aceitam filtros estruturados e são revogáveis pelo responsável. O compartilhamento não concede acesso a registros.
 
 Em **Faturas**, administradores e usuários financeiros podem selecionar registros, conferir a prévia e confirmar a exportação XLSX. O limite é de 100 faturas por operação, e a confirmação expira após dez minutos. A exportação é registrada na auditoria.
+
+### Conferências operacionais
+
+No Fechamento do mês, use **Conferir faturamento** para revisar contratos, pendências e valores antes de gerar a competência. A prévia é somente de leitura. Se os registros que determinam a geração mudarem, abra a prévia novamente.
+
+Em Contas a Pagar e Contas a Receber, o fluxo de baixa rápida mostra a conta, data, valor e saldo restante antes da confirmação. No Meu Caixa, as ações **Entender entradas** e **Entender saídas** abrem a composição do indicador no mesmo período. Simulações aparecem na projeção e ficam fora desses totais.
+
+A triagem de Notificações permite filtrar, agrupar e adiar lembretes financeiros elegíveis por 24 horas. Para atualizar a instalação, faça backup e execute `php artisan migrate --force` após atualizar os arquivos.

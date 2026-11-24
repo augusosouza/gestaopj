@@ -72,4 +72,24 @@ class ContasCompartilhadasTest extends TestCase
                 ->assertViewHas('totalPagas', 2600)->assertViewHas('ind', fn ($ind) => $ind['pago_mes'] === 2600);
         }
     }
+
+    public function test_previa_da_baixa_rapida_preserva_saldo_e_confirma_uma_vez(): void
+    {
+        $empresa = $this->empresa();
+        $conta = ContaFinanceira::create(['organizacao_id' => $empresa->id, 'nome' => 'Banco baixa rápida', 'tipo' => 'corrente',
+            'saldo_inicial_centavos' => 0, 'saldo_inicial_em' => '2026-11-01']);
+        $parcela = $this->parcela(self::A, 'pagar', 'Conta em conferência');
+        $previa = $this->como('financeiro@augi.local')->post(route('financeiro.baixa.previa', $parcela), [
+            'conta_id' => $conta->id, 'data' => '2026-11-20', 'valor' => '40,00',
+        ])->assertOk()->assertSee('R$ 60,00')->assertSee('Banco baixa rápida');
+        $this->assertSame(0, $parcela->movimentos()->count());
+
+        $url = route('financeiro.baixa.confirmar', $parcela);
+        $dados = ['confirmacao' => $previa->viewData('confirmacao')];
+        $this->como('admin@augi.local')->post($url, $dados)->assertUnprocessable();
+        $this->como('financeiro@augi.local')->post($url, $dados)->assertSessionHasNoErrors()->assertRedirect();
+        $this->post($url, $dados)->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame(1, $parcela->movimentos()->count());
+        $this->assertSame(6000, $parcela->fresh()->saldo());
+    }
 }

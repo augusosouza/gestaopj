@@ -19,6 +19,7 @@ use App\Support\Dinheiro;
 use App\Support\Documento;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -32,40 +33,87 @@ final class Faturamento
         private Financeiro $financeiro,
     ) {}
 
-    /**
-     * Gera faturas (a receber) e cobranças (a pagar) da competência.
-     * Idempotente: rodar de novo não duplica nada.
-     *
-     * @return array{faturas: int, cobrancas: int}
-     */
-    public function gerarCompetencia(CarbonImmutable $competencia): array
+    /** Compara contratos vigentes com os registros já existentes na competência. Só consulta. */
+    public function preverCompetencia(CarbonImmutable $competencia): Collection
     {
         $competencia = $competencia->startOfMonth();
-        $criadas = ['faturas' => 0, 'cobrancas' => 0];
 
-        DB::transaction(function () use ($competencia, &$criadas) {
-            foreach (Contrato::vigenteEm($competencia)->get() as $contrato) {
-                // whereDate em vez de firstOrCreate: compara só a data, independente
-                // de como o banco armazena a coluna (DATE no MariaDB, texto no SQLite).
-                $existe = Fatura::where('contrato_id', $contrato->id)->whereDate('competencia', $competencia)->exists();
-                if (! $existe) {
+        return Contrato::vigenteEm($competencia)->orderBy('id')->with([
+            'cliente',
+            'faturas' => fn ($q) => $q->whereDate('competencia', $competencia)->orderBy('id'),
+            'alocacoes' => fn ($q) => $q->vigenteEm($competencia)->orderBy('id')->with('prestador'),
+            'cobrancas' => fn ($q) => $q->whereDate('competencia', $competencia)->orderBy('id'),
+        ])->get()->map(function (Contrato $contrato) use ($competencia) {
+            $problema = match (true) {
+                ! $contrato->cliente => 'Cliente indisponível na empresa.',
+                $contrato->valor_mensal_centavos <= 0 => 'Valor mensal inválido.',
+                $contrato->dia_vencimento < 1 || $contrato->dia_vencimento > 31 => 'Dia de vencimento inválido.',
+                default => null,
+            };
+            $existentes = $contrato->cobrancas->keyBy('alocacao_id');
+            $alocacoes = $contrato->alocacoes->map(fn (Alocacao $alocacao) => [
+                'alocacao' => $alocacao,
+                'existente' => $existentes->get($alocacao->id),
+                'problema' => ! $alocacao->prestador || $alocacao->valor_mensal_centavos <= 0 ? 'Confira o prestador e o valor da alocação.' : null,
+            ]);
+
+            return [
+                'contrato' => $contrato,
+                'fatura' => $contrato->faturas->first(),
+                'problema' => $problema,
+                'vencimento' => $problema ? null : $this->vencimento($competencia, $contrato->dia_vencimento),
+                'alocacoes' => $alocacoes,
+            ];
+        });
+    }
+
+    public function revisaoCompetencia(Collection $previa, CarbonImmutable $competencia): string
+    {
+        $itens = $previa->map(fn ($item) => [
+            $item['contrato']->id, $item['contrato']->cliente_id, $item['contrato']->valor_mensal_centavos,
+            $item['fatura']?->id, $item['vencimento'], $item['problema'],
+            $item['alocacoes']->map(fn ($a) => [$a['alocacao']->id, $a['alocacao']->prestador_id,
+                $a['alocacao']->valor_mensal_centavos, $a['existente']?->id, $a['problema']])->all(),
+        ])->all();
+
+        return hash_hmac('sha256', json_encode([auth()->id(), ctx()->organizacaoId(), $competencia->format('Y-m'), $itens], JSON_THROW_ON_ERROR), config('app.key'));
+    }
+
+    /** Gera faturas e cobranças usando a mesma seleção da prévia. */
+    public function gerarCompetencia(CarbonImmutable $competencia, ?string $revisao = null): array
+    {
+        $competencia = $competencia->startOfMonth();
+
+        return DB::transaction(function () use ($competencia, $revisao) {
+            Contrato::vigenteEm($competencia)->orderBy('id')->lockForUpdate()->pluck('id');
+            $previa = $this->preverCompetencia($competencia);
+            if ($revisao !== null && ! hash_equals($this->revisaoCompetencia($previa, $competencia), $revisao)) {
+                throw ValidationException::withMessages(['revisao' => 'A competência mudou. Confira novamente antes de gerar.']);
+            }
+            $criadas = ['faturas' => 0, 'cobrancas' => 0];
+            foreach ($previa as $item) {
+                $contrato = $item['contrato'];
+                if ($item['problema']) {
+                    continue;
+                }
+                if (! $item['fatura']) {
                     $fatura = Fatura::create([
                         'organizacao_id' => $contrato->organizacao_id,
                         'contrato_id' => $contrato->id,
                         'competencia' => $competencia,
                         'valor_centavos' => $contrato->valor_mensal_centavos,
-                        'vencimento' => $this->vencimento($competencia, $contrato->dia_vencimento),
+                        'vencimento' => $item['vencimento'],
                         'status' => StatusFatura::Aberta,
                     ]);
                     $this->financeiro->tituloDeFatura($fatura);
                     Evento::registrar('fatura.gerada', $fatura);
                     $criadas['faturas']++;
                 }
-
-                foreach (Alocacao::where('contrato_id', $contrato->id)->vigenteEm($competencia)->get() as $aloc) {
-                    if (Cobranca::where('alocacao_id', $aloc->id)->whereDate('competencia', $competencia)->exists()) {
+                foreach ($item['alocacoes'] as $itemAlocacao) {
+                    if ($itemAlocacao['existente'] || $itemAlocacao['problema']) {
                         continue;
                     }
+                    $aloc = $itemAlocacao['alocacao'];
                     $cob = Cobranca::create([
                         'organizacao_id' => $contrato->organizacao_id,
                         'alocacao_id' => $aloc->id,
@@ -79,9 +127,12 @@ final class Faturamento
                     $criadas['cobrancas']++;
                 }
             }
-        });
+            if ($empresa = ctx()->empresa()) {
+                Evento::registrar('competencia.gerada', $empresa, ['competencia' => $competencia->format('Y-m'), ...$criadas]);
+            }
 
-        return $criadas;
+            return $criadas;
+        }, 3);
     }
 
     /** Vencimento no mês seguinte à competência (serviço prestado, cobrado depois). */

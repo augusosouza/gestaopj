@@ -6,16 +6,13 @@
     @include('partials.competencia')
     <a class="botao sec" href="{{ route('fechamento.exportar', ['competencia' => $competencia->format('Y-m')]) }}">Exportar .zip</a>
     @if (ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-      <form method="post" action="{{ route('competencias.gerar') }}">
-        @csrf <input type="hidden" name="competencia" value="{{ $competencia->format('Y-m') }}">
-        <button title="Cria faturas e cobranças dos contratos ativos. Pode ser repetido sem duplicar.">Gerar competência</button>
-      </form>
+      <a class="botao" href="{{ route('competencias.previa', ['competencia' => $competencia->format('Y-m')]) }}">Conferir faturamento</a>
     @endif
   </x-slot:acoes>
 </x-cabecalho>
 
 @if ($r['faturas']->isEmpty() && $r['cobrancas']->isEmpty())
-  <div class="aviso info">Nenhuma fatura ou cobrança neste mês. Use <strong>Gerar competência</strong> para abrir o mês a partir dos contratos ativos.</div>
+  <div class="aviso info">Nenhuma fatura ou cobrança neste mês. Use <strong>Conferir faturamento</strong> para abrir o mês a partir dos contratos ativos.</div>
 @endif
 
 @php($moeda = fn ($c) => new \Illuminate\Support\HtmlString('<small>R$</small>'.e(number_format($c / 100, 2, ',', '.'))))

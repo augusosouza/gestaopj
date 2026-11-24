@@ -238,36 +238,13 @@ final class Financeiro
         return DB::transaction(function () use ($parcela, $d) {
             // Trava a parcela: duas baixas simultâneas não ultrapassam o saldo.
             $parcela = Parcela::lockForUpdate()->with('titulo', 'movimentos.estornoDe')->findOrFail($parcela->id);
+            if ($d['chave'] && ($ja = $parcela->movimentos()->where('chave_idempotencia', $d['chave'])->first())) {
+                return $ja;
+            }
             $t = $parcela->titulo;
-            $conta = ContaFinanceira::where('ativa', true)->find($d['conta_id']);
-
-            $erro = match (true) {
-                $t->cancelado() => 'Título cancelado.',
-                // Compra no cartão sai do caixa quando a fatura é paga: pagar a parcela avulsa duplicaria a saída.
-                $parcela->fatura_cartao_id && ! $d['via_fatura'] => 'Parcela de cartão de crédito: registre o pagamento pela fatura do cartão.',
-                ! $conta || $conta->organizacao_id !== $parcela->organizacao_id => 'Conta inválida ou inativa.',
-                $d['valor'] < 0 || $d['desconto'] < 0 || $d['retencao'] < 0 || $d['acrescimo'] < 0 => 'Valores não podem ser negativos.',
-                $d['valor'] + $d['desconto'] + $d['retencao'] === 0 => 'Informe o valor da baixa.',
-                CarbonImmutable::parse($d['data'])->gt(now()) => 'A data da baixa não pode ser futura.',
-                default => null,
-            };
-            if ($erro) {
-                throw ValidationException::withMessages(['valor' => $erro]);
-            }
-            $this->exigirOrigemLiberada($t);
-            $this->exigirMesAberto($parcela->organizacao_id, $d['data'], 'data');
-
-            $abatimento = $d['valor'] + $d['desconto'] + $d['retencao'] - $d['acrescimo'];
-            $saldo = $parcela->saldo();
-            if ($abatimento > $saldo) {
-                throw ValidationException::withMessages(['valor' => 'A baixa ('.brl($abatimento).') é maior que o saldo da parcela ('.brl($saldo).').']);
-            }
-            if ($abatimento <= 0) {
-                throw ValidationException::withMessages(['valor' => 'O acréscimo não pode ser maior que o valor pago.']);
-            }
-
+            $this->conferirBaixa($parcela, $d);
             $m = Movimento::create([
-                'organizacao_id' => $parcela->organizacao_id, 'parcela_id' => $parcela->id, 'conta_id' => $conta->id,
+                'organizacao_id' => $parcela->organizacao_id, 'parcela_id' => $parcela->id, 'conta_id' => $d['conta_id'],
                 'tipo' => 'baixa', 'data' => $d['data'], 'valor_centavos' => $d['valor'], 'desconto_centavos' => $d['desconto'],
                 'retencao_centavos' => $d['retencao'], 'acrescimo_centavos' => $d['acrescimo'], 'observacao' => $d['observacao'],
                 'chave_idempotencia' => $d['chave'], 'criado_por' => auth()->id(),
@@ -277,6 +254,46 @@ final class Financeiro
 
             return $m;
         });
+    }
+
+    /** Confere os dados da baixa sem gravar movimentações. */
+    public function conferirBaixa(Parcela $parcela, array $d): array
+    {
+        $d += ['desconto' => 0, 'retencao' => 0, 'acrescimo' => 0, 'via_fatura' => false];
+        $parcela->loadMissing('titulo', 'movimentos.estornoDe');
+        $t = $parcela->titulo;
+        $conta = ContaFinanceira::where('ativa', true)->find($d['conta_id']);
+
+        $erro = match (true) {
+            $t->cancelado() => 'Título cancelado.',
+            // Compra no cartão sai do caixa quando a fatura é paga: pagar a parcela avulsa duplicaria a saída.
+            $parcela->fatura_cartao_id && ! $d['via_fatura'] => 'Parcela de cartão de crédito: registre o pagamento pela fatura do cartão.',
+            ! $conta || $conta->organizacao_id !== $parcela->organizacao_id => 'Conta inválida ou inativa.',
+            $d['valor'] < 0 || $d['desconto'] < 0 || $d['retencao'] < 0 || $d['acrescimo'] < 0 => 'Valores não podem ser negativos.',
+            $d['valor'] + $d['desconto'] + $d['retencao'] === 0 => 'Informe o valor da baixa.',
+            CarbonImmutable::parse($d['data'])->gt(now()) => 'A data da baixa não pode ser futura.',
+            default => null,
+        };
+        if ($erro) {
+            throw ValidationException::withMessages(['valor' => $erro]);
+        }
+        $this->exigirOrigemLiberada($t);
+        $this->exigirMesAberto($parcela->organizacao_id, $d['data'], 'data');
+
+        $abatimento = $d['valor'] + $d['desconto'] + $d['retencao'] - $d['acrescimo'];
+        $saldo = $parcela->saldo();
+        if ($abatimento > $saldo) {
+            throw ValidationException::withMessages(['valor' => 'A baixa ('.brl($abatimento).') é maior que o saldo da parcela ('.brl($saldo).').']);
+        }
+        if ($abatimento <= 0) {
+            throw ValidationException::withMessages(['valor' => 'O acréscimo não pode ser maior que o valor pago.']);
+        }
+
+        if (isset($d['saldo_conferido']) && $saldo !== $d['saldo_conferido']) {
+            throw ValidationException::withMessages(['valor' => 'O saldo mudou. Refaça a conferência da baixa.']);
+        }
+
+        return ['conta' => $conta, 'saldo' => $saldo, 'restante' => $saldo - $abatimento];
     }
 
     public function estornar(Movimento $m, string $motivo): Movimento

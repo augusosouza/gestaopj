@@ -8,15 +8,29 @@ use App\Services\Fechamento;
 use App\Support\Competencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CompetenciaController extends Controller
 {
-    public function gerar(Request $request, Faturamento $faturamento): RedirectResponse
+    public function previa(Request $request, Faturamento $faturamento): View
     {
         $dados = $request->validate(['competencia' => ['required', 'date_format:Y-m']]);
+        $competencia = Competencia::de($dados['competencia']);
+        $previa = $faturamento->preverCompetencia($competencia);
+        $revisao = $faturamento->revisaoCompetencia($previa, $competencia);
+        $novas = $previa->filter(fn ($item) => ! $item['problema'] && ! $item['fatura']);
+        $cobrancas = $previa->filter(fn ($item) => ! $item['problema'])->flatMap(fn ($item) => $item['alocacoes'])
+            ->filter(fn ($item) => ! $item['problema'] && ! $item['existente']);
+
+        return view('faturas.previa-competencia', compact('competencia', 'previa', 'revisao', 'novas', 'cobrancas'));
+    }
+
+    public function gerar(Request $request, Faturamento $faturamento): RedirectResponse
+    {
+        $dados = $request->validate(['competencia' => ['required', 'date_format:Y-m'], 'revisao' => ['required', 'string', 'size:64']]);
         $c = Competencia::de($dados['competencia']);
-        $n = $faturamento->gerarCompetencia($c);
+        $n = $faturamento->gerarCompetencia($c, $dados['revisao']);
 
         return redirect()->route('painel', ['competencia' => $c->format('Y-m')])
             ->with('ok', "Competência {$c->format('m/Y')}: {$n['faturas']} fatura(s) e {$n['cobrancas']} cobrança(s) criadas.");

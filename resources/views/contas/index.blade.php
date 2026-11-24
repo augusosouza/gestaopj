@@ -158,7 +158,7 @@
               @php($entradaBaixa = fn ($campo, $padrao = '') => $reabrirBaixa && is_string(old($campo)) ? old($campo) : $padrao)
               <details class="pagar-rapido" data-baixa-rapida @if ($reabrirBaixa) open data-reabrir-baixa @endif>
                 <summary class="botao sec">{{ $T['verbo'] }}</summary>
-                <form method="post" action="{{ route('financeiro.baixar', $l['parcela']) }}" data-evitar-reenvio>
+                <form method="post" action="{{ route('financeiro.baixa.previa', $l['parcela']) }}" data-evitar-reenvio="Conferindo…">
                   @csrf
                   <input type="hidden" name="parcela_rapida" value="{{ $l['parcela']->id }}">
                   <input type="hidden" name="chave" value="{{ $entradaBaixa('chave', $chave.'-'.$l['parcela']->id) }}">

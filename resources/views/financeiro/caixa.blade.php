@@ -31,8 +31,8 @@
 
 <section class="cards" aria-label="Posição">
   <div class="card serie-saldo"><div class="rot">Saldo registrado</div><div class="num">{{ brl($p['saldo_atual']) }}</div><div class="det">{{ $p['contas']->count() }} conta(s) · hoje</div></div>
-  <div class="card serie-receita"><div class="rot">Entradas previstas</div><div class="num">{{ brl($p['a_receber']) }}</div><div class="det">até {{ $p['ate']->format('d/m') }}</div></div>
-  <div class="card serie-despesa"><div class="rot">Saídas previstas</div><div class="num">{{ brl($p['a_pagar']) }}</div><div class="det">inclui vencidas e faturas de cartão</div></div>
+  <div class="card serie-receita"><div class="rot">Entradas previstas</div><div class="num">{{ brl($p['a_receber']) }}</div><div class="det">até {{ $p['ate']->format('d/m') }} · <a href="#origens-receber">Entender entradas</a></div></div>
+  <div class="card serie-despesa"><div class="rot">Saídas previstas</div><div class="num">{{ brl($p['a_pagar']) }}</div><div class="det">inclui vencidas e cartões · <a href="#origens-pagar">Entender saídas</a></div></div>
   <div class="card serie-projecao"><div class="rot">Saldo ao fim do período</div><div class="num">{{ brl($p['saldo_final']) }}</div><div class="det">projeção, não dinheiro de hoje</div></div>
 </section>
 <section class="cards" aria-label="Detalhes" style="margin-top:12px">
@@ -108,6 +108,28 @@
     @endif
   </div>
 </div>
+
+<section class="ficha-secoes" aria-labelledby="origem-indicadores">
+  <h2 id="origem-indicadores">Origem dos valores previstos</h2>
+  <p class="sub">{{ $p['hoje']->format('d/m/Y') }} a {{ $p['ate']->format('d/m/Y') }}. Simulações ficam fora dos totais de entradas e saídas previstas.</p>
+  @foreach (['receber' => ['Entradas', 'a_receber'], 'pagar' => ['Saídas', 'a_pagar']] as $tipo => [$rotulo, $total])
+    <div class="painel" id="origens-{{ $tipo }}">
+      <h3>{{ $rotulo }} · {{ brl($p[$total]) }}</h3>
+      @forelse ($p['origens']->get($tipo, collect()) as $origem => $itens)
+        <details class="filtros-avancados">
+          <summary>{{ $origem }} · {{ brl($itens->sum('valor')) }}</summary>
+          <ul class="check">
+            @foreach ($itens as $item)
+              <li class="barra"><a href="{{ $item['url'] }}">{{ $item['descricao'] }}</a><span>{{ brl($item['valor']) }}</span></li>
+            @endforeach
+          </ul>
+        </details>
+      @empty
+        <p class="sub">Nenhum valor previsto no período.</p>
+      @endforelse
+    </div>
+  @endforeach
+</section>
 
 <h2>Compromissos do período</h2>
 @php($acumulado = $p['saldo_atual'])

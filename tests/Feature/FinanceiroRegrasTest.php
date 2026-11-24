@@ -347,6 +347,8 @@ class FinanceiroRegrasTest extends TestCase
         $sim = $s['eventos']->firstWhere('simulado', true);
         $this->assertSame(['2026-11-20', 'pagar', false, false], [$sim['data']->toDateString(), $sim['tipo'], $sim['cartao'], $sim['atrasado']]);
         $this->assertSame(150000, $s['a_pagar'], 'simulação não soma no total previsto');
+        $this->assertEquals($s['a_pagar'], $s['origens']->get('pagar')->flatten(1)->sum('valor'));
+        $this->assertEquals($s['a_receber'], $s['origens']->get('receber')->flatten(1)->sum('valor'));
         $r = $pos->projetar(30, null, false, ['valor' => 7000, 'data' => '2026-11-30', 'tipo' => 'receber']);
         $this->assertSame([50000, 7000], [$r['a_receber'], $r['saldo_final']]);
     }

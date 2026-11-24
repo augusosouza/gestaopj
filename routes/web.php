@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/notificacoes', [NotificacaoController::class, 'index'])->name('notificacoes.index');
         Route::get('/notificacoes/{notificacao}', [NotificacaoController::class, 'abrir'])->whereNumber('notificacao')->name('notificacoes.abrir');
+        Route::patch('/notificacoes/{notificacao}/adiar', [NotificacaoController::class, 'adiar'])->whereNumber('notificacao')->name('notificacoes.adiar');
         Route::post('/notificacoes/lidas', [NotificacaoController::class, 'marcarLidas'])->name('notificacoes.lidas');
     });
 
@@ -164,6 +165,7 @@ Route::middleware('auth')->group(function () {
 
         // Financeiro
         Route::middleware('papel:admin,financeiro')->group(function () {
+            Route::get('/competencias/previa', [CompetenciaController::class, 'previa'])->name('competencias.previa');
             Route::post('/competencias/gerar', [CompetenciaController::class, 'gerar'])->name('competencias.gerar');
             Route::post('/faturas/{fatura}/enviar', [FaturaController::class, 'enviar'])
                 ->middleware('throttle:10,1')->name('faturas.enviar');
@@ -217,6 +219,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/configuracoes/financeiro/lembretes', [ConfiguracoesController::class, 'lembretes'])->name('configuracoes.lembretes');
             Route::get('/financeiro/novo', [FinanceiroController::class, 'create'])->name('financeiro.novo');
             Route::post('/financeiro', [FinanceiroController::class, 'store'])->name('financeiro.store');
+            Route::post('/financeiro/parcelas/{parcela}/conferir-baixa', [FinanceiroController::class, 'previaBaixa'])->middleware('throttle:60,1')->name('financeiro.baixa.previa');
+            Route::post('/financeiro/parcelas/{parcela}/confirmar-baixa', [FinanceiroController::class, 'confirmarBaixa'])->middleware('throttle:60,1')->name('financeiro.baixa.confirmar');
             Route::post('/financeiro/parcelas/{parcela}/baixa', [FinanceiroController::class, 'baixar'])->middleware('throttle:60,1')->name('financeiro.baixar');
             Route::post('/financeiro/movimentos/{movimento}/estorno', [FinanceiroController::class, 'estornar'])->name('financeiro.estornar');
             Route::post('/financeiro/titulos/{titulo}/cancelar', [FinanceiroController::class, 'cancelar'])->name('financeiro.cancelar');

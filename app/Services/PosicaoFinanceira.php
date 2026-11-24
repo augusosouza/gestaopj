@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Cobranca;
+use App\Models\Compra;
 use App\Models\ContaFinanceira;
+use App\Models\Fatura;
 use App\Models\Parcela;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -30,7 +33,7 @@ final class PosicaoFinanceira
     /**
      * Compromissos até $ate (inclusive), agrupando parcelas de cartão por fatura.
      *
-     * @return Collection<int, array{data: CarbonImmutable, vencimento: CarbonImmutable, tipo: string, descricao: string, contraparte: ?string, valor: int, url: string, atrasado: bool, cartao: bool}>
+     * @return Collection<int, array{data: CarbonImmutable, vencimento: CarbonImmutable, tipo: string, descricao: string, contraparte: ?string, valor: int, url: string, atrasado: bool, cartao: bool, origem: string}>
      */
     public function compromissos(CarbonImmutable $ate, bool $incluirVencidosReceber = false, ?Collection $abertas = null): Collection
     {
@@ -49,8 +52,14 @@ final class PosicaoFinanceira
                 continue;
             }
             $n = (int) $p->titulo->parcelas_count;
+            $origem = match ($p->titulo->origem_type) {
+                (new Compra)->getMorphClass() => 'Compras',
+                (new Cobranca)->getMorphClass() => 'Obrigações com prestadores',
+                (new Fatura)->getMorphClass() => 'Faturas de clientes',
+                default => $receber ? 'Outros recebimentos' : 'Outras despesas',
+            };
             $eventos->push([
-                'data' => $atrasado ? $hoje : $venc, 'vencimento' => $venc, 'tipo' => $receber ? 'receber' : 'pagar',
+                'origem' => $origem, 'data' => $atrasado ? $hoje : $venc, 'vencimento' => $venc, 'tipo' => $receber ? 'receber' : 'pagar',
                 'descricao' => $p->titulo->descricao.($n > 1 ? " ({$p->numero}/{$n})" : ''), 'contraparte' => $p->titulo->contraparte,
                 'valor' => $p->saldo(), 'url' => route('financeiro.titulo', $p->titulo), 'atrasado' => $atrasado, 'cartao' => false,
             ]);
@@ -64,7 +73,7 @@ final class PosicaoFinanceira
             $atrasado = $venc->lt($hoje);
             $eventos->push([
                 'data' => $atrasado ? $hoje : $venc, 'vencimento' => $venc, 'tipo' => 'pagar',
-                'descricao' => 'Fatura '.$f->cartao->nome.' — '.$f->rotulo(), 'contraparte' => $f->cartao->instituicao,
+                'origem' => 'Faturas de cartão', 'descricao' => 'Fatura '.$f->cartao->nome.' — '.$f->rotulo(), 'contraparte' => $f->cartao->instituicao,
                 'valor' => (int) $ps->sum(fn ($p) => $p->saldo()), 'url' => route('cartoes.fatura', $f), 'atrasado' => $atrasado, 'cartao' => true,
             ]);
         }
@@ -115,8 +124,10 @@ final class PosicaoFinanceira
 
         $vencidosReceber = $abertas->filter(fn (Parcela $p) => $p->titulo->receber() && $p->vencimento->lt($hoje))->sum(fn ($p) => $p->saldo());
         $cartoes = (int) $abertas->whereNotNull('fatura_cartao_id')->sum(fn ($p) => $p->saldo());
-        $aReceber = (int) $eventos->where('tipo', 'receber')->reject(fn ($e) => $e['simulado'] ?? false)->sum('valor');
-        $aPagar = (int) $eventos->where('tipo', 'pagar')->reject(fn ($e) => $e['simulado'] ?? false)->sum('valor');
+        $compromissos = $eventos->reject(fn ($e) => $e['simulado'] ?? false);
+        $origens = $compromissos->groupBy(['tipo', 'origem']);
+        $aReceber = (int) $compromissos->where('tipo', 'receber')->sum('valor');
+        $aPagar = (int) $compromissos->where('tipo', 'pagar')->sum('valor');
 
         return [
             'hoje' => $hoje, 'ate' => $ate, 'dias' => $dias, 'contas' => $contas,
@@ -131,7 +142,7 @@ final class PosicaoFinanceira
             'livre' => max(0, $min['valor']),
             'vencidos_receber' => (int) $vencidosReceber,
             'cartoes' => $cartoes,
-            'eventos' => $eventos, 'serie' => $serie,
+            'eventos' => $eventos, 'origens' => $origens, 'serie' => $serie,
             'simulacao' => $simulacao,
         ];
     }

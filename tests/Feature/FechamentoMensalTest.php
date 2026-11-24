@@ -38,7 +38,25 @@ class FechamentoMensalTest extends TestCase
 
     private function gerar(string $comp = '2026-10'): void
     {
-        $this->como('financeiro@augi.local')->post(route('competencias.gerar'), ['competencia' => $comp])->assertRedirect();
+        $previa = $this->como('financeiro@augi.local')->get(route('competencias.previa', ['competencia' => $comp]))->assertOk();
+        $this->post(route('competencias.gerar'), ['competencia' => $comp, 'revisao' => $previa->viewData('revisao')])->assertRedirect();
+    }
+
+    public function test_previa_e_somente_leitura_e_confirma_apenas_a_revisao_atual(): void
+    {
+        $rota = route('competencias.previa', ['competencia' => '2026-10']);
+        $previa = $this->como('financeiro@augi.local')->get($rota)->assertOk()->assertSee('Conferir faturamento');
+        $this->get($rota)->assertOk();
+        $this->assertDatabaseCount('faturas', 0);
+        $this->assertDatabaseCount('cobrancas', 0);
+        $this->assertDatabaseCount('movimentos', 0);
+
+        $dados = ['competencia' => '2026-10', 'revisao' => $previa->viewData('revisao')];
+        $this->post(route('competencias.gerar'), $dados)->assertSessionHasNoErrors()->assertRedirect();
+        $this->post(route('competencias.gerar'), $dados)->assertSessionHasErrors('revisao');
+        $this->get($rota)->assertOk()->assertSee('Fatura já gerada');
+        $this->assertDatabaseCount('faturas', 1);
+        $this->assertDatabaseCount('cobrancas', 1);
     }
 
     public function test_fecha_um_mes_de_ponta_a_ponta(): void

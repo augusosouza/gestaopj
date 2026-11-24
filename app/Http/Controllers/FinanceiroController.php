@@ -26,8 +26,10 @@ use App\Services\Planejamento;
 use App\Support\Competencia;
 use App\Support\Dinheiro;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -178,6 +180,49 @@ class FinanceiroController extends Controller
 
     public function baixar(Request $request, Parcela $parcela): RedirectResponse
     {
+        $this->fin->baixar($parcela, $this->dadosBaixa($request));
+
+        return back()->with('ok', 'Baixa registrada.');
+    }
+
+    public function previaBaixa(Request $request, Parcela $parcela): View
+    {
+        $dados = $this->dadosBaixa($request);
+        $dados['chave'] = (string) Str::uuid();
+        $resumo = $this->fin->conferirBaixa($parcela, $dados);
+        $possivelDuplicidade = $parcela->movimentos()->where('tipo', 'baixa')->where('conta_id', $dados['conta_id'])
+            ->whereDate('data', $dados['data'])->where('valor_centavos', $dados['valor'])->whereDoesntHave('estorno')->exists();
+        $confirmacao = Crypt::encryptString(json_encode([
+            'usuario' => $request->user()->id, 'empresa' => ctx()->organizacaoId(), 'parcela' => $parcela->id,
+            'expira' => now()->addMinutes(10)->timestamp, 'dados' => $dados + ['saldo_conferido' => $resumo['saldo']],
+        ], JSON_THROW_ON_ERROR));
+
+        return view('financeiro.previa-baixa', compact('parcela', 'dados', 'resumo', 'confirmacao', 'possivelDuplicidade'));
+    }
+
+    public function confirmarBaixa(Request $request, Parcela $parcela): RedirectResponse
+    {
+        $valor = $request->validate(['confirmacao' => ['required', 'string', 'max:7500']])['confirmacao'];
+        try {
+            $confirmacao = json_decode(Crypt::decryptString($valor), true);
+        } catch (DecryptException) {
+            abort(422, 'Confirmação inválida. Refaça a conferência.');
+        }
+        abort_unless(is_array($confirmacao) && ($confirmacao['usuario'] ?? null) === $request->user()->id
+            && ($confirmacao['empresa'] ?? null) === ctx()->organizacaoId() && ($confirmacao['parcela'] ?? null) === $parcela->id
+            && ($confirmacao['expira'] ?? 0) >= now()->timestamp && isset($confirmacao['dados']), 422,
+            'Confirmação inválida ou expirada. Refaça a conferência.');
+        try {
+            $this->fin->baixar($parcela, $confirmacao['dados']);
+        } catch (ValidationException $erro) {
+            return redirect()->route('financeiro.titulo', $parcela->titulo_id)->withErrors($erro->errors());
+        }
+
+        return redirect()->route('financeiro.titulo', $parcela->titulo_id)->with('ok', 'Baixa registrada.');
+    }
+
+    private function dadosBaixa(Request $request): array
+    {
         $d = $request->validate([
             'conta_id' => ['required', 'integer'],
             'data' => ['required', 'date', 'before_or_equal:today'],
@@ -186,16 +231,15 @@ class FinanceiroController extends Controller
             'observacao' => ['nullable', 'string', 'max:500'],
             'chave' => ['nullable', 'string', 'max:64'],
         ]);
-        $this->fin->baixar($parcela, [
+
+        return [
             'conta_id' => (int) $d['conta_id'], 'data' => $d['data'],
             'valor' => $this->centavos($d['valor'], 'valor', true),
             'desconto' => $this->centavos($d['desconto'] ?? '', 'desconto', true),
             'retencao' => $this->centavos($d['retencao'] ?? '', 'retencao', true),
             'acrescimo' => $this->centavos($d['acrescimo'] ?? '', 'acrescimo', true),
             'observacao' => $d['observacao'] ?? null, 'chave' => $d['chave'] ?? null,
-        ]);
-
-        return back()->with('ok', 'Baixa registrada.');
+        ];
     }
 
     public function estornar(Request $request, Movimento $movimento): RedirectResponse
