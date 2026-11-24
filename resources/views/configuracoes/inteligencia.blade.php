@@ -40,4 +40,25 @@
     </dl>
   </aside>
 </div>
+@if ($editavel)
+  <form method="post" action="{{ route('configuracoes.inteligencia.ia') }}" class="painel lista-filtros">
+    @csrf @method('put')
+    <div>
+      <h2>IA opcional no radar</h2>
+      <p class="sub">A OpenAI recebe somente sinais agregados após confirmação do usuário. A análise local continua disponível.</p>
+      <input type="hidden" name="ativa" value="0">
+      <label><input name="ativa" type="checkbox" value="1" @checked(old('ativa', $empresa->ia_radar_ativa))> Permitir orientação pela OpenAI</label>
+      <div class="grade">
+        <div class="campo"><label for="ia-radar-chave">Chave OpenAI</label>
+          <input id="ia-radar-chave" name="ia_radar_chave" type="password" autocomplete="new-password" maxlength="300" placeholder="Em branco mantém a chave atual">
+        </div>
+        <div class="campo"><label for="ia-radar-limite">Máximo de solicitações por mês</label>
+          <input id="ia-radar-limite" name="limite" type="number" min="1" max="300" value="{{ old('limite', $empresa->ia_radar_limite ?? 20) }}" required>
+        </div>
+      </div>
+      <label><input name="revogar" type="checkbox" value="1"> Remover credencial armazenada e desativar o recurso</label>
+      <button>Salvar configuração da IA</button>
+    </div>
+  </form>
+@endif
 @endsection

@@ -2,7 +2,9 @@
 @section('titulo', 'Sugestões')
 @section('conteudo')
 <x-cabecalho :trilha="['Inteligência' => null, 'Sugestões' => null]" titulo="Sugestões"
-  sub="Situações que pedem atenção, encontradas por regras sobre os dados da empresa. Cada uma diz o motivo e o que fazer." />
+  sub="Situações que pedem atenção, encontradas por regras sobre os dados da empresa. Cada uma diz o motivo e o que fazer.">
+  <x-slot:acoes><a class="botao sec" href="{{ route('inteligencia.economia') }}">Oportunidades de economia</a></x-slot:acoes>
+</x-cabecalho>
 <nav class="filtros" aria-label="Tipo de sugestão">
   <a href="{{ route('inteligencia.sugestoes') }}" @class(['ativo' => ! $tipo])>Todas ({{ $contagem->sum() }})</a>
   @foreach (\App\Services\Sugestoes::TIPOS as $k => $rot)

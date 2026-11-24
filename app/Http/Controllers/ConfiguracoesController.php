@@ -10,6 +10,7 @@ use App\Services\LembretesBancarios;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -79,6 +80,38 @@ class ConfiguracoesController extends Controller
         });
 
         return back()->with('ok', 'Preferências de inteligência salvas para esta empresa.');
+    }
+
+    public function salvarIaRadar(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'ativa' => ['required', 'boolean'],
+            'limite' => ['required', 'integer', 'between:1,300'],
+            'ia_radar_chave' => ['nullable', 'string', 'max:300', 'regex:/^sk-[A-Za-z0-9_-]+$/D'],
+            'revogar' => ['nullable', 'boolean'],
+        ]);
+        DB::transaction(function () use ($dados) {
+            $empresa = Organizacao::query()->lockForUpdate()->findOrFail(ctx()->organizacaoId());
+            $revogar = (bool) ($dados['revogar'] ?? false);
+            if ($revogar) {
+                $empresa->ia_radar_chave = null;
+            } elseif (isset($dados['ia_radar_chave'])) {
+                $empresa->ia_radar_chave = $dados['ia_radar_chave'];
+            }
+            $empresa->ia_radar_ativa = ! $revogar && (bool) $dados['ativa'];
+            $empresa->ia_radar_limite = (int) $dados['limite'];
+            if ($empresa->ia_radar_ativa && ! $empresa->ia_radar_chave) {
+                throw ValidationException::withMessages(['ia_radar_chave' => 'Informe uma chave para habilitar a IA.']);
+            }
+            if ($empresa->isDirty()) {
+                $chaveAlterada = $empresa->isDirty('ia_radar_chave');
+                $empresa->save();
+                Evento::registrar('ia.radar_configurada', $empresa, ['ativa' => $empresa->ia_radar_ativa,
+                    'limite' => $empresa->ia_radar_limite, 'chave_alterada' => $chaveAlterada]);
+            }
+        });
+
+        return back()->with('ok', 'Preferências da IA do radar salvas.');
     }
 
     public function lembretes(LembretesBancarios $l): View

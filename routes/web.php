@@ -208,12 +208,16 @@ Route::middleware('auth')->group(function () {
             Route::get('/financeiro/cartoes/faturas/{faturaCartao}', [CartaoController::class, 'fatura'])->name('cartoes.fatura');
             Route::get('/financeiro/transferencias', [TransferenciaController::class, 'index'])->name('transferencias.index');
             Route::get('/inteligencia/assistente', [InteligenciaController::class, 'assistente'])->name('inteligencia.assistente');
+            Route::get('/inteligencia/sugestoes/economia', [InteligenciaController::class, 'economia'])->name('inteligencia.economia');
             Route::get('/inteligencia/sugestoes', [InteligenciaController::class, 'sugestoes'])->name('inteligencia.sugestoes');
             Route::get('/financeiro/anexos/{anexo}', [AnexoController::class, 'baixar'])->name('anexos.baixar');
             Route::get('/financeiro/exportar/{relatorio}', ExportacaoController::class)->middleware('throttle:20,1')->name('financeiro.exportar');
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
             Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');
+            Route::post('/inteligencia/sugestoes/economia/acompanhar', [InteligenciaController::class, 'acompanharEconomia'])->middleware('throttle:10,1')->name('inteligencia.economia.acompanhar');
+            Route::post('/inteligencia/sugestoes/economia/orientar', [InteligenciaController::class, 'orientar'])->middleware('throttle:6,1')->name('inteligencia.economia.orientar');
+            Route::put('/configuracoes/inteligencia/ia-radar', [ConfiguracoesController::class, 'salvarIaRadar'])->middleware('papel:admin')->name('configuracoes.inteligencia.ia');
             Route::get('/configuracoes/inteligencia', [ConfiguracoesController::class, 'inteligencia'])->name('configuracoes.inteligencia');
             Route::put('/configuracoes/inteligencia', [ConfiguracoesController::class, 'salvarInteligencia'])->middleware('papel:admin')->name('configuracoes.inteligencia.salvar');
             Route::get('/configuracoes/financeiro/lembretes', [ConfiguracoesController::class, 'lembretes'])->name('configuracoes.lembretes');

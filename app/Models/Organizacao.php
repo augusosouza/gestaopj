@@ -12,11 +12,14 @@ class Organizacao extends Model
 
     protected $fillable = ['tipo', 'razao_social', 'cnpj', 'inscricao_municipal', 'municipio_ibge'];
 
+    protected $hidden = ['ia_radar_chave'];
+
     protected $attributes = ['assistente_ativo' => true, 'sugestoes_ativas' => true];
 
     protected function casts(): array
     {
-        return ['tipo' => TipoOrganizacao::class, 'assistente_ativo' => 'boolean', 'sugestoes_ativas' => 'boolean'];
+        return ['tipo' => TipoOrganizacao::class, 'assistente_ativo' => 'boolean', 'sugestoes_ativas' => 'boolean', 'ia_radar_ativa' => 'boolean',
+            'ia_radar_chave' => 'encrypted', 'ia_radar_limite' => 'integer'];
     }
 
     public function vinculos(): HasMany

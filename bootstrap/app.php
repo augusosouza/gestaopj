@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->dontFlash(['smtp_password', 'nova_chave_pix', 'chave_pix']);
+        $exceptions->dontFlash(['smtp_password', 'ia_radar_chave', 'nova_chave_pix', 'chave_pix']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
