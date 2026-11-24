@@ -32,6 +32,12 @@ composer check-platform-reqs --no-dev
 
 rm -rf .github tests scripts
 rm -f bootstrap/cache/*.php
+
+# Apache pode servir estáticos com outro usuário, enquanto o PHP roda como dono da conta.
+chmod 0755 .
+chmod 0644 .htaccess
+find public -type d -exec chmod 0755 {} +
+find public -type f -exec chmod 0644 {} +
 if [ -z "$modo" ]; then
     code=$(php -r 'echo bin2hex(random_bytes(32));')
     printf '%s' "$code" | php -r 'echo hash("sha256", stream_get_contents(STDIN)), PHP_EOL;' > storage/app/instalador.sha256

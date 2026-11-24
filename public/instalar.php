@@ -29,7 +29,7 @@ if (! preg_match('~^(?:/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*/instalar\.php$~D', $scrip
 $base = substr($script, 0, -strlen('/instalar.php'));
 if ($root === null) {
     http_response_code(503);
-    exit('Mantenha a aplicação fora da raiz pública e publique somente a pasta public. Para usar um subdiretório, configure .augi-root.php conforme o README.');
+    exit('Publicação não configurada. Use /instalar.php na URL do Augi e confira o .htaccess da pasta do projeto ou a separação dos arquivos públicos descrita no README.');
 }
 $tokenFile = $root.'/storage/app/instalador.sha256';
 $envFile = $root.'/.env';

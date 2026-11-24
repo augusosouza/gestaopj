@@ -13,9 +13,22 @@ if (! $raiz || ! $documentRoot || ! is_file($raiz.'/bootstrap/app.php') || ! is_
     return null;
 }
 
-if ($raiz === $documentRoot || str_starts_with($raiz.'/', rtrim($documentRoot, '/').'/')
-    || (str_starts_with($documentRoot.'/', $raiz.'/') && $documentRoot !== realpath($raiz.'/public'))) {
+if ($raiz === $documentRoot || (str_starts_with($documentRoot.'/', $raiz.'/') && $documentRoot !== realpath($raiz.'/public'))) {
     return null;
+}
+
+if (str_starts_with($raiz.'/', rtrim($documentRoot, '/').'/')) {
+    $marca = $_SERVER['REDIRECT_AUGI_PUBLICACAO_HTACCESS'] ?? $_SERVER['AUGI_PUBLICACAO_HTACCESS'] ?? '';
+    if ($marca !== '1' || realpath(__DIR__) !== realpath($raiz.'/public') || ! is_file($raiz.'/.htaccess')) {
+        return null;
+    }
+
+    // O servidor executa public/index.php ou public/instalar.php internamente.
+    // Laravel e o formulário devem gerar links com o endereço externo.
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    if (preg_match('~^(.+)/public/(index|instalar)\.php$~D', $script, $partes)) {
+        $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'] = $partes[1].'/'.$partes[2].'.php';
+    }
 }
 
 return $raiz;

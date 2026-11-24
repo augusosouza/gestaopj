@@ -1,0 +1,37 @@
+# Augi — publicação do pacote inteiro em um subdiretório em Apache 2.4.
+# A lista de arquivos públicos abaixo é fechada. Nunca publique storage ou vendor.
+Options -Indexes
+
+<IfModule mod_negotiation.c>
+    Options -MultiViews
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteOptions InheritDownBefore
+
+    # Rotas públicas usam a URL sem /public. A regra interna termina com END.
+    RewriteRule ^(?:public(?:/|$)|.*(?:^|/)\.) - [F,END,NC]
+
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteCond %{HTTP:X-XSRF-TOKEN} .
+    RewriteRule ^ - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-TOKEN}]
+
+    # Marca interna do servidor, usada pelo PHP para validar este modo de publicação.
+    RewriteRule ^ - [E=AUGI_PUBLICACAO_HTACCESS:1]
+    RewriteRule ^instalar\.php$ public/instalar.php [END]
+    RewriteRule ^index\.php$ public/index.php [END]
+    RewriteRule ^((?:css/[A-Za-z0-9_-]+\.css|js/[A-Za-z0-9_-]+\.js|fonts/[A-Za-z0-9_.-]+\.woff2|favicon\.ico|robots\.txt))$ public/$1 [END]
+
+    # Qualquer arquivo ou diretório físico restante pertence à parte privada.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^.+ - [F,END]
+
+    RewriteRule ^ public/index.php [END]
+</IfModule>

@@ -266,6 +266,17 @@ O exemplo abaixo mantém o Augi em `https://seu.dominio/gestaopj`. Descubra a ra
 
 No Gerenciador de Arquivos, habilite a exibição de arquivos ocultos. Se a hospedagem usa CageFS ou `open_basedir`, a pasta privada precisa estar acessível ao mesmo usuário que executa o PHP. No Plesk, a mesma estrutura funciona quando Apache processa as regras do site e o pool PHP tem acesso às duas pastas. Na VPS com Docker, a configuração padrão publica `public/` na raiz. O proxy precisa fornecer HTTPS e preservar o prefixo quando o Augi for publicado em subdiretório. Ajustes de proxy confiável pertencem à implantação.
 
+### Pasta única com .htaccess no cPanel
+
+Em Apache 2.4 com suporte a `.htaccess`, o pacote também pode ficar inteiro em um subdiretório do site, como `<raiz do site>/gestaopj`. Essa alternativa depende de o servidor aplicar o arquivo `.htaccess` da **raiz do pacote** a todas as requisições. Um proxy que sirva arquivos diretamente precisa respeitar a mesma separação.
+
+1. Use o ZIP atualizado. Coloque `artisan`, `public/`, `storage/`, `vendor/` e o **.htaccess da raiz** lado a lado em `gestaopj/`. O arquivo `public/.htaccess` continua dentro de `public/`.
+2. Antes de enviar a ativação ou inserir credenciais, confronte duas URLs no navegador. `/gestaopj/css/instalador.css` deve carregar o CSS. `/gestaopj/composer.json` deve devolver 403 ou 404. Se o arquivo interno abrir, retire o pacote dessa pasta pública e use a separação física descrita acima.
+3. Envie `instalador.sha256` para `gestaopj/storage/app/` e abra `/gestaopj/instalar.php`, sem `/public`. Neste modo o PHP encontra a aplicação na pasta pai de `public/`, e o endereço é sugerido pelo instalador. Preserve os blocos de seleção de PHP já gerados pelo cPanel.
+4. Se a raiz do site encaminhar todas as rotas a outro aplicativo, exclua `/gestaopj` dessa regra. Se Apache devolver 500 ao ler as diretivas ou se a hospedagem ignorar `.htaccess`, peça ao provedor a configuração de diretório ou use o modo com arquivos privados fora da raiz pública.
+
+A opção com separação física continua indicada quando existem vhosts, aliases ou servidores estáticos que possam servir a mesma pasta por outro caminho, pois cada caminho público precisa aplicar a proteção.
+
 ### Migração entre hospedagens
 
 1. Homologue a restauração em um ambiente isolado, usando uma cópia do banco, dos arquivos privados e da configuração necessária para a recuperação. Guarde a `APP_KEY`, as senhas de backup e os dados do destino remoto em local protegido.
