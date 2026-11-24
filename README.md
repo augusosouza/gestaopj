@@ -239,6 +239,10 @@ Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 
 
 ### Instalador pelo navegador
 
+**Pacote pronto para upload.** Em **Releases**, baixe o ZIP de produção e `ativar-instalador.html`. Extraia o ZIP, abra o arquivo HTML localmente em um navegador moderno e gere um código exclusivo. Faça upload apenas de `instalador.sha256` para `augi/storage/app/`, dentro da pasta privada. Guarde o código exibido para informar no assistente. O gerador roda localmente e o ZIP de produção é distribuído sem código de ativação. A ativação não se aplica a instalações que já possuem `.env`.
+
+**Alternativa para gerar o próprio ZIP.**
+
 1. Em uma máquina com PHP 8.3+, Composer, Git, tar e zip, gere o pacote a partir de um commit que contenha o instalador: `sh scripts/pacote-cpanel.sh /caminho/privado/pacotes`. Cada pacote vem com um código de ativação separado. Guarde o código em local privado e gere um pacote próprio para cada instalação.
 2. No painel da hospedagem, crie um banco MySQL 8.0+ ou MariaDB 10.6+ **vazio** e conceda ao usuário da aplicação os privilégios nesse banco. O servidor que recebe o ZIP não precisa de Git nem Composer.
 3. Extraia o ZIP em uma pasta privada. Para domínio dedicado, aponte a raiz pública para `augi/public`. Para uma URL como `https://seu.dominio/gestaopj`, siga a configuração de subdiretório abaixo.

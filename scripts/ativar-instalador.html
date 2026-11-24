@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Ativar instalador do Augi Gestão</title>
+<style>
+  :root { color-scheme: light dark; font: 100%/1.55 system-ui, sans-serif; }
+  main { max-width: 36rem; margin: 2.5rem auto; padding: 0 1rem; }
+  label { display: block; margin-top: 1.25rem; font-weight: 600; }
+  input { width: 100%; box-sizing: border-box; padding: .65rem; font: inherit; }
+  button { min-height: 44px; padding: .55rem 1rem; font: inherit; }
+  li { margin-block: .45rem; }
+</style>
+<main>
+  <h1>Ativar instalador do Augi Gestão</h1>
+  <ol>
+    <li>Gere um código exclusivo para a sua instalação.</li>
+    <li>Envie o arquivo <code>instalador.sha256</code> para <code>storage/app/</code> na pasta privada do Augi.</li>
+    <li>Informe o código abaixo em <code>instalar.php</code>.</li>
+  </ol>
+  <button id="gerar" type="button">Gerar código e baixar arquivo</button>
+  <div id="resultado" hidden>
+    <label for="codigo">Código de ativação</label>
+    <input id="codigo" readonly spellcheck="false" autocomplete="off">
+    <p>Guarde o código em local privado. Cada nova geração baixa um arquivo que corresponde ao novo código.</p>
+  </div>
+  <p id="estado" role="status"></p>
+</main>
+<script>
+const botao = document.getElementById('gerar');
+const estado = document.getElementById('estado');
+const resultado = document.getElementById('resultado');
+const campo = document.getElementById('codigo');
+const hex = bytes => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+
+botao.addEventListener('click', async () => {
+    botao.disabled = true;
+    estado.textContent = '';
+    try {
+        const codigo = hex(crypto.getRandomValues(new Uint8Array(32)));
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codigo));
+        const arquivo = new Blob([hex(new Uint8Array(digest)) + '\n'], {type: 'text/plain'});
+        const url = URL.createObjectURL(arquivo);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'instalador.sha256';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        campo.value = codigo;
+        resultado.hidden = false;
+        campo.focus();
+        campo.select();
+        estado.textContent = 'Arquivo gerado. Confira os downloads do navegador.';
+    } catch {
+        estado.textContent = 'Abra este arquivo localmente em um navegador moderno com suporte à criptografia Web.';
+    } finally {
+        botao.disabled = false;
+    }
+});
+</script>
+</html>
