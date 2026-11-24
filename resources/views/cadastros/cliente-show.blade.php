@@ -1,10 +1,12 @@
 @extends('layouts.app')
 @section('titulo', $cliente->razao_social)
 @section('conteudo')
-<x-cabecalho :trilha="['Clientes' => route('clientes.index'), 'Ficha do cliente' => null]"
+@php($listaClientes = route('clientes.index', session('clientes.lista.'.auth()->id().'.'.ctx()->organizacaoId(), [])))
+<x-cabecalho :trilha="['Clientes' => $listaClientes, 'Ficha do cliente' => null]"
   :titulo="$cliente->razao_social" :sub="$cliente->nome_fantasia">
-  <x-slot:acoes><a class="btn secundario" href="{{ route('clientes.historico', $cliente) }}">Histórico</a> <a class="btn" href="{{ route('clientes.edit', $cliente) }}">Editar cliente</a></x-slot:acoes>
+  <x-slot:acoes><a class="botao sec" href="{{ route('clientes.historico', $cliente) }}">Histórico</a> <a class="botao" href="{{ route('clientes.edit', $cliente) }}">Editar cliente</a></x-slot:acoes>
 </x-cabecalho>
+<div class="ficha-secoes">
 <section class="painel" aria-labelledby="dados-cliente">
   <h2 id="dados-cliente">Dados e contato</h2>
   <dl class="grade">
@@ -61,4 +63,5 @@
   </table></div>
   {{ $parcelas->links() }}
 </section>
+</div>
 @endsection

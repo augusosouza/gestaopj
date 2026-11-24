@@ -1,11 +1,12 @@
 @extends('layouts.app')
 @section('titulo', 'Histórico do cliente')
 @section('conteudo')
-<x-cabecalho :trilha="['Clientes' => route('clientes.index'), $cliente->razao_social => route('clientes.show', $cliente), 'Histórico' => null]"
+@php($listaClientes = route('clientes.index', session('clientes.lista.'.auth()->id().'.'.ctx()->organizacaoId(), [])))
+<x-cabecalho :trilha="['Clientes' => $listaClientes, $cliente->razao_social => route('clientes.show', $cliente), 'Histórico' => null]"
   titulo="Histórico do cliente" :sub="$cliente->razao_social" />
 <nav class="acoes" aria-label="Filtrar histórico">
-  <a class="btn sec" href="{{ route('clientes.historico', $cliente) }}" @if (!$filtro) aria-current="page" @endif>Todas as atividades</a>
-  <a class="btn sec" href="{{ route('clientes.historico', [$cliente, 'tipo' => 'comunicacao']) }}" @if ($filtro) aria-current="page" @endif>Comunicações de faturas</a>
+  <a class="botao sec" href="{{ route('clientes.historico', $cliente) }}" @if (!$filtro) aria-current="page" @endif>Todas as atividades</a>
+  <a class="botao sec" href="{{ route('clientes.historico', [$cliente, 'tipo' => 'comunicacao']) }}" @if ($filtro) aria-current="page" @endif>Comunicações de faturas</a>
 </nav>
 <div class="tabela"><table>
   <thead><tr><th scope="col">Data e hora</th><th scope="col">Responsável</th><th scope="col">Ação</th><th scope="col">Detalhes</th></tr></thead>

@@ -1,11 +1,11 @@
 @extends('layouts.app')
 @section('titulo', 'A receber')
 @section('conteudo')
-<div class="barra">
-  <div><h1>Contas a receber</h1><p class="sub" style="margin:0">Faturas dos clientes e NFS-e emitidas pela empresa</p></div>
-  @include('partials.competencia')
-</div>
-<div class="tabela">
+<x-cabecalho :trilha="['Operação' => null, 'Faturas' => null]" titulo="Contas a receber" sub="Faturas dos clientes e NFS-e emitidas pela empresa.">
+  <x-slot:acoes>@include('partials.competencia')</x-slot:acoes>
+</x-cabecalho>
+<div class="lista-barra"><p class="sub">{{ $faturas->count() }} faturas na competência</p><x-densidade tabela="lista-faturas" /></div>
+<div class="tabela" id="lista-faturas">
   <table>
     <thead><tr><th>Contrato</th><th>Cliente</th><th class="n">Valor</th><th>Vencimento</th><th>NFS-e</th><th>Status</th><th></th></tr></thead>
     <tbody>

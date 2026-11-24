@@ -5,7 +5,8 @@
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), 'Cartões' => null]" titulo="Cartões corporativos"
   sub="Limite, faturas e compras parceladas. Pagar a fatura quita as compras dela — a despesa não é lançada de novo." />
 
-<div class="tabela"><table>
+<div class="lista-barra"><p class="sub">{{ $cartoes->count() }} cartões</p><x-densidade tabela="lista-cartoes" /></div>
+<div class="tabela" id="lista-cartoes"><table>
   <thead><tr><th>Cartão</th><th>Fechamento / vencimento</th><th class="n">Limite</th><th class="n">Em aberto</th><th class="n">Disponível</th><th>Uso do limite</th><th>Responsável</th></tr></thead>
   <tbody>
   @forelse ($cartoes as $c)

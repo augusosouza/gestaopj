@@ -14,6 +14,7 @@
   <script src="{{ asset('js/interface.js') }}?v={{ filemtime(public_path('js/interface.js')) }}" defer></script>
 </head>
 <body>
+<a class="botao pular-conteudo" href="#conteudo-principal">Ir para o conteúdo</a>
 @php($c = ctx())
 @php($A = \App\Enums\Papel::class)
 
@@ -75,7 +76,7 @@
       </div>
     </div>
   </aside>
-  <main @class(['conteudo', 'conteudo-compacto' => View::hasSection('compacta'), 'conteudo-expandido' => View::hasSection('larga')])>
+  <main id="conteudo-principal" tabindex="-1" @class(['conteudo', 'conteudo-compacto' => View::hasSection('compacta'), 'conteudo-expandido' => View::hasSection('larga')])>
     @include('partials.mensagens')
     @include('conhecimento.contextual')
     @yield('conteudo')
@@ -105,7 +106,7 @@
   </nav>
 </div>
 @else
-<main @class(["solo", "larga" => View::hasSection("larga")])>
+<main id="conteudo-principal" tabindex="-1" @class(["solo", "larga" => View::hasSection("larga")])>
   @auth
     <div class="barra" style="margin-bottom:32px">
       <span class="marca">@include('partials.marca')</span>

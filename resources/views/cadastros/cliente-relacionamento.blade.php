@@ -3,9 +3,10 @@
 @section('titulo', $titulo)
 @section('compacta', '1')
 @section('conteudo')
+@php($listaClientes = route('clientes.index', session('clientes.lista.'.auth()->id().'.'.ctx()->organizacaoId(), [])))
 <x-cabecalho :titulo="$titulo" :sub="$cliente->razao_social"
-  :trilha="['Clientes' => route('clientes.index'), $cliente->razao_social => route('clientes.show', $cliente), $titulo => null]" />
-<form method="post" action="{{ route('clientes.relacionamentos.salvar', [$cliente, $tipo, $registro?->id]) }}" class="painel">
+  :trilha="['Clientes' => $listaClientes, $cliente->razao_social => route('clientes.show', $cliente), $titulo => null]" />
+<form method="post" action="{{ route('clientes.relacionamentos.salvar', [$cliente, $tipo, $registro?->id]) }}" class="painel" data-evitar-reenvio="Salvando…">
   @csrf
   <div class="grade">
     <div class="campo"><label for="finalidade">Finalidade</label><select id="finalidade" name="finalidade" required>
@@ -26,6 +27,6 @@
       </div>
     @endforeach
   </div>
-  <div class="acoes"><button type="submit">Salvar</button><a href="{{ route('clientes.show', $cliente) }}">Cancelar</a></div>
+  <div class="formulario-rodape"><button type="submit">Salvar</button><a href="{{ route('clientes.show', $cliente) }}">Cancelar</a></div>
 </form>
 @endsection

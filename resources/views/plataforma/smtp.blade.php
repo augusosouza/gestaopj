@@ -3,7 +3,6 @@
 @section('conteudo')
 <x-cabecalho :trilha="['Administração Augi' => null, 'E-mail e SMTP' => null]" titulo="E-mail e SMTP"
   sub="Configure o envio de convites e links de recuperação para todas as empresas e escritórios." />
-@if (session('erro'))<div class="aviso bad" role="alert">{{ session('erro') }}</div>@endif
 <div class="ajustes-grade">
   <form method="post" action="{{ route('plataforma.smtp.salvar') }}" class="painel ajustes-painel">
     @csrf @method('put')

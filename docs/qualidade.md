@@ -47,3 +47,7 @@ Duas falhas artificiais foram encontradas e corrigidas na estabilização: (1) a
 | `PosicaoFinanceira::compromissos` | `$abertas ??=` → `=` | recarrega os mesmos dados (só custo) |
 | `PosicaoFinanceira::compromissos` (2×) | `continue` → `break` | as parcelas vêm ordenadas por vencimento: depois da primeira fora do prazo, todas as seguintes também estão |
 | `PosicaoFinanceira::compromissos` (2×) | chave de ordenação `0`/`1` → `-1`/`2` | só a ordem relativa importa |
+
+### Catálogo visual
+
+Em ambiente local, entre no Augi e abra `/desenvolvimento/componentes` para conferir os componentes Blade com dados fictícios. A página exige autenticação e retorna 404 fora do ambiente local. Revise foco pelo teclado, estados dos controles e contraste claro e escuro. Em Clientes, confira a volta da ficha e do histórico com filtros ativos, os erros de formulário e a preferência de densidade após recarregar a lista.

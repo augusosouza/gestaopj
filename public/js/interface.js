@@ -88,6 +88,7 @@ for (const abas of document.querySelectorAll('[data-abas]')) {
 
 for (const formulario of document.querySelectorAll('[data-evitar-reenvio]')) {
     const botao = formulario.querySelector('button[type=submit], button:not([type])');
+    if (!botao || botao.disabled || botao.name) continue;
     const texto = botao.textContent;
     formulario.addEventListener('submit', (evento) => {
         if (botao.disabled) {
@@ -95,7 +96,7 @@ for (const formulario of document.querySelectorAll('[data-evitar-reenvio]')) {
             return;
         }
         botao.disabled = true;
-        botao.textContent = 'Registrando…';
+        botao.textContent = formulario.dataset.evitarReenvio || 'Registrando…';
     });
     window.addEventListener('pageshow', () => {
         botao.disabled = false;
@@ -142,4 +143,24 @@ if (painelBaixa && typeof painelBaixa.showModal === 'function') {
         });
         if (detalhes.hasAttribute('data-reabrir-baixa')) abrirBaixa(detalhes);
     }
+}
+
+for (const controle of document.querySelectorAll('[data-densidade]')) {
+    const tabela = document.getElementById(controle.getAttribute('aria-controls'));
+    if (!tabela) continue;
+
+    const chave = (painel?.dataset.menuPreferencia ?? 'augi') + '.' + controle.dataset.densidade;
+    let compacta = false;
+    try { compacta = localStorage.getItem(chave) === 'compacta'; } catch { /* Preferência indisponível. */ }
+    function atualizarDensidade() {
+        tabela.classList.toggle('tabela-compacta', compacta);
+        controle.setAttribute('aria-pressed', String(compacta));
+    }
+    controle.addEventListener('click', () => {
+        compacta = !compacta;
+        try { localStorage.setItem(chave, compacta ? 'compacta' : 'confortavel'); } catch { /* Preferência indisponível. */ }
+        atualizarDensidade();
+    });
+    atualizarDensidade();
+    controle.hidden = false;
 }

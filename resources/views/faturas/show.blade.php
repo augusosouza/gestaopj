@@ -2,10 +2,11 @@
 @section('titulo', 'Fatura '.$fatura->contrato->numero)
 @section('conteudo')
 @php($pode = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-<a class="voltar" href="{{ route('faturas.index', ['competencia' => $fatura->competencia->format('Y-m')]) }}">← A receber</a>
-<h1>Fatura {{ $fatura->contrato->numero }} · {{ $fatura->competencia->format('m/Y') }}</h1>
-<p class="sub">{{ $fatura->contrato->cliente->razao_social }} · @include('partials.status', ['status' => $fatura->status])</p>
-
+<x-cabecalho :trilha="['Faturas' => route('faturas.index', ['competencia' => $fatura->competencia->format('Y-m')]), 'Detalhe' => null]"
+  :titulo="'Fatura '.$fatura->contrato->numero.' · '.$fatura->competencia->format('m/Y')" :sub="$fatura->contrato->cliente->razao_social">
+  @include('partials.status', ['status' => $fatura->status])
+</x-cabecalho>
+<div class="ficha-secoes">
 <div class="duas">
   <div class="painel">
     <dl class="dados">
@@ -57,7 +58,7 @@
     @if (filter_var($fatura->contrato->cliente->email, FILTER_VALIDATE_EMAIL))
       <p>Destinatário de cobrança: <strong>{{ $fatura->contrato->cliente->email }}</strong></p>
       <p class="sub">O e-mail inclui o número, valor e vencimento da fatura. Sem anexos.</p>
-      <form method="post" action="{{ route('faturas.enviar', $fatura) }}">
+      <form method="post" action="{{ route('faturas.enviar', $fatura) }}" data-evitar-reenvio="Enviando…">
         @csrf
         <input type="hidden" name="chave" value="{{ $chave }}">
         <input type="hidden" name="destinatario" value="{{ $fatura->contrato->cliente->email }}">
@@ -74,4 +75,5 @@
     <p class="sub">Nenhuma tentativa de envio registrada.</p>
   @endforelse
 </section>
+</div>
 @endsection

@@ -43,6 +43,12 @@ use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/desenvolvimento/componentes', static function () {
+    abort_unless(app()->environment('local'), 404);
+
+    return response()->view('desenvolvimento.componentes')->header('Cache-Control', 'no-store');
+})->middleware(['auth', 'contexto:opcional'])->name('desenvolvimento.componentes');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:20,1');

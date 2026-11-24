@@ -5,7 +5,6 @@
 <x-cabecalho :trilha="['Administração' => null, 'Equipe e acessos' => null]" titulo="Equipe e acessos"
   :sub="'Acessos, papéis e histórico de '.$org->razao_social" />
 
-@if (session('erro'))<div class="aviso bad" role="alert">{{ session('erro') }}</div>@endif
 <div class="ajustes-grade">
   <section class="painel ajustes-painel ajustes-equipe">
     <h2>Vínculos da equipe</h2>

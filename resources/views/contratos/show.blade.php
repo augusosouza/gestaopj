@@ -2,11 +2,13 @@
 @section('titulo', 'Contrato '.$contrato->numero)
 @section('conteudo')
 @php($admin = ctx()->tem(\App\Enums\Papel::Admin))
-<a class="voltar" href="{{ route('contratos.index') }}">← Contratos</a>
-<div class="barra">
-  <div><h1>Contrato {{ $contrato->numero }}</h1><p class="sub" style="margin:0">{{ $contrato->cliente->razao_social }} · {{ $contrato->descricao }}</p></div>
-  @if ($admin)<a class="botao sec" href="{{ route('contratos.edit', $contrato) }}">Editar</a>@endif
-</div>
+<x-cabecalho :trilha="['Contratos' => route('contratos.index'), 'Detalhe' => null]"
+  :titulo="'Contrato '.$contrato->numero" :sub="$contrato->cliente->razao_social.' · '.$contrato->descricao">
+  <span class="tag {{ $contrato->status === 'ativo' ? 'ok' : 'warn' }}">{{ ucfirst($contrato->status) }}</span>
+  @if ($admin)
+    <x-slot:acoes><a class="botao sec" href="{{ route('contratos.edit', $contrato) }}">Editar contrato</a></x-slot:acoes>
+  @endif
+</x-cabecalho>
 <div class="cards">
   <div class="card"><div class="rot">Faturamento mensal</div><div class="num">{{ brl($contrato->valor_mensal_centavos) }}</div><div class="det">Vence dia {{ $contrato->dia_vencimento }} do mês seguinte</div></div>
   @php($custo = (int) $contrato->alocacoes->filter(fn ($a) => ! $a->fim || $a->fim->isFuture())->sum('valor_mensal_centavos'))

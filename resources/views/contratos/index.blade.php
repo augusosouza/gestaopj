@@ -1,11 +1,13 @@
 @extends('layouts.app')
 @section('titulo', 'Contratos')
 @section('conteudo')
-<div class="barra">
-  <div><h1>Contratos</h1><p class="sub" style="margin:0">Faturamento recorrente e custo dos prestadores alocados</p></div>
-  @if (ctx()->tem(\App\Enums\Papel::Admin))<a class="botao" href="{{ route('contratos.create') }}">Novo contrato</a>@endif
-</div>
-<div class="tabela">
+<x-cabecalho :trilha="['Operação' => null, 'Contratos' => null]" titulo="Contratos" sub="Faturamento recorrente e custo dos prestadores alocados.">
+  @if (ctx()->tem(\App\Enums\Papel::Admin))
+    <x-slot:acoes><a class="botao" href="{{ route('contratos.create') }}">Novo contrato</a></x-slot:acoes>
+  @endif
+</x-cabecalho>
+<div class="lista-barra"><p class="sub">{{ $contratos->count() }} contratos</p><x-densidade tabela="lista-contratos" /></div>
+<div class="tabela" id="lista-contratos">
   <table>
     <thead><tr><th>Número</th><th>Cliente</th><th>Descrição</th><th class="n">Mensal</th><th class="n">Custo alocado</th><th class="n">Margem</th><th>Status</th></tr></thead>
     <tbody>

@@ -62,4 +62,16 @@ class ClientesTest extends TestCase
             ->assertDontSee('financeiro@example.test');
         $this->get(route('clientes.historico', $vizinho))->assertOk()->assertDontSee('Contato ou endereço atualizado');
     }
+
+    public function test_retornar_da_ficha_preserva_os_filtros_validados(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $cliente = Cliente::where('organizacao_id', $this->empresa()->id)->firstOrFail();
+        $filtros = ['tipo' => 'pj', 'contratos' => 'com', 'ordem' => 'nome_desc'];
+        $lista = route('clientes.index', $filtros);
+        $this->como('admin@augi.local')->get($lista)->assertOk()->assertSee('Filtros avançados');
+        $this->get(route('clientes.show', $cliente))->assertOk()->assertSee($lista);
+        $this->get(route('clientes.historico', $cliente))->assertOk()->assertSee($lista);
+        $this->get(route('desenvolvimento.componentes'))->assertNotFound();
+    }
 }

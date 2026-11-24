@@ -25,6 +25,8 @@ class ClienteController extends Controller
             'busca' => ['nullable', 'string', 'max:120'],
             'tipo' => ['nullable', Rule::in(['pf', 'pj'])],
             'contratos' => ['nullable', Rule::in(['com', 'sem'])],
+            'ordem' => ['nullable', Rule::in(['nome', 'nome_desc', 'contratos'])],
+            'page' => ['nullable', 'integer', 'min:1', 'max:1000000'],
         ]);
         $query = Cliente::query()->withCount('contratos');
         if ($busca = trim($filtros['busca'] ?? '')) {
@@ -46,7 +48,13 @@ class ClienteController extends Controller
             'sem' => $query->doesntHave('contratos'),
             default => null,
         };
-        $clientes = $query->orderBy('razao_social')->orderBy('id')->paginate(25)->appends($filtros);
+        $filtros = array_filter($filtros, static fn ($valor) => $valor !== null && $valor !== '');
+        if (($filtros['ordem'] ?? null) === 'contratos') {
+            $query->orderByDesc('contratos_count');
+        }
+        $clientes = $query->orderBy('razao_social', ($filtros['ordem'] ?? null) === 'nome_desc' ? 'desc' : 'asc')
+            ->orderBy('id')->paginate(25)->appends($filtros);
+        $request->session()->put('clientes.lista.'.$request->user()->id.'.'.ctx()->organizacaoId(), $filtros);
 
         return view('cadastros.clientes', compact('clientes', 'filtros'));
     }
