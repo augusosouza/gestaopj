@@ -1,29 +1,36 @@
 @extends('layouts.app')
 @section('titulo', 'Clientes')
 @section('conteudo')
-<h1>Clientes</h1>
-<p class="sub">Tomadores dos serviços da empresa.</p>
-<div class="duas">
-  <div class="tabela"><table>
-    <thead><tr><th>Razão social</th><th>Documento</th><th class="n">Contratos</th><th></th></tr></thead>
-    <tbody>
-    @forelse ($clientes as $c)
-      <tr><td>{{ $c->razao_social }}</td><td class="mono">{{ doc($c->documento) }}</td><td class="n">{{ $c->contratos_count }}</td><td><a href="{{ route('clientes.edit', $c) }}">Editar</a></td></tr>
-    @empty
-      <tr><td colspan="4" class="vazio">Nenhum cliente.</td></tr>
-    @endforelse
-    </tbody>
-  </table></div>
-  <form method="post" action="{{ $editar ? route('clientes.update', $editar) : route('clientes.store') }}" class="painel">
-    @csrf @if ($editar) @method('put') @endif
-    <strong>{{ $editar ? 'Editar cliente' : 'Novo cliente' }}</strong>
-    <div class="campo" style="margin-top:8px"><label for="razao_social">Razão social / nome</label><input id="razao_social" name="razao_social" value="{{ old('razao_social', $editar?->razao_social) }}" required></div>
-    <div class="campo"><label for="documento">CNPJ ou CPF</label><input id="documento" name="documento" value="{{ old('documento', doc($editar?->documento)) }}" required class="mono"></div>
-    <div class="grade">
-      <div class="campo"><label for="email">E-mail de cobrança</label><input id="email" type="email" name="email" value="{{ old('email', $editar?->email) }}"></div>
-      <div class="campo"><label for="municipio_ibge">Código IBGE do município</label><input id="municipio_ibge" name="municipio_ibge" value="{{ old('municipio_ibge', $editar?->municipio_ibge) }}" maxlength="7" inputmode="numeric"></div>
-    </div>
-    <button>Salvar</button> @if ($editar)<a href="{{ route('clientes.index') }}">Cancelar</a>@endif
-  </form>
-</div>
+<x-cabecalho :trilha="['Operação' => null, 'Clientes' => null]" titulo="Clientes" sub="Consulte os dados dos clientes e acesse seus contratos e faturas.">
+  <x-slot:acoes><a class="btn" href="{{ route('clientes.create') }}">Novo cliente</a></x-slot:acoes>
+</x-cabecalho>
+<form method="get" action="{{ route('clientes.index') }}" class="painel">
+  <div class="grade">
+    <div class="campo"><label for="busca">Nome ou CPF/CNPJ</label><input type="search" id="busca" name="busca" maxlength="120" value="{{ $filtros['busca'] ?? '' }}"></div>
+    <div class="campo"><label for="tipo">Tipo de pessoa</label><select id="tipo" name="tipo">
+      <option value="">Todos</option><option value="pf" @selected(($filtros['tipo'] ?? '') === 'pf')>Física</option><option value="pj" @selected(($filtros['tipo'] ?? '') === 'pj')>Jurídica</option>
+    </select></div>
+    <div class="campo"><label for="contratos">Contratos</label><select id="contratos" name="contratos">
+      <option value="">Todos</option><option value="com" @selected(($filtros['contratos'] ?? '') === 'com')>Com contrato</option><option value="sem" @selected(($filtros['contratos'] ?? '') === 'sem')>Sem contrato</option>
+    </select></div>
+  </div>
+  <div class="acoes"><button type="submit">Filtrar</button><a href="{{ route('clientes.index') }}">Limpar filtros</a></div>
+</form>
+<p class="sub">{{ $clientes->total() }} {{ $clientes->total() === 1 ? 'cliente encontrado' : 'clientes encontrados' }}</p>
+<div class="tabela"><table>
+  <thead><tr><th scope="col">Cliente</th><th scope="col">CPF/CNPJ</th><th scope="col">Contato</th><th scope="col" class="n">Contratos</th></tr></thead>
+  <tbody>
+  @forelse ($clientes as $cliente)
+    <tr>
+      <td><a href="{{ route('clientes.show', $cliente) }}">{{ $cliente->razao_social }}</a>@if ($cliente->nome_fantasia)<br><span class="sub">{{ $cliente->nome_fantasia }}</span>@endif</td>
+      <td class="mono">{{ doc($cliente->documento) }}</td>
+      <td>{{ $cliente->email ?? $cliente->telefone ?? '—' }}</td>
+      <td class="n">{{ $cliente->contratos_count }}</td>
+    </tr>
+  @empty
+    <tr><td colspan="4" class="vazio">Nenhum cliente encontrado. Confira os filtros ou cadastre um cliente.</td></tr>
+  @endforelse
+  </tbody>
+</table></div>
+{{ $clientes->links() }}
 @endsection

@@ -10,7 +10,7 @@ class Cliente extends Model
 {
     use DaOrganizacao;
 
-    protected $fillable = ['organizacao_id', 'razao_social', 'documento', 'email', 'municipio_ibge'];
+    protected $fillable = ['organizacao_id', 'razao_social', 'documento', 'email', 'municipio_ibge', 'nome_fantasia', 'telefone'];
 
     public function contratos(): HasMany
     {
