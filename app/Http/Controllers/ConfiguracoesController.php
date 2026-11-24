@@ -4,7 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\Papel;
 use App\Models\ContaFinanceira;
+use App\Models\Evento;
+use App\Models\Organizacao;
 use App\Services\LembretesBancarios;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -33,7 +38,9 @@ class ConfiguracoesController extends Controller
                 ['Lembretes de vencimento', 'Quando avisar sobre contas a pagar, a receber e faturas (15, 10, 5, 1 dia antes e no dia).', route('configuracoes.vencimentos'), 'lembrete aviso vencimento alerta notificação conta pagar'],
                 ['Google Agenda', 'Sincronizar vencimentos com o Google Agenda, com lembretes.', route('integracoes.google'), 'google agenda calendario calendar integração integracao sincronizar'],
                 ['Cartões', 'Cartões corporativos: limite, fechamento, vencimento e responsável.', route('cartoes.index'), 'cartao credito fatura limite fechamento vencimento'],
-                ['Sugestões', 'Ver, adiar ou dispensar as sugestões automáticas.', route('inteligencia.sugestoes'), 'sugestao alerta assistente inteligencia dispensar'],
+            ]],
+            ['Inteligência', 'Preferências do assistente financeiro e das sugestões desta empresa.', [
+                ['Assistente, sugestões e tokens', 'Disponibilidade, fontes de dados e modos de uso.', route('configuracoes.inteligencia'), 'ia inteligência assistente sugestões tokens chaves regras'],
             ]],
             ['Fiscal', 'Regimes tributários por CNPJ.', [
                 ['Perfis fiscais', 'Regime de cada CNPJ e vigência, confirmados pelo contador.', route('perfis.index'), 'regime simples lucro presumido ibs cbs'],
@@ -43,7 +50,35 @@ class ConfiguracoesController extends Controller
             ]))],
         ];
 
+        if (auth()->user()->admin_plataforma) {
+            $secoes[] = ['Administração Augi', 'Configurações globais de todas as empresas e escritórios.', [
+                ['Título e identidade', 'Nome do sistema, slogan e assinatura institucional.', route('plataforma.configuracoes'), 'marca título nome'],
+                ['E-mail e SMTP', 'Remetente, credencial e envio de teste.', route('plataforma.smtp'), 'smtp email senha servidor convite token'],
+            ]];
+        }
+
         return view('configuracoes.index', ['secoes' => array_values(array_filter($secoes, fn ($s) => $s[2] !== []))]);
+    }
+
+    public function inteligencia(): View
+    {
+        return view('configuracoes.inteligencia', ['empresa' => ctx()->empresa(), 'editavel' => ctx()->tem(Papel::Admin)]);
+    }
+
+    public function salvarInteligencia(Request $request): RedirectResponse
+    {
+        $dados = $request->validate(['assistente_ativo' => ['required', 'boolean'], 'sugestoes_ativas' => ['required', 'boolean']]);
+        DB::transaction(function () use ($dados) {
+            $empresa = Organizacao::whereKey(ctx()->organizacaoId())->lockForUpdate()->firstOrFail();
+            $empresa->forceFill($dados);
+            if ($empresa->isDirty()) {
+                $mudancas = $empresa->getDirty();
+                $empresa->save();
+                Evento::registrar('inteligencia.configurada', $empresa, $mudancas);
+            }
+        });
+
+        return back()->with('ok', 'Preferências de inteligência salvas para esta empresa.');
     }
 
     public function lembretes(LembretesBancarios $l): View

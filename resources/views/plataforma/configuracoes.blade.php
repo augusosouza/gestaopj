@@ -2,29 +2,36 @@
 @section('titulo', 'Configurações da plataforma')
 @section('larga', '1')
 @section('conteudo')
-<x-cabecalho :trilha="['Administração Augi' => null, 'Identidade' => null]" titulo="Identidade da plataforma" />
+<x-cabecalho :trilha="['Administração Augi' => null, 'Identidade' => null]" titulo="Título e identidade da plataforma" />
 <p class="sub">Identidade do sistema para todas as empresas e escritórios. As mudanças valem na próxima página aberta por qualquer usuário.</p>
 
-<div class="duas">
-  <form method="post" action="{{ route('plataforma.salvar') }}" class="painel">
+<div class="ajustes-grade">
+  <form method="post" action="{{ route('plataforma.salvar') }}" class="painel ajustes-painel">
     @csrf @method('put')
-    <strong>Identidade</strong>
+    <h2>Identidade pública</h2>
     @foreach ($campos as $chave => [$rotulo, $max, $obrigatorio])
       <div class="campo" @if ($loop->first) style="margin-top:8px" @endif>
         <label for="{{ $chave }}">{{ $rotulo }}@unless ($obrigatorio) <span style="color:var(--faint)">(opcional)</span>@endunless</label>
-        <input id="{{ $chave }}" name="{{ $chave }}" value="{{ old($chave, $valores[$chave] ?? '') }}" maxlength="{{ $max }}" @if ($obrigatorio) required @endif>
+        <input aria-describedby="ajuda-{{ $chave }}" id="{{ $chave }}" name="{{ $chave }}" value="{{ old($chave, $valores[$chave] ?? '') }}" maxlength="{{ $max }}" @if ($obrigatorio) required @endif>
+        <small id="ajuda-{{ $chave }}" class="sub">{{ match ($chave) {
+            'nome_sistema' => 'Título das páginas e nome exibido no acesso.',
+            'slogan' => 'Frase institucional exibida no login.',
+            'empresa_responsavel' => 'Nome da empresa responsável, exibido na assinatura institucional.',
+        } }}</small>
+        @error($chave)<p class="erro" role="alert">{{ $message }}</p>@enderror
       </div>
     @endforeach
     <p class="sub" style="font-size:13px">No logotipo em texto, a <strong>primeira palavra</strong> aparece na cor de destaque. Ex.: “Augi Gestão” → <span class="marca"><span class="marca-a">Augi</span> <span class="marca-b">Gestão</span></span></p>
-    <button>Salvar</button>
+    <button>Salvar identidade da plataforma</button>
   </form>
 
-  <div class="painel">
-    <strong>Como aparece</strong>
-    <div style="margin:12px 0 4px;padding:16px;border-radius:var(--radius);background:var(--l-bg)">
-      <span class="marca" style="color:var(--l-text)">@include('partials.marca')</span>
+  <div class="painel ajustes-painel">
+    <h2>Prévia da identidade</h2>
+    <div class="ajustes-previa">
+      <strong class="marca" data-previa="nome_sistema">@include('partials.marca')</strong>
+      <p data-previa="slogan" @if (empty($valores['slogan'])) hidden @endif>{{ $valores['slogan'] ?? '' }}</p>
+      <small data-previa="empresa_responsavel" @if (empty($valores['empresa_responsavel'])) hidden @endif>{{ $valores['empresa_responsavel'] ?? '' }}</small>
     </div>
-    @if (\App\Support\Plataforma::get('slogan'))<p class="sub" style="margin:8px 0 0">{{ \App\Support\Plataforma::get('slogan') }}</p>@endif
     <p class="sub" style="font-size:13px;margin-top:14px">O nome também aparece no título das abas, nos e-mails (convites e recuperação de senha) e no aplicativo autenticador de quem ativar o 2FA depois da mudança. Quem já ativou continua vendo o nome antigo no aplicativo, sem nenhum efeito no funcionamento.</p>
   </div>
 </div>
@@ -43,4 +50,5 @@
   @endforelse
   </tbody>
 </table></div>
+<script src="{{ asset('js/identidade.js') }}" defer></script>
 @endsection

@@ -29,7 +29,7 @@ final class Plataforma
     public static function valores(): array
     {
         try {
-            return Cache::rememberForever(self::CACHE, fn () => Configuracao::pluck('valor', 'chave')->all());
+            return Cache::rememberForever(self::CACHE, fn () => Configuracao::whereIn('chave', array_keys(self::CAMPOS))->pluck('valor', 'chave')->all());
         } catch (\Throwable) {
             return []; // banco ainda sem a tabela (instalação, migrações)
         }

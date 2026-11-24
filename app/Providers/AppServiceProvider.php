@@ -6,6 +6,7 @@ use App\Health\BackupRecenteCheck;
 use App\Health\EspacoEmDiscoCheck;
 use App\Listeners\AvisarFalhaDeSaude;
 use App\Support\Contexto;
+use App\Support\GerenciadorCorreio;
 use App\Support\Plataforma;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -25,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(Contexto::class);
+        $this->app->extend('mail.manager', fn ($manager, $app) => new GerenciadorCorreio($app));
     }
 
     public function boot(): void

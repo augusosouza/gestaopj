@@ -32,6 +32,9 @@ final class Sugestoes
     public function gerar(bool $incluirDispensadas = false): Collection
     {
         $s = collect();
+        if (ctx()->empresa()?->sugestoes_ativas === false) {
+            return $s;
+        }
         $hoje = CarbonImmutable::today();
 
         // 1. Caixa: algum dia dos próximos 30 fica negativo?

@@ -71,11 +71,12 @@ final class Menu
             ]];
         }
 
-        if ($c->empresa() && $c->ehInterno()) {
-            $grupos[] = ['chave' => 'inteligencia', 'rotulo' => 'Inteligência', 'icone' => 'inteligencia', 'itens' => [
-                $item('Assistente', route('inteligencia.assistente'), $rota('inteligencia.assistente')),
-                $item('Sugestões', route('inteligencia.sugestoes'), $rota('inteligencia.sugestoes')),
-            ]];
+        $empresa = $c->empresa();
+        if ($empresa && $c->ehInterno() && ($empresa->assistente_ativo || $empresa->sugestoes_ativas)) {
+            $grupos[] = ['chave' => 'inteligencia', 'rotulo' => 'Inteligência', 'icone' => 'inteligencia', 'itens' => array_values(array_filter([
+                $empresa->assistente_ativo ? $item('Assistente', route('inteligencia.assistente'), $rota('inteligencia.assistente')) : null,
+                $empresa->sugestoes_ativas ? $item('Sugestões', route('inteligencia.sugestoes'), $rota('inteligencia.sugestoes')) : null,
+            ]))];
         }
 
         $contab = [];
@@ -104,6 +105,7 @@ final class Menu
         if ($u->admin_plataforma) {
             $grupos[] = ['chave' => 'augi', 'rotulo' => 'Administração Augi', 'icone' => 'plataforma', 'itens' => [
                 $item('Identidade', route('plataforma.configuracoes'), $rota('plataforma.configuracoes', 'plataforma.salvar')),
+                $item('E-mail e SMTP', route('plataforma.smtp'), $rota('plataforma.smtp*')),
                 $item('Backups', route('plataforma.backups'), $rota('plataforma.backups*')),
                 $item('Saúde do sistema', route('plataforma.saude'), $rota('plataforma.saude*')),
             ]];

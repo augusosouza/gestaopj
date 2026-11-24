@@ -17,6 +17,7 @@ use App\Http\Controllers\ContabilController;
 use App\Http\Controllers\ContasPagarController;
 use App\Http\Controllers\ContextoController;
 use App\Http\Controllers\ContratoController;
+use App\Http\Controllers\CorreioPlataformaController;
 use App\Http\Controllers\EscritorioController;
 use App\Http\Controllers\ExportacaoController;
 use App\Http\Controllers\FaturaController;
@@ -76,6 +77,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['contexto:opcional', 'plataforma'])->group(function () {
         Route::get('/plataforma/configuracoes', [PlataformaController::class, 'configuracoes'])->name('plataforma.configuracoes');
         Route::put('/plataforma/configuracoes', [PlataformaController::class, 'salvar'])->name('plataforma.salvar');
+        Route::get('/plataforma/email', [CorreioPlataformaController::class, 'index'])->name('plataforma.smtp');
+        Route::put('/plataforma/email', [CorreioPlataformaController::class, 'salvar'])->middleware('throttle:8,1')->name('plataforma.smtp.salvar');
+        Route::post('/plataforma/email/teste', [CorreioPlataformaController::class, 'testar'])->middleware('throttle:3,1')->name('plataforma.smtp.testar');
         Route::get('/plataforma/backups', [BackupController::class, 'index'])->name('plataforma.backups');
         Route::get('/plataforma/saude', [SaudeController::class, 'index'])->name('plataforma.saude');
         Route::post('/plataforma/saude/verificar', [SaudeController::class, 'verificar'])->middleware('throttle:6,1')->name('plataforma.saude.verificar');
@@ -94,6 +98,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('papel:admin,revisor')->group(function () {
             Route::get('/acessos', [UsuarioController::class, 'index'])->name('usuarios.index');
             Route::post('/acessos', [UsuarioController::class, 'store'])->name('usuarios.store');
+            Route::patch('/acessos/{vinculo}/papel', [UsuarioController::class, 'atualizarPapel'])->middleware('throttle:12,1')->name('usuarios.papel');
             Route::patch('/acessos/{vinculo}/encerrar', [UsuarioController::class, 'encerrar'])->name('usuarios.encerrar');
         });
         Route::middleware('papel:revisor')->group(function () {
@@ -172,6 +177,8 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('papel:admin,financeiro')->group(function () {
             Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes');
+            Route::get('/configuracoes/inteligencia', [ConfiguracoesController::class, 'inteligencia'])->name('configuracoes.inteligencia');
+            Route::put('/configuracoes/inteligencia', [ConfiguracoesController::class, 'salvarInteligencia'])->middleware('papel:admin')->name('configuracoes.inteligencia.salvar');
             Route::get('/configuracoes/financeiro/lembretes', [ConfiguracoesController::class, 'lembretes'])->name('configuracoes.lembretes');
             Route::get('/financeiro/novo', [FinanceiroController::class, 'create'])->name('financeiro.novo');
             Route::post('/financeiro', [FinanceiroController::class, 'store'])->name('financeiro.store');

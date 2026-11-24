@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(CabecalhosSeguranca::class);
+        $middleware->trimStrings(except: ['smtp_password']);
         $middleware->alias([
             'papel' => ExigePapel::class,
             'contexto' => ExigeContexto::class,
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['smtp_password']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

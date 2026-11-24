@@ -14,6 +14,7 @@ class InteligenciaController extends Controller
 {
     public function assistente(Request $request, Assistente $a): View
     {
+        abort_unless(ctx()->empresa()->assistente_ativo, 403, 'O assistente está desativado nesta empresa.');
         $q = mb_substr(trim((string) $request->query('q')), 0, 300);
 
         return view('inteligencia.assistente', ['q' => $q, 'r' => $q !== '' ? $a->responder($q) : null, 'sugeridas' => Assistente::SUGERIDAS]);
@@ -21,6 +22,7 @@ class InteligenciaController extends Controller
 
     public function sugestoes(Request $request, Sugestoes $s): View
     {
+        abort_unless(ctx()->empresa()->sugestoes_ativas, 403, 'As sugestões estão desativadas nesta empresa.');
         $tipo = array_key_exists((string) $request->query('tipo'), Sugestoes::TIPOS) ? $request->query('tipo') : null;
         $todas = $s->gerar();
 
@@ -30,6 +32,7 @@ class InteligenciaController extends Controller
 
     public function dispensar(Request $request, Sugestoes $s): RedirectResponse
     {
+        abort_unless(ctx()->empresa()->sugestoes_ativas, 403, 'As sugestões estão desativadas nesta empresa.');
         $d = $request->validate(['chave' => ['required', 'string', 'max:160'], 'dias' => ['nullable', 'integer', 'in:3,7,30'],
             'motivo' => ['nullable', 'string', 'max:255']]);
         $s->dispensar($d['chave'], $d['dias'] ?? null, $d['motivo'] ?? null);

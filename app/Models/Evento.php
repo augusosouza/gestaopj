@@ -32,6 +32,7 @@ class Evento extends Model
     public function rotulo(): string
     {
         return [
+            'vinculo.papel_alterado' => 'Papel de acesso alterado',
             'cobranca.nota_enviada' => 'Nota enviada',
             'cobranca.aprovada' => 'Aprovada para pagamento',
             'cobranca.rejeitada' => 'Nota rejeitada',

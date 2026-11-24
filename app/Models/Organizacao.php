@@ -12,9 +12,11 @@ class Organizacao extends Model
 
     protected $fillable = ['tipo', 'razao_social', 'cnpj', 'inscricao_municipal', 'municipio_ibge'];
 
+    protected $attributes = ['assistente_ativo' => true, 'sugestoes_ativas' => true];
+
     protected function casts(): array
     {
-        return ['tipo' => TipoOrganizacao::class];
+        return ['tipo' => TipoOrganizacao::class, 'assistente_ativo' => 'boolean', 'sugestoes_ativas' => 'boolean'];
     }
 
     public function vinculos(): HasMany

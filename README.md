@@ -280,6 +280,10 @@ Não precisa de Docker, Node nem acesso root. Roteiro completo, na ordem:
 
 **Atualizar uma instalação existente:** baixe o código novo (Git *Update from Remote* ou upload), depois `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, `php artisan schedule-monitor:sync` e `php artisan optimize`. As migrations só acrescentam; faça um backup antes.
 
+### Configurar e-mail pelo painel
+
+Para permitir alterações em **Administração Augi → E-mail e SMTP**, defina `GESTAO_SMTP_PAINEL_HOST` com o servidor SMTP autorizado no ambiente e recarregue o cache de configuração. O administrador global escolhe porta 587 com STARTTLS obrigatório ou 465 com TLS implícito, configura o remetente e pode enviar um teste para o próprio e-mail. A senha do SMTP é criptografada com a `APP_KEY`. Preserve essa chave na migração ou restauração do banco. Ao desativar o SMTP do painel, voltam a valer as configurações `MAIL_*` da implantação.
+
 ### Proteções HTTP em produção
 
 Mantenha o domínio apontado para `public/`. O Laravel envia CSP em modo de observação, desabilita o cache de respostas dinâmicas e mantém CORS sem rotas autorizadas por padrão. Arquivos estáticos seguem a configuração do servidor. A CSP ainda permite a execução dos scripts inline existentes enquanto registra violações no console do navegador.
