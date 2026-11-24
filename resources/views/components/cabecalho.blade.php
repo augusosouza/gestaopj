@@ -13,11 +13,11 @@
     </nav>
   @endif
   <div class="cabecalho-linha">
-    <div>
+    <div class="cabecalho-texto">
       <h1>{{ $titulo }}</h1>
       @if ($sub)<p class="sub">{{ $sub }}</p>@endif
       {{ $slot }}
     </div>
-    @isset($acoes)<div class="acoes">{{ $acoes }}</div>@endisset
+    @isset($acoes)<div class="acoes cabecalho-acoes">{{ $acoes }}</div>@endisset
   </div>
 </header>

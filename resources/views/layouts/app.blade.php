@@ -6,21 +6,25 @@
   <title>@yield('titulo', 'Painel') · {{ config('app.name') }}</title>
   <link rel="preload" href="{{ asset('fonts/ibm-plex-sans-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+  <script src="{{ asset('js/interface.js') }}?v={{ filemtime(public_path('js/interface.js')) }}" defer></script>
 </head>
 <body>
 @php($c = ctx())
 @php($A = \App\Enums\Papel::class)
 
 @if (auth()->check() && $c->vinculo())
-<div class="app">
+<div class="app" data-menu-preferencia="augi.menu.{{ auth()->id() }}.{{ $c->vinculo()->id }}">
   <aside class="lateral">
     <div class="lateral-topo">
       <a class="marca" href="{{ $c->empresa() ? route('painel') : route('carteira') }}">@include('partials.marca')</a>
+      <button type="button" class="lateral-compactar" aria-controls="menu-principal" aria-expanded="true" aria-label="Recolher navegação" title="Recolher navegação" hidden>
+        @include('partials.icone', ['nome' => 'lateral'])
+      </button>
       <label for="menu" class="menu-btn">Menu</label>
     </div>
-    <input type="checkbox" id="menu" class="menu-toggle">
+    <input type="checkbox" id="menu" class="menu-toggle" aria-controls="menu-principal">
     <label for="menu" class="menu-fundo" aria-hidden="true"></label>
-    <div class="lateral-corpo">
+    <div class="lateral-corpo" id="menu-principal">
       <div class="contexto">
         @if ($c->empresa())
           <div class="org">{{ $c->empresa()->razao_social }}</div>
@@ -34,12 +38,12 @@
       @php($menu = \App\Support\Menu::para($c, auth()->user()))
       <nav aria-label="Principal" class="menu">
         @if ($menu['inicio'])
-          <a href="{{ $menu['inicio']['url'] }}" @class(['menu-raiz', 'ativo' => $menu['inicio']['ativo']]) @if ($menu['inicio']['ativo']) aria-current="page" @endif>
+          <a href="{{ $menu['inicio']['url'] }}" title="{{ $menu['inicio']['rotulo'] }}" @class(['menu-raiz', 'ativo' => $menu['inicio']['ativo']]) @if ($menu['inicio']['ativo']) aria-current="page" @endif>
             @include('partials.icone', ['nome' => 'inicio']) <span>{{ $menu['inicio']['rotulo'] }}</span></a>
         @endif
         @if (\Illuminate\Support\Facades\Route::has('notificacoes.index'))
           @php($naoLidas = \App\Models\Notificacao::naoLidasDe(auth()->user()))
-          <a href="{{ route('notificacoes.index') }}" @class(['menu-raiz', 'ativo' => request()->routeIs('notificacoes.*')])>
+          <a href="{{ route('notificacoes.index') }}" title="Notificações" @class(['menu-raiz', 'ativo' => request()->routeIs('notificacoes.*')])>
             @include('partials.icone', ['nome' => 'sino']) <span>Notificações</span>
             @if ($naoLidas)<span class="contador" aria-label="{{ $naoLidas }} não lidas">{{ $naoLidas }}</span>@endif</a>
         @endif
@@ -53,35 +57,20 @@
           </details>
         @endforeach
         @if ($menu['config'])
-          <a href="{{ $menu['config']['url'] }}" @class(['menu-raiz', 'ativo' => $menu['config']['ativo']])>
+          <a href="{{ $menu['config']['url'] }}" title="Configurações" @class(['menu-raiz', 'ativo' => $menu['config']['ativo']])>
             @include('partials.icone', ['nome' => 'administracao']) <span>Configurações</span></a>
         @endif
-        <a href="{{ route('conhecimento.index') }}" @class(['menu-raiz', 'ativo' => request()->routeIs('conhecimento.*')])
+        <a href="{{ route('conhecimento.index') }}" title="Base de conhecimento" @class(['menu-raiz', 'ativo' => request()->routeIs('conhecimento.*')])
           @if (request()->routeIs('conhecimento.index')) aria-current="page" @endif>
           @include('partials.icone', ['nome' => 'ajuda']) <span>Base de conhecimento</span></a>
       </nav>
-      <script>
-        // Lembra os grupos abertos (preferência só deste navegador). Falha em silêncio se o armazenamento estiver bloqueado.
-        (function () {
-          var k = 'augi.menu.abertos', abertos = [];
-          try { abertos = JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) {}
-          document.querySelectorAll('.menu-grupo').forEach(function (d) {
-            if (abertos.indexOf(d.dataset.grupo) >= 0) d.open = true;
-            d.addEventListener('toggle', function () {
-              var lista = Array.prototype.map.call(document.querySelectorAll('.menu-grupo[open]'), function (x) { return x.dataset.grupo; });
-              try { localStorage.setItem(k, JSON.stringify(lista)); } catch (e) {}
-            });
-          });
-        })();
-      </script>
-
       <div class="usuario">
         <a href="{{ route('seguranca') }}" title="Minha conta e segurança">{{ auth()->user()->name }}</a>
         <form method="post" action="{{ route('logout') }}">@csrf<button class="link">Sair</button></form>
       </div>
     </div>
   </aside>
-  <main class="conteudo">
+  <main @class(['conteudo', 'conteudo-compacto' => View::hasSection('compacta'), 'conteudo-expandido' => View::hasSection('larga')])>
     @include('partials.mensagens')
     @include('conhecimento.contextual')
     @yield('conteudo')

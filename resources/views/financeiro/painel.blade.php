@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('titulo', 'Painel financeiro')
+@section('larga', '1')
 @section('conteudo')
 @php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
 @php($pct = fn ($a, $b) => $b > 0 ? min(100, round($a * 100 / $b)) : 0)

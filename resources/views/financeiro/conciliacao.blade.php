@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('titulo', 'Conciliação · '.$conta->nome)
+@section('larga', '1')
 @section('conteudo')
 @php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), 'Contas e bancos' => route('financeiro.contas'), $conta->nome => route('financeiro.conta', $conta), 'Conciliação' => null]"
