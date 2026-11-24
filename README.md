@@ -231,30 +231,43 @@ docker compose exec app php artisan gestao:nova-organizacao empresa 11.222.333/0
 docker compose exec app php artisan gestao:nova-organizacao escritorio 33.444.555/0001-81 "Escritório X" contador@escritorio.com.br "Contador"
 ```
 
-Configure o envio de e-mail (`MAIL_*` no `.env`). Convites e recuperação de senha dependem dele.
+Configure o envio de e-mail (`MAIL_*` no `.env`): convites, recuperação de senha e lembretes dependem dele. Google Agenda (opcional): `GOOGLE_*` no `.env`, ver `docs/google-agenda.md`. A imagem já traz as extensões necessárias; a cada subida o container aplica as migrations, sincroniza o Schedule Monitor e recria os caches.
 
-Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 8080. O serviço `agendador` gera a competência todo dia 1º às 06:00. Faça backup do volume `db` **e** do volume `storage` (onde ficam os XMLs).
+Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 8080. O serviço `agendador` roda todas as rotinas (competência do dia 1º, lembretes, Google Agenda, backups, saúde). Faça backup do volume `db` **e** do volume `storage` (onde ficam os XMLs).
 
 ## Instalação em cPanel (hospedagem compartilhada)
 
-Não precisa de Docker nem de acesso root.
+Não precisa de Docker, Node nem acesso root. Roteiro completo, na ordem:
 
-1. **Requisitos:**
-   - PHP **8.3+** (MultiPHP) com as extensões `sodium`, `zip`, `pdo_mysql`, `mbstring`, `intl`, `openssl`, `curl` e `fileinfo`;
-   - MySQL ou MariaDB;
-   - Cron.
-2. **Envio do código:** use *Git Version Control* do cPanel ou um zip que já inclua a pasta `vendor`. Se o cPanel tiver Terminal, rode `composer install --no-dev --optimize-autoloader`.
-3. **Domínio:** aponte a raiz do domínio ou subdomínio para a pasta **`public/`** do projeto.
-4. **`.env`:**
-   - `APP_ENV=production`
-   - `APP_DEBUG=false`
-   - `DB_CONNECTION=mysql` e os dados do banco criado no cPanel
+1. **Requisitos da hospedagem:**
+   - PHP **8.3+** (MultiPHP Manager) com as extensões `pdo_mysql`, `mbstring`, `intl`, `openssl`, `curl`, `fileinfo` (anexos), `sodium` (backups criptografados), `zip`, `dom`, `xmlreader` e `xmlwriter` (planilhas Excel/CSV e leitura de OFX/XML de NFS-e) — confira em *Select PHP Version → Extensions*;
+   - MySQL 8 ou MariaDB 10.6+;
+   - Cron Jobs; Terminal SSH é muito recomendado (sem ele, os comandos `php artisan` precisam virar tarefas cron de uma vez só).
+2. **Banco:** em *MySQL Databases*, crie o banco, o usuário (senha forte) e dê **todos os privilégios** do usuário no banco.
+3. **Código:** fora de `public_html` (ex.: `/home/USUARIO/augi`), via *Git Version Control* (clone do repositório) ou upload de um zip que já inclua `vendor/`. Com Terminal: `composer install --no-dev --optimize-autoloader`.
+4. **Domínio:** em *Domains*, aponte a raiz do domínio/subdomínio para **`/home/USUARIO/augi/public`**. Ative o SSL (*SSL/TLS Status → AutoSSL*) — sem HTTPS, o login do Google Agenda não funciona.
+5. **`.env`** (copie de `.env.example`):
+   - `APP_NAME="Augi Gestão"`, `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://seu.dominio`
+   - `DB_CONNECTION=mysql` (ou `mariadb`), `DB_HOST=localhost`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+   - `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT=465`, `MAIL_SCHEME=smtps`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` (uma conta de *Email Accounts* do próprio cPanel serve) — convites, recuperação de senha e lembretes dependem disso
    - `DANFSE_URL` vazio: o gerador da Receita é um serviço à parte e não roda em hospedagem compartilhada
-5. **Preparação:** `php artisan key:generate`, `php artisan migrate --force` e `php artisan gestao:nova-organizacao …`
-6. **Cron Jobs**, com frequência "a cada minuto", uma única linha:
-   `* * * * * php /home/USUARIO/augi/artisan schedule:run >> /dev/null 2>&1`
-   Essa linha cuida do dia 1º, dos backups e da verificação semanal.
-7. **Permissões:** `storage/` e `bootstrap/cache/` precisam permitir gravação.
+   - Opcional, Google Agenda: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI=https://seu.dominio/integracoes/google/retorno` (passo a passo em `docs/google-agenda.md`; o segredo fica **só** no `.env`, nunca no banco)
+6. **Preparação** (Terminal, dentro da pasta do projeto):
+   ```bash
+   php artisan key:generate --force
+   php artisan migrate --force
+   php artisan schedule-monitor:sync
+   php artisan optimize
+   php artisan gestao:nova-organizacao empresa 11.222.333/0001-81 "Minha Empresa Ltda" voce@empresa.com.br "Seu Nome"
+   ```
+   O último comando cria a primeira empresa e envia ao e-mail informado o link para definir a senha. Não rode `--seed` em produção (ele cria os usuários de demonstração).
+7. **Cron Jobs**, frequência "a cada minuto", **uma única linha** (use o caminho do PHP 8.3 que o cPanel mostrar, ex. `/usr/local/bin/php` ou `/opt/cpanel/ea-php83/root/usr/bin/php`):
+   `* * * * * /usr/local/bin/php /home/USUARIO/augi/artisan schedule:run >> /dev/null 2>&1`
+   Essa linha dispara tudo: competência do dia 1º, lembretes de vencimento, sincronização do Google Agenda, backups, verificação semanal, limpeza de exportações e os testes de saúde.
+8. **Permissões:** `storage/` e `bootstrap/cache/` graváveis pelo usuário da conta (755 nas pastas, 644 nos arquivos; nunca 777).
+9. **Conferência:** entre como administrador da plataforma em *Administração Augi → Saúde do sistema*: banco, cache, agendador e disco devem aparecer em verde poucos minutos depois de o cron começar a rodar. Depois, em *Plataforma → Backups*, configure o destino e a senha dos backups e gere o primeiro manualmente.
+
+**Atualizar uma instalação existente:** baixe o código novo (Git *Update from Remote* ou upload), depois `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, `php artisan schedule-monitor:sync` e `php artisan optimize`. As migrations só acrescentam; faça um backup antes.
 
 ## Backup (Plataforma → Backups)
 

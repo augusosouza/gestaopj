@@ -59,4 +59,4 @@ Os códigos propostos foram conferidos com o validador de acessibilidade de core
 
 Resultado: **reprovados** — para ~8% dos homens, receitas e despesas ficam praticamente da mesma cor. As cores em uso hoje são das **mesmas famílias** (esmeralda, coral, azul, âmbar, roxo, ciano) e passam em todas as checagens (ver `docs/graficos.md`). Mantidas até decisão.
 
-O vermelho institucional proposto (`#E54857`) já é o do modo escuro; no claro usamos `#b8232b` (mais contraste com o branco: 6,4:1 contra 4,1:1).
+O vermelho institucional proposto (`#E54857`) já é o do modo escuro; no claro usamos `#b8232b` (mais contraste com o branco: 6,3:1 contra 3,9:1 — o proposto fica abaixo de 4,5:1, o mínimo para texto).
