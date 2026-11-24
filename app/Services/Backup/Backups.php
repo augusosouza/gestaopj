@@ -7,6 +7,7 @@ use App\Models\Evento;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use ZipArchive;
@@ -69,6 +70,13 @@ final class Backups
         ]);
 
         try {
+            $conexao = DB::connection();
+            if (in_array($conexao->getDriverName(), ['mysql', 'mariadb'], true)) {
+                if ($conexao->transactionLevel() !== 0) {
+                    throw new RuntimeException('O backup precisa iniciar uma transação de leitura própria.');
+                }
+                $conexao->statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+            }
             $stats = DB::transaction(fn () => $this->banco->exportar("{$tmp}/banco"));
             [$manifesto, $enviar, $removidos] = $this->manifesto($registro, $base ? null : $anterior);
 
@@ -84,7 +92,10 @@ final class Backups
                 $zip->addFile($this->raizArquivos().'/'.$rel, 'arquivos/'.$rel);
             }
             $zip->addFromString('manifesto.json', json_encode($manifesto, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-            $zip->close();
+            if (! $zip->close()) {
+                throw new RuntimeException('Não foi possível gravar o pacote de backup.');
+            }
+            $this->conferirArquivosDoPacote($zipPath, $manifesto, $enviar);
 
             $cifrado = "{$tmp}/{$nome}";
             $this->cofre->cifrar($zipPath, $cifrado, $this->config->get('senha'));
@@ -113,14 +124,41 @@ final class Backups
 
             return $registro;
         } catch (\Throwable $e) {
-            $registro->update(['status' => 'falhou', 'concluido_em' => now(), 'erro' => Str::limit($this->semSegredos($e->getMessage()), 1000)]);
+            $registro->update(['status' => 'falhou', 'concluido_em' => now(), 'erro' => 'Falha ao gerar o backup. Confira o destino, a conectividade e o espaço disponível.']);
             Evento::create(['acao' => 'backup.falhou', 'alvo_type' => $registro->getMorphClass(), 'alvo_id' => $registro->id]);
-            report($e);
+            Log::error('Falha ao gerar backup.', ['backup_id' => $registro->id, 'tipo_erro' => get_class($e)]);
 
             return $registro;
         } finally {
             File::deleteDirectory($tmp);
             $trava->release();
+        }
+    }
+
+    private function conferirArquivosDoPacote(string $caminho, array $manifesto, array $enviar): void
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($caminho, ZipArchive::RDONLY) !== true) {
+            throw new RuntimeException('Não foi possível ler o pacote de backup.');
+        }
+        try {
+            foreach ($enviar as $rel) {
+                $arquivo = $zip->getStream('arquivos/'.$rel);
+                if ($arquivo === false) {
+                    throw new RuntimeException('Arquivo ausente no pacote gerado.');
+                }
+                try {
+                    $hash = hash_init('sha256');
+                    $copiados = hash_update_stream($hash, $arquivo);
+                    if ($copiados !== $manifesto['arquivos'][$rel]['t'] || hash_final($hash) !== $manifesto['arquivos'][$rel]['h']) {
+                        throw new RuntimeException('Um arquivo mudou durante a geração do backup. Execute novamente.');
+                    }
+                } finally {
+                    fclose($arquivo);
+                }
+            }
+        } finally {
+            $zip->close();
         }
     }
 
@@ -405,16 +443,5 @@ final class Backups
         }
 
         return $zip;
-    }
-
-    private function semSegredos(string $msg): string
-    {
-        foreach (['segredo', 'senha', 'chave'] as $k) {
-            if (($v = $this->config->get($k)) && strlen($v) >= 6) {
-                $msg = str_replace($v, '[oculto]', $msg);
-            }
-        }
-
-        return $msg;
     }
 }

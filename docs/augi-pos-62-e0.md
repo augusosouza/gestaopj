@@ -34,3 +34,23 @@ Confrontar esta entrega com a seção E0 do Roadmap Auditado Pós-6.2. A execuç
 4. Para testar recuperação, use `php artisan backup:restaurar PACOTE --extrair=/pasta-privada-vazia`. Confira a estrutura e faça uma restauração completa primeiro em um banco e diretório de teste exclusivos.
 5. Para uma recuperação real, suspenda agendadores e trabalhadores de fila, ative manutenção e execute `php artisan backup:restaurar PACOTE --confirmar`. Verifique o banco, a compatibilidade das migrations, o acesso a arquivos privados e os registros financeiros antes de `php artisan up`. Em caso de falha, mantenha a manutenção e recupere a cópia independente antes de retomar o serviço.
 6. Para reverter apenas esta entrega, reaplique o código do pacote anterior em manutenção e limpe e recarregue os caches. Se uma recuperação real tiver substituído dados, a reversão exige o ponto independente de banco e arquivos do passo 1.
+
+## Conferência com o Roadmap Auditado de 24/11/2026
+
+A auditoria usou `188d1a9` como referência. A branch oficial é `ccr-daa1b2de-5vtuog`. As mudanças desta rodada complementam a entrega de publicação e recuperação:
+
+- O pacote é montado para um rascunho que aponta ao SHA aprovado. `MIGRATIONS.txt` lista as mudanças desde a última release publicada e integra `SHA256SUMS.txt`.
+- Em MariaDB/MySQL, a cópia do banco usa uma transação própria com isolamento `REPEATABLE READ`. Os arquivos incluídos no ZIP são relidos e comparados ao manifesto antes da publicação do backup.
+- O workflow MariaDB cobre a cadeia base/incremental, tarifas embutidas, débitos separados na mesma data ou em outra data, estorno, competência fechada e baixas concorrentes. A suíte geral mantém os testes de isolamento multiempresa e de repetição de solicitações.
+- A leitura do histórico disponível com Gitleaks 8.28.0, com valores suprimidos, retornou zero candidatos. É uma verificação automatizada limitada às referências obtidas e às regras da ferramenta.
+- O repositório é público, o `composer.json` declara MIT e a API do GitHub não reconhece um arquivo de licença. A estratégia comercial e de licenciamento precisa de decisão do responsável. A visibilidade e a declaração de licença foram preservadas.
+
+O snapshot do banco e os arquivos privados pertencem a sistemas distintos. A verificação do ZIP detecta divergência nos bytes arquivados, mas não comprova atomicidade do ponto de recuperação entre banco e arquivos. Para uma cópia de reversão, suspenda escritas, cron e filas durante o backup.
+
+### Checklist complementar para o cPanel
+
+- Compare o SHA da release e verifique `sha256sum -c SHA256SUMS.txt`. Revise `MIGRATIONS.txt`.
+- Valide em cópia isolada com o mesmo PHP e a mesma família de banco. Teste SSL, cron, SMTP e a abertura de arquivos privados. Nunca execute a restauração de ensaio no banco ou diretório de arquivos de produção.
+- Preserve a configuração, a `APP_KEY` e a cópia independente de banco e arquivos. Durante manutenção, atualize código privado e arquivos públicos, execute `php artisan migrate --force` quando houver migrations pendentes, sincronize o agendador com `php artisan schedule-monitor:sync` e limpe e reconstrua os caches da aplicação.
+- Antes de reabrir, confira login, arquivos privados, baixa e conciliação em homologação, diagnóstico e tarefas agendadas. Retome cron e filas depois da liberação.
+- Para reverter uma publicação que aplicou migrations, confirme compatibilidade do schema com o código anterior. Quando houver incompatibilidade, use a cópia independente e preserve o registro das operações posteriores para reconciliação. Esta rodada da E0 não acrescenta migration.

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag da release já publicada ou em rascunho
+        description: Tag da release em rascunho
         required: true
         type: string
 
@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.3'
@@ -36,15 +37,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           AUGI_RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          target=$(gh release view "$AUGI_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)
+          target=$(gh release view "$AUGI_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish,isDraft --jq 'select(.isDraft) | .targetCommitish')
           test "$target" = "$GITHUB_SHA"
+      - name: Gerar lista de migrations da release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/augi"
+          anterior=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          base=$(git rev-parse --verify "refs/tags/$anterior^{commit}")
+          git merge-base --is-ancestor "$base" "$GITHUB_SHA"
+          {
+            printf 'Release anterior: %s (%s)\nRevisão testada: %s\n\n' "$anterior" "$base" "$GITHUB_SHA"
+            git diff --name-status "$base" "$GITHUB_SHA" -- database/migrations/
+          } > "$RUNNER_TEMP/augi/MIGRATIONS.txt"
       - name: Gerar ZIP sem código de ativação
         run: |
           sh scripts/pacote-cpanel.sh "$RUNNER_TEMP/augi" --sem-ativacao
           mv "$RUNNER_TEMP/augi/augi-cpanel-"*.zip "$RUNNER_TEMP/augi/augi-cpanel.zip"
           cp scripts/ativar-instalador.html "$RUNNER_TEMP/augi/"
           cd "$RUNNER_TEMP/augi"
-          sha256sum augi-cpanel.zip ativar-instalador.html > SHA256SUMS.txt
+          sha256sum augi-cpanel.zip ativar-instalador.html MIGRATIONS.txt > SHA256SUMS.txt
       - name: Conferir conteúdo e integridade do ZIP
         run: |
           cd "$RUNNER_TEMP/augi"
@@ -68,4 +81,4 @@ jobs:
           AUGI_RELEASE_TAG: ${{ inputs.tag }}
         run: |
           cd "$RUNNER_TEMP/augi"
-          gh release upload "$AUGI_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" augi-cpanel.zip ativar-instalador.html SHA256SUMS.txt
+          gh release upload "$AUGI_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" augi-cpanel.zip ativar-instalador.html MIGRATIONS.txt SHA256SUMS.txt

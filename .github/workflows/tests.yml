@@ -70,10 +70,10 @@ jobs:
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.3'
-          extensions: ctype, curl, dom, fileinfo, iconv, intl, mbstring, openssl, pdo_mysql, simplexml, sodium, xmlreader, xmlwriter, zip
+          extensions: ctype, curl, dom, fileinfo, iconv, intl, mbstring, openssl, pcntl, pdo_mysql, simplexml, sodium, xmlreader, xmlwriter, zip
           coverage: none
       - run: composer install --prefer-dist --no-interaction --no-progress
-      - name: Restaurar backup base e incremental em banco descartável
+      - name: Homologar backup e tarifas em banco descartável
         env:
           DB_CONNECTION: mariadb
           DB_HOST: 127.0.0.1
@@ -81,4 +81,4 @@ jobs:
           DB_DATABASE: augi_recuperacao_test
           DB_USERNAME: augi_test
           DB_PASSWORD: teste-augi
-        run: php artisan test --filter 'test_base_incremental_e_restauracao_de_qualquer_ponto|test_incremental_sem_pacote_base_preserva_banco_e_arquivos'
+        run: php artisan test --filter 'test_base_incremental_e_restauracao_de_qualquer_ponto|test_incremental_sem_pacote_base_preserva_banco_e_arquivos|test_recebimento_bruto_tarifa|test_debito_de_tarifa|test_mes_fechado_pelo_contador|test_previa_da_baixa_rapida|test_duas_baixas_concorrentes'

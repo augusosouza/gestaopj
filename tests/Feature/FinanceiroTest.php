@@ -21,6 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\ComContexto;
 use Tests\Support\NfseXml;
 use Tests\TestCase;
@@ -214,19 +215,25 @@ class FinanceiroTest extends TestCase
         $this->assertDatabaseCount('movimentos', 4);
     }
 
-    public function test_debito_de_tarifa_em_dia_separado_concilia_individualmente(): void
+    #[DataProvider('datasDebitoTarifa')]
+    public function test_debito_de_tarifa_em_linha_separada_concilia_individualmente(string $dataTarifa, int $saldoPrimeiroDia): void
     {
         $parcela = $this->recebivelParaTarifa();
         $mov = app(Financeiro::class)->baixar($parcela, [
             'conta_id' => $this->conta->id, 'data' => '2026-11-15', 'valor' => 100000,
-            'tarifa' => 3000, 'tarifa_data' => '2026-11-16',
+            'tarifa' => 3000, 'tarifa_data' => $dataTarifa,
         ]);
         $credito = $this->extratoParaTarifa(100000, 'credito-bruto');
-        $debito = $this->extratoParaTarifa(-3000, 'tarifa-separada', '2026-11-16');
+        $debito = $this->extratoParaTarifa(-3000, 'tarifa-separada', $dataTarifa);
         $this->como('financeiro@augi.local')->post(route('financeiro.conciliar', $credito), ['movimento_id' => $mov->id])->assertSessionHasNoErrors();
         $this->post(route('financeiro.conciliar', $debito), ['movimento_id' => $mov->tarifa->id])->assertSessionHasNoErrors();
-        $this->assertSame(1100000, $this->conta->saldo(CarbonImmutable::parse('2026-11-15')));
+        $this->assertSame($saldoPrimeiroDia, $this->conta->saldo(CarbonImmutable::parse('2026-11-15')));
         $this->assertSame(1097000, $this->conta->saldo(CarbonImmutable::parse('2026-11-16')));
+    }
+
+    public static function datasDebitoTarifa(): array
+    {
+        return ['mesma data' => ['2026-11-15', 1097000], 'data diferente' => ['2026-11-16', 1100000]];
     }
 
     private function recebivelParaTarifa(): Parcela
