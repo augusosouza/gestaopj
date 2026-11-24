@@ -1,0 +1,45 @@
+:root {
+    color-scheme: light dark;
+    font: 100%/1.5 system-ui, sans-serif;
+}
+
+main {
+    max-width: 38rem;
+    margin: 2rem auto;
+    padding: 1rem;
+}
+
+form {
+    display: grid;
+    gap: .4rem;
+}
+
+input,
+button {
+    border: 1px solid GrayText;
+    border-radius: .35rem;
+    font: inherit;
+    padding: .55rem .7rem;
+}
+
+input {
+    margin-bottom: .55rem;
+}
+
+button {
+    background: #a12431;
+    color: white;
+    cursor: pointer;
+}
+
+pre {
+    overflow: auto;
+    padding: .75rem;
+    border: 1px solid GrayText;
+    border-radius: .35rem;
+}
+
+[role="alert"] {
+    padding: .7rem;
+    border-inline-start: .25rem solid #c74754;
+}

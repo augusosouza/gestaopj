@@ -237,6 +237,17 @@ Coloque um proxy reverso com HTTPS (Caddy, Nginx ou Traefik) na frente da porta 
 
 ## Instalação em cPanel (hospedagem compartilhada)
 
+### Instalador pelo navegador
+
+1. Em uma máquina com PHP 8.3+, Composer, Git, tar e zip, gere o pacote a partir de um commit que contenha o instalador: `sh scripts/pacote-cpanel.sh /caminho/privado/pacotes`. Cada pacote vem com um código de ativação separado. Guarde o código em local privado e gere um pacote próprio para cada instalação.
+2. No cPanel, crie um banco MySQL ou MariaDB **vazio** e conceda todos os privilégios desse banco ao usuário que a aplicação usará.
+3. Extraia o ZIP fora de `public_html`. Aponte a raiz do domínio HTTPS para a pasta `augi/public`. Confira as extensões PHP da seção abaixo.
+4. Abra `https://seu.dominio/instalar.php`. Informe o código, a URL do sistema, o banco, a primeira empresa e as credenciais do administrador. Use essa senha para entrar e ativar o 2FA.
+5. Ative a tarefa de cron exibida e confira o primeiro resultado em **Administração Augi → Saúde do sistema**. Configure o SMTP no `.env` antes de usar convites ou recuperação de senha. A instalação começa com o envio de e-mails desativado (`MAIL_MAILER=array`). Após configurar SMTP, rode `php artisan optimize` com o PHP da aplicação para habilitar o cache.
+6. Se uma etapa falhar, tente novamente com os mesmos dados. Se uma migração interrompida deixar tabelas parciais, use um novo banco vazio e uma nova extração do pacote em outra pasta. Preserve a pasta e o banco anteriores até conferir os dados. Para atualizar instalações existentes, siga o procedimento de atualização abaixo.
+
+### Instalação manual
+
 Não precisa de Docker, Node nem acesso root. Roteiro completo, na ordem:
 
 1. **Requisitos da hospedagem:**
