@@ -5,7 +5,7 @@
 @section('titulo', $T['titulo'])
 @section('conteudo')
 @php($opera = ctx()->tem(\App\Enums\Papel::Admin, \App\Enums\Papel::Financeiro))
-@php($q = request()->except(['aba', 'mes']))
+@php($q = request()->except(['aba', 'mes', 'page']))
 @php($rota = $R ? 'contas_receber.index' : 'contas_pagar.index')
 @php($url = fn ($a, $extra = []) => route($rota, array_merge($q, ['aba' => $a], $extra)))
 <x-cabecalho :trilha="['Financeiro' => route('financeiro.painel'), $T['titulo'] => null]" :titulo="$T['titulo']"
@@ -42,21 +42,27 @@
 @if (in_array($aba, ['aberto', 'vencidas', 'parcelamentos', 'pagas'], true))
 <form method="get" class="filtros-pagar" aria-label="Filtros">
   <input type="hidden" name="aba" value="{{ $aba }}">
-  <div class="campo"><label for="f-de">{{ $aba === 'pagas' ? $T['pago'].' de' : 'Vence de' }}</label><input id="f-de" type="date" name="de" value="{{ request('de') }}"></div>
-  <div class="campo"><label for="f-ate">até</label><input id="f-ate" type="date" name="ate" value="{{ request('ate') }}"></div>
+  <div class="campo"><label for="f-de">{{ $aba === 'pagas' ? $T['pago'].' de' : 'Vence de' }}</label><input id="f-de" type="date" name="de" value="{{ ($f['de'] ?? null)?->toDateString() ?? '' }}"></div>
+  <div class="campo"><label for="f-ate">até</label><input id="f-ate" type="date" name="ate" value="{{ is_string(request('ate')) ? request('ate') : '' }}"></div>
   <div class="campo"><label for="f-cat">Categoria</label><select id="f-cat" name="categoria"><option value="">Todas</option>
     @foreach ($categorias as $c)<option value="{{ $c->id }}" @selected(($f['categoria'] ?? null) === $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
+  <div class="campo"><label for="f-comp">Competência</label><input id="f-comp" type="month" name="competencia" value="{{ $f['competencia'] ?? '' }}"></div>
+  <div class="campo"><label for="f-centro">Centro de custo</label><select id="f-centro" name="centro"><option value="">Todos</option>
+    @foreach ($centros as $centro)<option value="{{ $centro->id }}" @selected(($f['centro'] ?? null) === $centro->id)>{{ $centro->nome }}</option>@endforeach</select></div>
   <div class="campo"><label for="f-forn">{{ $T['quem'] }} ou descrição</label><input id="f-forn" name="fornecedor" value="{{ $f['fornecedor'] ?? '' }}"></div>
   <div class="campo"><label for="f-conta">Conta</label><select id="f-conta" name="conta"><option value="">Todas</option>
     @foreach ($contas as $c)<option value="{{ $c->id }}" @selected(($f['conta'] ?? null) === $c->id)>{{ $c->nome }}</option>@endforeach</select></div>
-  <div class="campo"><label for="f-min">Valor de</label><input id="f-min" name="min" inputmode="decimal" value="{{ request('min') }}" placeholder="0,00"></div>
-  <div class="campo"><label for="f-max">até</label><input id="f-max" name="max" inputmode="decimal" value="{{ request('max') }}" placeholder="0,00"></div>
+  <div class="campo"><label for="f-min">Valor de</label><input id="f-min" name="min" inputmode="decimal" value="{{ is_string(request('min')) ? request('min') : '' }}" placeholder="0,00"></div>
+  <div class="campo"><label for="f-max">até</label><input id="f-max" name="max" inputmode="decimal" value="{{ is_string(request('max')) ? request('max') : '' }}" placeholder="0,00"></div>
   @if ($aba === 'aberto')
     <div class="campo"><label for="f-sit">Situação</label><select id="f-sit" name="situacao"><option value="">Todas</option>
       @foreach (['vencido' => 'Vencidas', 'a_vencer' => 'A vencer', 'parcial' => 'Pagas em parte'] as $k => $v)<option value="{{ $k }}" @selected(($f['situacao'] ?? null) === $k)>{{ $v }}</option>@endforeach</select></div>
   @endif
   <div class="acoes" style="align-self:end"><button class="sec">Filtrar</button>@if (count(array_diff_key($f, ['situacao' => $aba === 'vencidas'])))<a href="{{ route($rota, ['aba' => $aba]) }}" class="sub">limpar</a>@endif</div>
 </form>
+@if (! $R && in_array($aba, ['aberto', 'vencidas'], true) && (isset($f['competencia']) || isset($f['centro'])))
+  <p class="sub">Faturas agrupadas do cartão ficam fora dos filtros por competência e centro de custo. Consulte as compras na fatura.</p>
+@endif
 @if ($aba === 'aberto')
   <nav class="filtros" aria-label="Próximos dias" style="margin-top:-4px">
     @foreach ([7, 15, 30] as $d)<a href="{{ $url('aberto', ['proximos' => $d, 'de' => null, 'ate' => null]) }}" @class(['ativo' => ($f['proximos'] ?? null) === $d])>Próximos {{ $d }} dias</a>@endforeach
@@ -97,17 +103,17 @@
     :series="[['nome' => $R ? 'A receber' : 'A pagar', 'serie' => $T['serie'], 'valores' => array_column($semanas, 'valor')]]" />
 
 @elseif ($aba === 'aberto' || $aba === 'vencidas')
-  <div class="tabela"><table>
-    <thead><tr><th>Vencimento</th><th>{{ $R ? 'Receita' : 'Conta' }}</th><th>{{ $T['quem'] }}</th><th>Categoria</th><th class="n">Saldo</th><th>Situação</th><th></th></tr></thead>
-    <tbody>
+  <div class="tabela contas-listagem"><table role="table">
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Vencimento</th><th scope="col" role="columnheader">{{ $R ? 'Receita' : 'Conta' }}</th><th scope="col" role="columnheader">{{ $T['quem'] }}</th><th scope="col" role="columnheader">Categoria</th><th scope="col" role="columnheader" class="n">Saldo</th><th scope="col" role="columnheader">Situação</th><th scope="col" role="columnheader"></th></tr></thead>
+    <tbody role="rowgroup">
     @forelse ($linhas as $l)
-      <tr>
-        <td>{{ $l['vencimento']->format('d/m/Y') }}</td>
-        <td><a href="{{ $l['url'] }}">{{ $l['descricao'] }}</a>@if ($l['n'])<br><span class="sub" style="font-size:12.5px">{{ $l['tipo'] === 'fatura' ? $l['n'] : 'Parcela '.$l['n'] }}@if ($l['forma']) · {{ $l['forma'] }}@endif</span>@endif</td>
-        <td>{{ $l['fornecedor'] ?? '—' }}</td><td>{{ $l['categoria'] ?? '—' }}</td>
-        <td class="n">{{ brl($l['saldo']) }}@if ($l['parcial'])<br><span class="sub" style="font-size:12px">de {{ brl($l['valor']) }}</span>@endif</td>
-        <td>@if ($l['atrasado'])<span class="tag bad">{{ $R ? 'Atrasado' : 'Vencida' }}</span><br><span class="sub" style="font-size:12px">{{ (int) $l['vencimento']->diffInDays($hoje) }} dia(s)</span>@elseif ($l['parcial'])<span class="tag info">Paga em parte</span>@else<span class="tag warn">A vencer</span>@endif</td>
-        <td>@if ($opera)
+      <tr role="row">
+        <td role="cell" data-label="Vencimento">{{ $l['vencimento']->format('d/m/Y') }}</td>
+        <td role="cell" class="contas-descricao"><a href="{{ $l['url'] }}">{{ $l['descricao'] }}</a>@if ($l['n'])<br><span class="sub" style="font-size:12.5px">{{ $l['tipo'] === 'fatura' ? $l['n'] : 'Parcela '.$l['n'] }}@if ($l['forma']) · {{ $l['forma'] }}@endif</span>@endif</td>
+        <td role="cell" data-label="{{ $T['quem'] }}">{{ $l['fornecedor'] ?? '—' }}</td><td role="cell" data-label="Categoria">{{ $l['categoria'] ?? '—' }}</td>
+        <td role="cell" class="n" data-label="Saldo">{{ brl($l['saldo']) }}@if ($l['parcial'])<br><span class="sub" style="font-size:12px">de {{ brl($l['valor']) }}</span>@endif</td>
+        <td role="cell" data-label="Situação">@if ($l['atrasado'])<span class="tag bad">{{ $R ? 'Atrasado' : 'Vencida' }}</span><br><span class="sub" style="font-size:12px">{{ (int) $l['vencimento']->diffInDays($hoje) }} dia(s)</span>@elseif ($l['parcial'])<span class="tag info">Paga em parte</span>@else<span class="tag warn">A vencer</span>@endif</td>
+        <td role="cell" class="contas-acoes">@if ($opera)
           @if ($l['tipo'] === 'fatura')<a class="botao sec" href="{{ $l['url'] }}#pagar">Pagar fatura</a>
           @else
             @if ($R && $l['atrasado'])<a class="botao sec" href="{{ $l['url'] }}?aba=cobranca" style="margin-bottom:4px">Cobrar</a>@endif
@@ -125,11 +131,12 @@
         @endif</td>
       </tr>
     @empty
-      <tr><td colspan="7" class="vazio">{{ $aba === 'vencidas' ? 'Nada vencido. 🎉' : 'Nada em aberto' }}{{ count(array_diff_key($f, ['situacao' => 1])) ? ' com esses filtros' : '' }}</td></tr>
+      <tr role="row"><td colspan="7" class="vazio">{{ $aba === 'vencidas' ? 'Nada vencido. 🎉' : 'Nada em aberto' }}{{ count(array_diff_key($f, ['situacao' => 1])) ? ' com esses filtros' : '' }}</td></tr>
     @endforelse
     </tbody>
-    @if ($linhas->count())<tfoot><tr><td colspan="4">{{ $linhas->count() }} compromisso(s)</td><td class="n"><strong>{{ brl((int) $linhas->sum('saldo')) }}</strong></td><td colspan="2"></td></tr></tfoot>@endif
+    @if ($linhas->total())<tfoot><tr><td colspan="4">{{ $linhas->total() }} compromisso(s) no filtro</td><td class="n"><strong>{{ brl($totalLinhas) }}</strong></td><td colspan="2"></td></tr></tfoot>@endif
   </table></div>
+  {{ $linhas->links() }}
 
 @elseif ($aba === 'parcelamentos')
   <div class="tabela"><table>
@@ -148,6 +155,7 @@
     @endforelse
     </tbody>
   </table></div>
+  {{ $parcelados->links() }}
 
 @elseif ($aba === 'calendario')
   @php($semana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'])
@@ -193,15 +201,15 @@
   <div class="tabela"><table>
     <thead><tr><th>Data</th><th>{{ $R ? 'Receita' : 'Conta paga' }}</th><th>{{ $T['quem'] }}</th><th>Conta bancária</th><th class="n">Valor</th><th>Por</th></tr></thead>
     <tbody>
-    @forelse ($pagas as $p)
-      @php($m = $p['mov'])
+    @forelse ($pagas as $m)
       <tr><td>{{ $m->data->format('d/m/Y') }}</td><td><a href="{{ route('financeiro.titulo', $m->parcela->titulo_id) }}">{{ $m->parcela->titulo->descricao }}</a></td>
         <td>{{ $m->parcela->titulo->contraparte ?? '—' }}</td><td>{{ $m->conta->nome }}</td><td class="n">{{ brl($m->valor_centavos) }}</td><td>{{ $m->criadoPor?->name ?? 'Sistema' }}</td></tr>
     @empty
       <tr><td colspan="6" class="vazio">Nenhum {{ $R ? 'recebimento' : 'pagamento' }} no período.</td></tr>
     @endforelse
     </tbody>
-    @if ($pagas->count())<tfoot><tr><td colspan="4">{{ $pagas->count() }} {{ $R ? 'recebimento(s)' : 'pagamento(s)' }}</td><td class="n"><strong>{{ brl((int) $pagas->sum('valor')) }}</strong></td><td></td></tr></tfoot>@endif
+    @if ($pagas->total())<tfoot><tr><td colspan="4">{{ $pagas->total() }} {{ $R ? 'recebimento(s)' : 'pagamento(s)' }} no filtro</td><td class="n"><strong>{{ brl($totalPagas) }}</strong></td><td></td></tr></tfoot>@endif
   </table></div>
+  {{ $pagas->links() }}
 @endif
 @endsection

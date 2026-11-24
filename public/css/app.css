@@ -450,3 +450,18 @@ table.dre .dre-final td { font-weight: 700; border-top: 2px solid var(--text); }
 @media (max-width: 740px) {
   .conhecimento-artigo { grid-template-columns: minmax(0, 1fr); }
 }
+
+@media (max-width: 680px) {
+  .contas-listagem { overflow: visible; border: 0; background: transparent; }
+  .contas-listagem table, .contas-listagem tbody { display: block; min-width: 0; width: 100%; }
+  .contas-listagem thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .contas-listagem tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem .8rem; margin-bottom: .7rem; padding: .85rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .contas-listagem tbody td { padding: 0; border: 0; min-width: 0; text-align: start; white-space: normal; overflow-wrap: anywhere; }
+  .contas-listagem tbody td[data-label]::before { content: attr(data-label); display: block; font-size: .75rem; color: var(--muted); }
+  .contas-listagem .contas-descricao { grid-column: 1 / -1; grid-row: 1; font-weight: 650; }
+  .contas-listagem .contas-acoes, .contas-listagem .vazio { grid-column: 1 / -1; }
+  .contas-listagem .contas-acoes:empty { display: none; }
+  .contas-listagem .pagar-rapido[open] form { min-width: 0; }
+  .contas-listagem tfoot { display: block; }
+  .contas-listagem tfoot tr { display: flex; justify-content: space-between; gap: .5rem; }
+}
