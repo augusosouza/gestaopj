@@ -17,6 +17,7 @@ use App\Models\Titulo;
 use App\Models\Transferencia;
 use App\Models\User;
 use App\Models\Vinculo;
+use App\Services\AnaliseConciliacao;
 use App\Services\Financeiro;
 use App\Services\GoogleAgenda;
 use App\Services\ImportadorExtrato;
@@ -354,21 +355,23 @@ class FinanceiroController extends Controller
 
     // ---------------- Conciliação ----------------
 
-    public function conciliacao(Request $request, ContaFinanceira $conta): View
+    public function conciliacao(Request $request, ContaFinanceira $conta, AnaliseConciliacao $analise): View
     {
         $mostrar = $request->query('mostrar') === 'todas' ? 'todas' : 'pendentes';
-        $linha = $request->validate(['linha' => ['nullable', 'integer', 'min:1']])['linha'] ?? null;
-        $linhas = ExtratoLinha::with('movimento.parcela.titulo', 'movimento.tarifa', 'transferencia.origem', 'transferencia.destino')->where('conta_id', $conta->id)
-            ->when($linha, fn ($q) => $q->whereKey($linha))
-            ->when($mostrar === 'pendentes', fn ($q) => $q->pendentes())
-            ->orderByDesc('data')->orderByDesc('id')->limit(300)->get();
+        $dados = $request->validate(['linha' => ['nullable', 'integer', 'min:1'], 'aba' => ['nullable', Rule::in(['correspondencias', 'analise'])]]);
+        $extrato = ExtratoLinha::where('conta_id', $conta->id);
+        $linhas = (clone $extrato)->when($mostrar === 'pendentes', fn ($q) => $q->pendentes())
+            ->orderByDesc('data')->orderByDesc('id')->paginate(25)->appends(['mostrar' => $mostrar]);
+        $id = $dados['linha'] ?? $linhas->first()?->id;
+        $selecionada = $id ? $extrato->with('movimento.parcela.titulo', 'movimento.tarifa', 'transferencia.origem', 'transferencia.destino')->findOrFail($id) : null;
+        $aba = $dados['aba'] ?? 'correspondencias';
+        $pendente = $selecionada && ! $selecionada->conciliada() && ! $selecionada->ignorada;
+        $sug = $pendente && $aba === 'correspondencias' ? $this->fin->sugestoes($selecionada) : collect();
+        $sugT = $pendente && $aba === 'correspondencias' ? $this->fin->sugestoesTransferencia($selecionada) : collect();
+        $evidencias = $selecionada && $aba === 'analise' ? $analise->analisar($selecionada) : null;
+        $saldo = $conta->saldo();
 
-        return view('financeiro.conciliacao', [
-            'conta' => $conta, 'linhas' => $linhas, 'mostrar' => $mostrar,
-            'sugestoes' => $linhas->reject->conciliada()->mapWithKeys(fn ($l) => [$l->id => $this->fin->sugestoes($l)]),
-            'sugestoesTransf' => $linhas->reject->conciliada()->mapWithKeys(fn ($l) => [$l->id => $this->fin->sugestoesTransferencia($l)]),
-            'saldo' => $conta->saldo(),
-        ]);
+        return view('financeiro.conciliacao', compact('conta', 'linhas', 'selecionada', 'mostrar', 'aba', 'sug', 'sugT', 'evidencias', 'saldo'));
     }
 
     public function importar(Request $request, ContaFinanceira $conta, ImportadorExtrato $importador): RedirectResponse

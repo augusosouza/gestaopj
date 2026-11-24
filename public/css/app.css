@@ -638,3 +638,11 @@ body:has(.painel-baixa[open]) { overflow: hidden; }
   .busca-cabecalho kbd { display: none; }
   .busca-grupo li a { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
 }
+
+.conciliacao-colunas { grid-template-columns: minmax(0, 4fr) minmax(0, 5fr); }
+.conciliacao-colunas > * { min-width: 0; overflow-wrap: anywhere; }
+.conciliacao-extrato table { min-width: 0; }
+.conciliacao-extrato a[aria-current="true"] { font-weight: 600; }
+@media (max-width: 900px) {
+  .conciliacao-colunas { grid-template-columns: minmax(0, 1fr); }
+}

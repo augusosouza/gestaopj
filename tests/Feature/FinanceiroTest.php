@@ -202,7 +202,7 @@ class FinanceiroTest extends TestCase
 
         $credito = $this->extratoParaTarifa(97000, 'credito-liquido');
         $debito = $this->extratoParaTarifa(-3000, 'tarifa-ja-embutida');
-        $this->get(route('financeiro.conciliacao', $this->conta))->assertOk()->assertSee('Bruto R$ 1.000,00');
+        $this->get(route('financeiro.conciliacao', [$this->conta, 'linha' => $credito->id]))->assertOk()->assertSee('Bruto R$ 1.000,00');
         $this->post(route('financeiro.conciliar', $credito), ['movimento_id' => $mov->id])->assertSessionHasNoErrors();
         $this->post(route('financeiro.conciliar', $debito), ['movimento_id' => $mov->tarifa->id])->assertSessionHasErrors('movimento_id');
         $this->post(route('financeiro.estornar', $mov), ['motivo' => 'Correção'])->assertSessionHasErrors('motivo');
@@ -213,6 +213,34 @@ class FinanceiroTest extends TestCase
         $this->assertSame(1000000, $this->conta->saldo());
         $this->assertTrue($mov->tarifa->parcela->titulo->fresh()->cancelado());
         $this->assertDatabaseCount('movimentos', 4);
+    }
+
+    public function test_analise_do_extrato_separa_fatos_e_suspeitas_sem_gravar_movimentos(): void
+    {
+        $parcela = $this->recebivelParaTarifa();
+        $fin = app(Financeiro::class);
+        for ($i = 11; $i <= 13; $i++) {
+            $fin->baixar($this->recebivelParaTarifa(), [
+                'conta_id' => $this->conta->id, 'data' => '2026-11-'.$i, 'valor' => 100000, 'tarifa' => 2000,
+            ]);
+        }
+        $mov = $fin->baixar($parcela, ['conta_id' => $this->conta->id, 'data' => '2026-11-15', 'valor' => 100000, 'tarifa' => 3000]);
+        $linha = $this->extratoParaTarifa(97000, 'credito-analisado');
+        $par = $this->extratoParaTarifa(97000, 'outro-credito');
+        $longe = $this->extratoParaTarifa(97000, 'fora-periodo', '2026-11-01');
+        $outraConta = ContaFinanceira::create(['organizacao_id' => $this->empresa(self::B)->id, 'nome' => 'Conta externa',
+            'tipo' => 'corrente', 'saldo_inicial_centavos' => 0, 'saldo_inicial_em' => '2026-11-01']);
+        $externa = ExtratoLinha::create(['conta_id' => $outraConta->id, 'organizacao_id' => $outraConta->organizacao_id, 'data' => '2026-11-15',
+            'valor_centavos' => 97000, 'descricao' => 'Recebimento de teste', 'identificador' => 'externa']);
+        $this->como('financeiro@augi.local')->post(route('financeiro.conciliar', $linha), ['movimento_id' => $mov->id])->assertSessionHasNoErrors();
+        $antes = Movimento::count();
+        $this->get(route('financeiro.conciliacao', [$this->conta, 'linha' => $linha->id, 'aba' => 'analise', 'mostrar' => 'todas']))
+            ->assertOk()->assertSee('Possíveis lançamentos duplicados')->assertSee('Mediana de 2,00%')->assertSee('taxa 3,00%')
+            ->assertViewHas('evidencias', fn ($dados) => $dados['pares']->modelKeys() === [$par->id]);
+        $this->assertDatabaseCount('movimentos', $antes);
+        $this->assertFalse($par->fresh()->conciliada());
+        $this->assertFalse($longe->fresh()->conciliada());
+        $this->get(route('financeiro.conciliacao', [$this->conta, 'linha' => $externa->id, 'aba' => 'analise']))->assertNotFound();
     }
 
     #[DataProvider('datasDebitoTarifa')]
