@@ -11,6 +11,7 @@ use App\Services\Backup\ConfigBackup;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -150,6 +151,42 @@ class BackupTest extends TestCase
         $this->assertSame('conteudo', file_get_contents($pasta.'/arquivos/x/y.txt'));
         $this->assertFileExists($pasta.'/banco/esquema.json');
         $this->assertSame($antes, Cliente::count());
+    }
+
+    public function test_restauracao_recusa_execucao_simultanea_e_extracao_em_pasta_ocupada(): void
+    {
+        $this->arquivo('controle/a.txt', 'conteúdo');
+        $servico = app(Backups::class);
+        $servico->executar();
+        $trava = Cache::lock('augi-backup', 60);
+        $this->assertTrue($trava->get());
+        try {
+            $servico->restaurar();
+            $this->fail('A restauração deveria respeitar a trava compartilhada.');
+        } catch (\RuntimeException $erro) {
+            $this->assertStringContainsString('em andamento', $erro->getMessage());
+        } finally {
+            $trava->release();
+        }
+
+        $pasta = $this->storage.'/conferencia';
+        File::ensureDirectoryExists($pasta);
+        File::put($pasta.'/.sentinela', 'preservar');
+        $this->expectExceptionMessage('pasta de extração vazia');
+        $servico->restaurar(null, $pasta);
+    }
+
+    public function test_comando_de_restauracao_mantem_manutencao_apos_sucesso(): void
+    {
+        File::ensureDirectoryExists($this->storage.'/framework');
+        $pacote = app(Backups::class)->executar();
+        try {
+            $this->artisan('backup:restaurar', ['pacote' => $pacote->nome, '--confirmar' => true])
+                ->expectsOutputToContain('A manutenção permanece ativa')->assertSuccessful()->run();
+            $this->assertTrue(app()->isDownForMaintenance());
+        } finally {
+            $this->artisan('up')->run();
+        }
     }
 
     public function test_senha_errada_e_pacote_adulterado_sao_detectados(): void

@@ -351,7 +351,7 @@ Redirecione HTTP para HTTPS no servidor ou proxy. Em produção, o cookie de ses
 | `php artisan backup:executar [--base]` | Executa um backup agora |
 | `php artisan backup:listar` | Lista os pacotes no destino |
 | `php artisan backup:verificar` | Confere o último pacote |
-| `php artisan backup:restaurar [pacote] --confirmar` | Substitui o banco e os arquivos; põe o sistema em manutenção durante o processo |
+| `php artisan backup:restaurar [pacote] --confirmar` | Substitui o banco e os arquivos; mantém o sistema em manutenção até a conferência manual |
 | `php artisan backup:restaurar --extrair=/pasta` | Só extrai para conferência, sem alterar o sistema |
 
 **Perda total do servidor:**
@@ -359,7 +359,7 @@ Redirecione HTTP para HTTPS no servidor ou proxy. Em produção, o cookie de ses
 2. Coloque as linhas `BACKUP_*` da folha de recuperação no `.env`.
 3. Rode `migrate`, `backup:listar` e `backup:restaurar --confirmar`.
 
-Antes de restaurar, preserve uma cópia independente do banco e dos arquivos atuais e confira o pacote com `backup:restaurar --extrair=/pasta-privada`. A restauração prepara o banco e verifica toda a cadeia de arquivos antes de começar a substituir dados. Se a restauração falhar depois de ativar a manutenção, ela permanece ativa. Confirme a integridade do banco e dos arquivos antes de executar `php artisan up`.
+Antes de restaurar, preserve uma cópia independente do banco e dos arquivos atuais e confira o pacote com `backup:restaurar --extrair=/pasta-privada`. A restauração prepara o banco e verifica toda a cadeia de arquivos antes de começar a substituir dados. A manutenção permanece ativa após a restauração, inclusive em caso de falha. Use uma pasta privada vazia para extração de conferência. Confirme a integridade do banco e dos arquivos antes de executar `php artisan up`.
 
 **Validado de ponta a ponta** em MariaDB 10.11 com destino S3: base, incremental, exclusão de uma tabela inteira, restauração e conferência das 67 relações entre tabelas.
 

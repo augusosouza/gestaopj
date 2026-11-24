@@ -116,8 +116,8 @@ Artisan::command('backup:restaurar {pacote? : nome do pacote (padrão: o mais re
     }
     $r = $b->restaurar($this->argument('pacote'), $extrair);
     $this->info("Restaurado de {$r['pacote']}: {$r['arquivos']} arquivo(s) de {$r['pacotes_usados']} pacote(s)".($extrair ? " em {$extrair}" : '').'.');
-    if ($manutencao) {
-        return $this->call('up');
+    if (! $extrair) {
+        $this->warn('A manutenção permanece ativa. Confira o banco e os arquivos antes de executar php artisan up.');
     }
 
     return 0;

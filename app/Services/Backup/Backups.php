@@ -233,6 +233,27 @@ final class Backups
      */
     public function restaurar(?string $nome = null, ?string $extrairEm = null): array
     {
+        if ($extrairEm !== null) {
+            if (is_link($extrairEm) || (file_exists($extrairEm) && (! is_dir($extrairEm) || ! File::isEmptyDirectory($extrairEm)))) {
+                throw new RuntimeException('Escolha uma pasta de extração vazia, sem link simbólico.');
+            }
+
+            return $this->restaurarPonto($nome, $extrairEm);
+        }
+        $trava = Cache::lock('augi-backup', 6 * 3600);
+        if (! $trava->get()) {
+            throw new RuntimeException('Já existe um backup ou uma restauração em andamento.');
+        }
+
+        try {
+            return $this->restaurarPonto($nome, null);
+        } finally {
+            $trava->release();
+        }
+    }
+
+    private function restaurarPonto(?string $nome, ?string $extrairEm): array
+    {
         $nome ??= collect($this->remotos())->last() ?? throw new RuntimeException('Nenhum backup encontrado no destino.');
         $tmp = $this->tmp();
         try {
